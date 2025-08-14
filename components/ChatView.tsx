@@ -178,7 +178,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
                  if(isPython) {
                     result = await window.electronAPI.runPython(codeText);
                  } else { // isNode
-                    result = { stdout: '', stderr: 'Standalone Node.js execution is not supported. Please run in a project.'};
+                    result = await window.electronAPI.runNodejs(codeText);
                  }
             } else {
                 result = await window.electronAPI.runScriptInProject({ project: project!, code: codeText });
@@ -207,7 +207,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
       <div className="flex items-center justify-between px-4 py-1 bg-gray-200/50 dark:bg-gray-700/50 rounded-t-md text-xs">
         <span className="font-sans text-gray-500 dark:text-gray-400">{match[1]}</span>
         <div className="flex items-center gap-2">
-            {(isPython || (isNode && isElectron)) && (
+            {(isPython || isNode) && (
               <div className="flex items-center divide-x divide-gray-300 dark:divide-gray-600">
                 <div className="flex items-center gap-1 pr-2">
                     {canRunOrSaveNative && relevantProjects.length > 0 && (
@@ -223,9 +223,9 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
                     )}
                     <button
                         onClick={handleRun}
-                        disabled={runState.isLoading || (isNode && isElectron && selectedProjectId === 'standalone')}
+                        disabled={runState.isLoading || (isNode && !isElectron)}
                         className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded disabled:cursor-not-allowed disabled:text-gray-400 dark:disabled:text-gray-500"
-                        title={isNode && isElectron && selectedProjectId === 'standalone' ? 'Please select a project to run Node.js code' : ''}
+                        title={isNode && !isElectron ? 'Node.js execution is only available in the desktop app.' : 'Run code'}
                     >
                         <RunIcon className="w-3 h-3"/>
                         {runButtonText}
@@ -247,7 +247,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
                 </div>
               </div>
             )}
-            {!(isPython || (isNode && isElectron)) && (
+            {!(isPython || isNode) && (
                 <button 
                   onClick={handleCopy}
                   className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded"

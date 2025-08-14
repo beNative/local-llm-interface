@@ -1,3 +1,4 @@
+
 import { contextBridge, ipcRenderer } from 'electron';
 
 /**
@@ -30,6 +31,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @returns {Promise<{stdout: string, stderr: string}>} A promise that resolves with the output.
    */
   runPython: (code: string) => ipcRenderer.invoke('python:run', code),
+
+  /**
+   * Executes a Node.js code snippet in a native system process.
+   * @param {string} code - The Node.js code to execute.
+   * @returns {Promise<{stdout: string, stderr: string}>} A promise that resolves with the output.
+   */
+  runNodejs: (code: string) => ipcRenderer.invoke('nodejs:run', code),
 
   /**
    * Invokes the 'log:write' channel to write a log entry to a file.

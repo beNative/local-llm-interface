@@ -158,6 +158,43 @@ app.whenReady().then(() => {
         }
     });
 
+    ipcMain.handle('nodejs:run', async (_, code: string): Promise<{ stdout: string; stderr: string }> => {
+        const tempDir = os.tmpdir();
+        const tempFileName = `nodescript_${crypto.randomBytes(6).toString('hex')}.js`;
+        const tempFilePath = path.join(tempDir, tempFileName);
+
+        fs.writeFileSync(tempFilePath, code, 'utf-8');
+
+        try {
+            return await new Promise((resolve, reject) => {
+                const child = spawn('node', [tempFilePath]);
+                let stdout = '';
+                let stderr = '';
+
+                child.stdout.on('data', (data) => { stdout += data.toString(); });
+                child.stderr.on('data', (data) => { stderr += data.toString(); });
+
+                child.on('error', (error) => {
+                    console.error('Failed to start node subprocess.', error);
+                    reject(error);
+                });
+
+                child.on('close', (exitCode) => {
+                    console.log(`Node.js process exited with code ${exitCode}`);
+                    resolve({ stdout, stderr });
+                });
+            });
+        } catch(error) {
+            const errorMessage = `Failed to execute script: ${error instanceof Error ? error.message : String(error)}`;
+            console.error(errorMessage);
+            return { stdout: '', stderr: errorMessage };
+        } finally {
+            if (fs.existsSync(tempFilePath)) {
+                fs.unlinkSync(tempFilePath);
+            }
+        }
+    });
+
     // Project Management Handlers
     ipcMain.handle('dialog:select-directory', async () => {
         const { canceled, filePaths } = await dialog.showOpenDialog({

@@ -1,3 +1,4 @@
+
 import type { Config, LogEntry, CodeProject, ProjectType } from './types';
 
 export interface IElectronAPI {
@@ -5,6 +6,7 @@ export interface IElectronAPI {
   saveSettings: (settings: Config) => Promise<void>;
   isPackaged: () => Promise<boolean>;
   runPython: (code: string) => Promise<{ stdout: string; stderr: string }>;
+  runNodejs: (code: string) => Promise<{ stdout: string; stderr: string }>;
   writeLog: (entry: LogEntry) => Promise<void>;
 
   // Project Management APIs

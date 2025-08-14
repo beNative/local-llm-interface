@@ -138,7 +138,7 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
           <div key={i} className={`flex items-start gap-3 py-1 px-2 rounded hover:bg-black/5 dark:hover:bg-white/5`}>
             <span className="flex-shrink-0 text-gray-500">{log.timestamp.toLocaleTimeString()}</span>
             <span className={`flex-shrink-0 font-bold w-16 ${levelClasses[log.level].text}`}>[{log.level}]</span>
-            <pre className="whitespace-pre-wrap break-words text-gray-800 dark:text-gray-200">{log.message}</pre>
+            <pre className={`whitespace-pre-wrap break-words ${levelClasses[log.level].text}`}>{log.message}</pre>
           </div>
         ))}
       </div>
