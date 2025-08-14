@@ -14,6 +14,7 @@ export interface IElectronAPI {
   createProject: (args: { projectType: ProjectType; name: string; basePath: string }) => Promise<CodeProject>;
   deleteProject: (projectPath: string) => Promise<void>;
   openProjectFolder: (folderPath: string) => Promise<void>;
+  openWebApp: (projectPath: string) => Promise<void>;
   installProjectDeps: (project: CodeProject) => Promise<{ stdout: string; stderr: string }>;
   runScriptInProject: (args: { project: CodeProject; code: string }) => Promise<{ stdout: string; stderr: string }>;
 

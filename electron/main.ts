@@ -131,7 +131,7 @@ app.whenReady().then(() => {
 
         try {
             return await new Promise((resolve, reject) => {
-                const child = spawn('python', [tempFilePath]);
+                const child = spawn('python', [tempFilePath], { shell: os.platform() === 'win32' });
                 let stdout = '';
                 let stderr = '';
 
@@ -168,7 +168,7 @@ app.whenReady().then(() => {
 
         try {
             return await new Promise((resolve, reject) => {
-                const child = spawn('node', [tempFilePath]);
+                const child = spawn('node', [tempFilePath], { shell: os.platform() === 'win32' });
                 let stdout = '';
                 let stderr = '';
 
@@ -207,7 +207,7 @@ app.whenReady().then(() => {
         return null;
     });
 
-    ipcMain.handle('project:create', async (_, { projectType, name, basePath }: { projectType: 'python' | 'nodejs', name: string, basePath: string }) => {
+    ipcMain.handle('project:create', async (_, { projectType, name, basePath }: { projectType: 'python' | 'nodejs' | 'webapp', name: string, basePath: string }) => {
         const projectPath = path.join(basePath, name);
         if (fs.existsSync(projectPath)) {
             throw new Error(`Project directory already exists: ${projectPath}`);
@@ -222,6 +222,18 @@ app.whenReady().then(() => {
             } else if (projectType === 'nodejs') {
                 const { stderr } = await runCommand('npm', ['init', '-y'], projectPath);
                 if (stderr) throw new Error(stderr);
+            } else if (projectType === 'webapp') {
+                 fs.writeFileSync(path.join(projectPath, 'index.html'), `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${name}</title>
+</head>
+<body>
+    <h1>Welcome to ${name}</h1>
+</body>
+</html>`);
             }
         } catch (e: any) {
             // Clean up created directory on failure
@@ -247,6 +259,24 @@ app.whenReady().then(() => {
 
     ipcMain.handle('project:open-folder', async (_, folderPath: string) => {
         shell.openPath(folderPath);
+    });
+    
+    const isPathInAllowedBase = (filePath: string) => {
+        const settings = readSettings() as any;
+        if (!settings) return false;
+        const allowedBasePaths = [settings.pythonProjectsPath, settings.nodejsProjectsPath, settings.webAppsPath].filter(Boolean);
+        // Normalize paths to handle different OS path separators
+        const normalizedFilePath = path.normalize(filePath);
+        return allowedBasePaths.some(base => normalizedFilePath.startsWith(path.normalize(base) + path.sep));
+    };
+    
+    ipcMain.handle('project:open-webapp', async (_, projectPath: string) => {
+        const indexPath = path.join(projectPath, 'index.html');
+        if (isPathInAllowedBase(projectPath) && fs.existsSync(indexPath)) {
+            shell.openPath(indexPath);
+        } else {
+            throw new Error(`index.html not found in project or path is not allowed: ${projectPath}`);
+        }
     });
 
     ipcMain.handle('project:install-deps', async (_, project: { type: 'python' | 'nodejs', path: string }) => {
@@ -287,12 +317,6 @@ app.whenReady().then(() => {
     });
 
     // File System Handlers for Project Viewer
-    const isPathInAllowedBase = (filePath: string) => {
-        const settings = readSettings();
-        const allowedBasePaths = [settings?.pythonProjectsPath, settings?.nodejsProjectsPath].filter(Boolean);
-        return allowedBasePaths.some(base => filePath.startsWith(base + path.sep));
-    };
-
     ipcMain.handle('project:read-dir', async (_, dirPath: string) => {
         if (!isPathInAllowedBase(dirPath)) throw new Error('Access denied to path.');
         

@@ -4,6 +4,7 @@ import type { Config, CodeProject, ProjectType, FileSystemEntry } from '../types
 import CodeIcon from './icons/CodeIcon';
 import FolderOpenIcon from './icons/FolderOpenIcon';
 import TrashIcon from './icons/TrashIcon';
+import GlobeIcon from './icons/GlobeIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
 import FileTree from './FileTree';
 import { logger } from '../services/logger';
@@ -90,11 +91,17 @@ const ProjectCard: React.FC<{
     onDelete: () => void;
     onInstall: () => void;
     onOpen: () => void;
+    onOpenWebApp: () => void;
     isBusy: boolean;
     isExpanded: boolean;
     onToggleExpand: () => void;
     onFileClick: (file: FileSystemEntry) => void;
-}> = ({ project, onDelete, onInstall, onOpen, isBusy, isExpanded, onToggleExpand, onFileClick }) => {
+}> = ({ project, onDelete, onInstall, onOpen, onOpenWebApp, isBusy, isExpanded, onToggleExpand, onFileClick }) => {
+    
+    const typeColor = project.type === 'python' ? 'text-blue-500' 
+                    : project.type === 'nodejs' ? 'text-green-500'
+                    : 'text-purple-500';
+    
     return (
         <div className="bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex flex-col">
             <div className="p-4">
@@ -102,7 +109,7 @@ const ProjectCard: React.FC<{
                     className="flex items-center gap-3 mb-2 cursor-pointer"
                     onClick={onToggleExpand}
                 >
-                    <CodeIcon className={`w-6 h-6 ${project.type === 'python' ? 'text-blue-500' : 'text-green-500'}`} />
+                    <CodeIcon className={`w-6 h-6 ${typeColor}`} />
                     <h4 className="text-lg font-semibold text-gray-900 dark:text-white truncate">{project.name}</h4>
                     <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
                         {project.type}
@@ -111,9 +118,17 @@ const ProjectCard: React.FC<{
                 <p className="text-xs text-gray-500 dark:text-gray-400 font-mono break-all">{project.path}</p>
             
                 <div className="flex items-center gap-2 mt-4">
-                    <button onClick={onInstall} disabled={isBusy} className="flex-1 text-sm px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-wait">
-                        {isBusy ? 'Working...' : 'Install Deps'}
-                    </button>
+                    {project.type === 'webapp' ? (
+                         <button onClick={onOpenWebApp} disabled={isBusy} className="flex-1 text-sm px-3 py-1.5 rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:bg-purple-400 disabled:cursor-wait flex items-center justify-center gap-2">
+                            <GlobeIcon className="w-4 h-4" />
+                            {isBusy ? 'Working...' : 'Open in Browser'}
+                        </button>
+                    ) : (
+                         <button onClick={onInstall} disabled={isBusy} className="flex-1 text-sm px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-wait">
+                            {isBusy ? 'Working...' : 'Install Deps'}
+                        </button>
+                    )}
+                   
                     <button onClick={onOpen} disabled={isBusy} className="p-2 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50" title="Open folder">
                         <FolderOpenIcon className="w-4 h-4"/>
                     </button>
@@ -198,13 +213,17 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
     const handleSetPath = async (type: ProjectType) => {
         const path = await window.electronAPI?.selectDirectory();
         if (path) {
-            const key = type === 'python' ? 'pythonProjectsPath' : 'nodejsProjectsPath';
+            const key = type === 'python' ? 'pythonProjectsPath' 
+                      : type === 'nodejs' ? 'nodejsProjectsPath'
+                      : 'webAppsPath';
             onConfigChange({...config, [key]: path});
         }
     };
 
     const handleCreateProject = async (projectType: ProjectType, name: string) => {
-        const basePath = projectType === 'python' ? config.pythonProjectsPath : config.nodejsProjectsPath;
+        const basePath = projectType === 'python' ? config.pythonProjectsPath 
+                       : projectType === 'nodejs' ? config.nodejsProjectsPath
+                       : config.webAppsPath;
         if (!basePath) return;
 
         setProjectBusy('new_project', true);
@@ -258,6 +277,10 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
         window.electronAPI?.openProjectFolder(project.path);
     };
 
+    const handleOpenWebApp = (project: CodeProject) => {
+        window.electronAPI?.openWebApp(project.path);
+    };
+
     const handleToggleExpand = (projectId: string) => {
         setExpandedProjectId(current => current === projectId ? null : projectId);
     };
@@ -267,8 +290,12 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
     };
     
     const renderProjectSection = (type: ProjectType) => {
-        const title = type === 'python' ? 'Python Projects' : 'Node.js Projects';
-        const path = type === 'python' ? config.pythonProjectsPath : config.nodejsProjectsPath;
+        const title = type === 'python' ? 'Python Projects' 
+                    : type === 'nodejs' ? 'Node.js Projects' 
+                    : 'Web App Projects';
+        const path = type === 'python' ? config.pythonProjectsPath 
+                   : type === 'nodejs' ? config.nodejsProjectsPath 
+                   : config.webAppsPath;
         const projects = config.projects?.filter(p => p.type === type) || [];
         
         return (
@@ -302,6 +329,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
                                 onDelete={() => handleDeleteProject(p)}
                                 onInstall={() => handleInstallDeps(p)}
                                 onOpen={() => handleOpenFolder(p)}
+                                onOpenWebApp={() => handleOpenWebApp(p)}
                                 isExpanded={expandedProjectId === p.id}
                                 onToggleExpand={() => handleToggleExpand(p.id)}
                                 onFileClick={handleFileClick}
@@ -330,6 +358,10 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
         
         <div className="mt-8 space-y-8 bg-gray-50 dark:bg-gray-800/50 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
             {renderProjectSection('nodejs')}
+        </div>
+
+        <div className="mt-8 space-y-8 bg-gray-50 dark:bg-gray-800/50 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
+            {renderProjectSection('webapp')}
         </div>
       </div>
     </div>

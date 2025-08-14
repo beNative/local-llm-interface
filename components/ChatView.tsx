@@ -14,6 +14,13 @@ import TerminalIcon from './icons/TerminalIcon';
 import { runPythonCode } from '../services/pyodideService';
 import { logger } from '../services/logger';
 
+const getProjectTypeForLang = (lang: string): ProjectType | null => {
+    if (lang === 'python') return 'python';
+    if (['javascript', 'js', 'nodejs'].includes(lang)) return 'nodejs';
+    if (['html', 'html5'].includes(lang)) return 'webapp';
+    return null;
+}
+
 interface SaveModalProps {
     code: string;
     lang: string;
@@ -22,7 +29,8 @@ interface SaveModalProps {
 }
 
 const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, onClose }) => {
-    const relevantProjects = projects.filter(p => p.type === (lang === 'python' ? 'python' : 'nodejs'));
+    const projectType = getProjectTypeForLang(lang);
+    const relevantProjects = projectType ? projects.filter(p => p.type === projectType) : [];
     const [selectedProjectId, setSelectedProjectId] = useState<string>(relevantProjects[0]?.id || '');
     const [filename, setFilename] = useState('');
     const [isSaving, setIsSaving] = useState(false);
@@ -32,12 +40,13 @@ const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, on
     useEffect(() => {
         // Auto-detect filename from comment
         const firstLine = code.split('\n')[0];
-        const match = /#\s*filename:\s*(\S+)|^\/\/\s*filename:\s*(\S+)/.exec(firstLine);
+        const match = /#\s*filename:\s*(\S+)|^\/\/\s*filename:\s*(\S+)|<!--\s*filename:\s*(\S+)\s*-->/.exec(firstLine);
         if (match) {
-            setFilename(match[1] || match[2] || '');
+            setFilename(match[1] || match[2] || match[3] || '');
         } else {
-            const extension = lang === 'python' ? 'py' : 'js';
-            setFilename(`script-${new Date().toISOString().slice(0,10)}.${extension}`);
+            const extension = lang === 'python' ? 'py' : lang === 'html' ? 'html' : 'js';
+            const defaultName = extension === 'html' ? 'index' : `script-${new Date().toISOString().slice(0,10)}`;
+            setFilename(`${defaultName}.${extension}`);
         }
     }, [code, lang]);
 
@@ -174,12 +183,14 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
   const lang = match ? match[1].toLowerCase() : '';
   const isPython = lang === 'python';
   const isNode = ['javascript', 'js', 'nodejs'].includes(lang);
+  const isWebApp = ['html', 'html5'].includes(lang);
   
   const codeText = String(children).replace(/\n$/, '');
   const syntaxTheme = theme === 'dark' ? atomDark : coy;
   
-  const canRunOrSaveNative = (isPython || isNode) && isElectron;
-  const relevantProjects = projects.filter(p => p.type === (isPython ? 'python' : 'nodejs'));
+  const projectType = getProjectTypeForLang(lang);
+  const canRunOrSaveNative = isElectron && projectType;
+  const relevantProjects = projectType ? projects.filter((p: CodeProject) => p.type === projectType) : [];
 
   const handleCopy = () => {
     navigator.clipboard.writeText(codeText);
@@ -231,18 +242,19 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
     }
   };
   
-  const RunIcon = canRunOrSaveNative ? TerminalIcon : PlayIcon;
+  const RunIcon = (isPython || isNode) && isElectron ? TerminalIcon : PlayIcon;
   const runButtonText = runState.isLoading ? 'Running...' : 'Run';
+  const canRunCode = isPython || (isNode && isElectron);
 
   return !inline && match ? (
     <div className="relative bg-gray-100 dark:bg-gray-800 my-2 rounded-md border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between px-4 py-1 bg-gray-200/50 dark:bg-gray-700/50 rounded-t-md text-xs">
         <span className="font-sans text-gray-500 dark:text-gray-400">{match[1]}</span>
         <div className="flex items-center gap-2">
-            {(isPython || isNode) && (
+            {(canRunCode || canRunOrSaveNative) && (
               <div className="flex items-center divide-x divide-gray-300 dark:divide-gray-600">
                 <div className="flex items-center gap-1 pr-2">
-                    {canRunOrSaveNative && relevantProjects.length > 0 && (
+                    {isElectron && (isPython || isNode) && relevantProjects.length > 0 && (
                         <select 
                             value={selectedProjectId} 
                             onChange={e => setSelectedProjectId(e.target.value)}
@@ -253,15 +265,17 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
                             {relevantProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                     )}
-                    <button
-                        onClick={handleRun}
-                        disabled={runState.isLoading || (isNode && !isElectron)}
-                        className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded disabled:cursor-not-allowed disabled:text-gray-400 dark:disabled:text-gray-500"
-                        title={isNode && !isElectron ? 'Node.js execution is only available in the desktop app.' : 'Run code'}
-                    >
-                        <RunIcon className="w-3 h-3"/>
-                        {runButtonText}
-                    </button>
+                    {canRunCode && (
+                        <button
+                            onClick={handleRun}
+                            disabled={runState.isLoading}
+                            className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded disabled:cursor-not-allowed disabled:text-gray-400 dark:disabled:text-gray-500"
+                            title="Run code"
+                        >
+                            <RunIcon className="w-3 h-3"/>
+                            {runButtonText}
+                        </button>
+                    )}
                 </div>
                 <div className="pl-2 flex items-center gap-2">
                     {canRunOrSaveNative && relevantProjects.length > 0 && (
@@ -279,7 +293,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
                 </div>
               </div>
             )}
-            {!(isPython || isNode) && (
+            {!(canRunCode || canRunOrSaveNative) && (
                 <button 
                   onClick={handleCopy}
                   className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded"

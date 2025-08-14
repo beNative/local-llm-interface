@@ -51,6 +51,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createProject: (args: any) => ipcRenderer.invoke('project:create', args),
   deleteProject: (projectPath: string) => ipcRenderer.invoke('project:delete', projectPath),
   openProjectFolder: (folderPath: string) => ipcRenderer.invoke('project:open-folder', folderPath),
+  openWebApp: (projectPath: string) => ipcRenderer.invoke('project:open-webapp', projectPath),
   installProjectDeps: (project: any) => ipcRenderer.invoke('project:install-deps', project),
   runScriptInProject: (args: any) => ipcRenderer.invoke('project:run-script', args),
 

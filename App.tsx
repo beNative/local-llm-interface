@@ -46,6 +46,7 @@ const App: React.FC = () => {
     logToFile: false,
     pythonProjectsPath: '',
     nodejsProjectsPath: '',
+    webAppsPath: '',
     projects: [],
   });
   const [models, setModels] = useState<Model[]>([]);
@@ -71,6 +72,7 @@ const App: React.FC = () => {
         logToFile: false,
         pythonProjectsPath: '',
         nodejsProjectsPath: '',
+        webAppsPath: '',
         projects: [],
       };
       
@@ -131,12 +133,14 @@ const App: React.FC = () => {
 
   const handleConfigChange = (newConfig: Config) => {
     logger.info('Configuration change requested.');
-    logger.debug(`New config: ${JSON.stringify(newConfig)}`);
     
-    const needsModelReload = newConfig.baseUrl !== config.baseUrl || newConfig.provider !== config.provider;
+    const configWithTheme = { ...newConfig, theme: config.theme };
+    logger.debug(`New config: ${JSON.stringify(configWithTheme)}`);
+
+    const needsModelReload = configWithTheme.baseUrl !== config.baseUrl || configWithTheme.provider !== config.provider;
     
-    setConfig(newConfig);
-    logger.setConfig({ logToFile: newConfig.logToFile });
+    setConfig(configWithTheme);
+    logger.setConfig({ logToFile: configWithTheme.logToFile });
     
     if (needsModelReload) {
       logger.info('Provider or Base URL changed, resetting to model selection.');
@@ -148,6 +152,7 @@ const App: React.FC = () => {
 
   const handleThemeToggle = () => {
       setConfig(currentConfig => {
+        if (!currentConfig.baseUrl) return currentConfig; // Prevent update on initial empty config
         const newTheme = currentConfig.theme === 'light' ? 'dark' : 'light';
         logger.info(`Theme toggled to ${newTheme}.`);
         return { ...currentConfig, theme: newTheme };
