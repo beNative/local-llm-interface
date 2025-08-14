@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import ReactDOM from 'react-dom';
 import type { Config, LLMProvider } from '../types';
 import { PROVIDER_CONFIGS } from '../constants';
 import SettingsIcon from './icons/SettingsIcon';
-import OllamaIcon from './icons/OllamaIcon';
-import LMStudioIcon from './icons/LMStudioIcon';
 
 interface SettingsPanelProps {
   config: Config;
@@ -15,7 +12,6 @@ interface SettingsPanelProps {
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, isConnecting, isElectron }) => {
   const [localConfig, setLocalConfig] = useState<Config>(config);
-  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     setLocalConfig(config);
@@ -40,43 +36,25 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
 
   const handleSave = () => {
     onConfigChange(localConfig);
-    setIsOpen(false);
   };
   
-  const getProviderIcon = (provider: LLMProvider) => {
-    switch (provider) {
-      case 'Ollama':
-        return <OllamaIcon className="w-5 h-5" />;
-      case 'LMStudio':
-        return <LMStudioIcon className="w-5 h-5" />;
-      default:
-        return <SettingsIcon className="w-5 h-5" />;
-    }
-  };
-
   const providerDescriptions: Record<LLMProvider, string> = {
     Ollama: 'Connect to a running Ollama instance. The default URL is usually correct.',
     LMStudio: 'Connect to the local server in LM Studio. Find the URL in the Server tab.',
     Custom: 'For any other OpenAI-compatible API endpoint.'
   };
 
-  const modalContent = (
-    <div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60"
-      onClick={() => setIsOpen(false)}
-    >
-      <div 
-        className="w-full max-w-md p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="flex items-center gap-3 text-2xl font-bold text-gray-900 dark:text-white mb-6">
+  return (
+    <div className="p-4 sm:p-6 h-full overflow-y-auto bg-white dark:bg-gray-900">
+      <div className="max-w-2xl mx-auto">
+        <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900 dark:text-white mb-8">
           <SettingsIcon className="w-8 h-8"/>
           Settings
-        </h2>
+        </h1>
         
-        <div className="space-y-6">
+        <div className="space-y-8 bg-gray-50 dark:bg-gray-800/50 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
           <div>
-            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">Connection</h3>
+            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4 border-b border-gray-200 dark:border-gray-700 pb-3">Connection</h3>
             <div className="space-y-4">
                 <div>
                     <label htmlFor="provider" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
@@ -114,7 +92,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
             
           {isElectron && (
             <div>
-                 <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">Advanced</h3>
+                 <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4 border-b border-gray-200 dark:border-gray-700 pb-3">Advanced</h3>
                 <label className="flex items-center gap-3 cursor-pointer">
                     <input
                         type="checkbox"
@@ -134,38 +112,16 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
         </div>
 
         <div className="flex justify-end gap-3 mt-8">
-           <button
-            onClick={() => setIsOpen(false)}
-            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 focus:outline-none"
-          >
-            Cancel
-          </button>
           <button
             onClick={handleSave}
             disabled={isConnecting}
-            className="flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-blue-500 disabled:bg-blue-400 dark:disabled:bg-blue-800 disabled:cursor-not-allowed"
+            className="flex items-center justify-center px-6 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 focus:ring-blue-500 disabled:bg-blue-400 dark:disabled:bg-blue-800 disabled:cursor-not-allowed"
           >
-            {isConnecting ? 'Connecting...' : 'Save & Refresh'}
+            {isConnecting ? 'Connecting...' : 'Save & Refresh Connection'}
           </button>
         </div>
       </div>
     </div>
-  );
-
-  return (
-    <>
-      <button
-        onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200/50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-300/80 dark:hover:bg-gray-600/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-blue-500"
-        aria-haspopup="dialog"
-        aria-expanded={isOpen}
-      >
-        {getProviderIcon(config.provider)}
-        <span>{config.provider}</span>
-      </button>
-
-      {isOpen && ReactDOM.createPortal(modalContent, document.body)}
-    </>
   );
 };
 

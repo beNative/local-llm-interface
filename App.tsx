@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import type { Config, Model, ChatMessage } from './types';
+import type { Config, Model, ChatMessage, Theme } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT } from './constants';
 import { fetchModels, streamChatCompletion, LLMServiceError } from './services/llmService';
 import { logger } from './services/logger';
@@ -10,9 +10,30 @@ import ThemeSwitcher from './components/ThemeSwitcher';
 import LoggingPanel from './components/LoggingPanel';
 import InfoView from './components/InfoView';
 import FileTextIcon from './components/icons/FileTextIcon';
+import SettingsIcon from './components/icons/SettingsIcon';
 import InfoIcon from './components/icons/InfoIcon';
+import MessageSquareIcon from './components/icons/MessageSquareIcon';
 
-type View = 'models' | 'chat' | 'info';
+type View = 'chat' | 'settings' | 'info';
+
+const NavButton: React.FC<{
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  ariaLabel: string;
+}> = ({ active, onClick, children, ariaLabel }) => (
+  <button 
+    onClick={onClick} 
+    aria-label={ariaLabel}
+    className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+    active 
+      ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white' 
+      : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-gray-700/50'
+  }`}>
+    {children}
+  </button>
+);
+
 
 const App: React.FC = () => {
   const [config, setConfig] = useState<Config>({ 
@@ -25,7 +46,7 @@ const App: React.FC = () => {
   const [isLoadingModels, setIsLoadingModels] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [view, setView] = useState<View>('models');
+  const [view, setView] = useState<View>('chat');
   const [currentChatModelId, setCurrentChatModelId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isResponding, setIsResponding] = useState<boolean>(false);
@@ -90,6 +111,7 @@ const App: React.FC = () => {
   const handleConfigChange = async (newConfig: Config) => {
     logger.info('Configuration change requested.');
     logger.debug(`New config: ${JSON.stringify(newConfig)}`);
+    const needsModelReload = newConfig.baseUrl !== config.baseUrl || newConfig.provider !== config.provider;
     setConfig(newConfig);
     logger.setConfig({ logToFile: newConfig.logToFile });
     
@@ -100,11 +122,12 @@ const App: React.FC = () => {
       localStorage.setItem('llm_config', JSON.stringify(newConfig));
       logger.info('Settings saved to localStorage.');
     }
-    if (newConfig.baseUrl !== config.baseUrl || newConfig.provider !== config.provider) {
+    
+    if (needsModelReload) {
       logger.info('Provider or Base URL changed, resetting to model selection.');
-      setView('models');
       setCurrentChatModelId(null); 
       setMessages([]);
+      setView('chat');
     }
   };
 
@@ -149,10 +172,11 @@ const App: React.FC = () => {
   }, [config.baseUrl]);
 
   useEffect(() => {
-    if (view === 'models') {
+    // Load models if we are on the chat tab and no model is selected yet.
+    if (view === 'chat' && !currentChatModelId) {
       loadModels();
     }
-  }, [view, loadModels]);
+  }, [view, currentChatModelId, loadModels]);
 
   const handleSelectModel = (modelId: string) => {
     logger.info(`Model selected: ${modelId}`);
@@ -165,7 +189,7 @@ const App: React.FC = () => {
     logger.info('Returning to model selection screen.');
     setCurrentChatModelId(null);
     setMessages([]);
-    setView('models');
+    setView('chat');
   };
 
   const handleSendMessage = async (userInput: string) => {
@@ -208,28 +232,32 @@ const App: React.FC = () => {
   
   const renderContent = () => {
     switch(view) {
-        case 'chat':
-            if (!currentChatModelId) {
-                setView('models'); // Should not happen, but as a fallback
-                return null;
-            }
-            return (
-                <ChatView
-                    modelId={currentChatModelId}
-                    messages={messages.filter(m => m.role !== 'system')}
-                    onSendMessage={handleSendMessage}
-                    isResponding={isResponding}
-                    onBack={handleBackToSelection}
-                    theme={config.theme || 'dark'}
-                    isElectron={isElectron}
-                />
-            );
+        case 'settings':
+            return <SettingsPanel 
+                config={config} 
+                onConfigChange={handleConfigChange} 
+                isConnecting={isLoadingModels}
+                isElectron={isElectron}
+              />;
         case 'info':
-            return <InfoView onBack={() => setView('models')} />;
-        case 'models':
+            return <InfoView />;
+        case 'chat':
         default:
+             if (currentChatModelId) {
+                 return (
+                    <ChatView
+                        modelId={currentChatModelId}
+                        messages={messages.filter(m => m.role !== 'system')}
+                        onSendMessage={handleSendMessage}
+                        isResponding={isResponding}
+                        onBack={handleBackToSelection}
+                        theme={config.theme || 'dark'}
+                        isElectron={isElectron}
+                    />
+                );
+             }
              return (
-                <div className="h-full overflow-y-auto">
+                <div className="h-full overflow-y-auto bg-white dark:bg-gray-900">
                     <ModelSelector
                         models={models}
                         onSelectModel={handleSelectModel}
@@ -243,22 +271,26 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen font-sans">
-      <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/50 backdrop-blur-sm sticky top-0 z-10">
-        <h1 className="text-xl font-bold">{APP_NAME}</h1>
-        <div className="flex items-center gap-2">
-          <SettingsPanel 
-            config={config} 
-            onConfigChange={handleConfigChange} 
-            isConnecting={isLoadingModels}
-            isElectron={isElectron}
-          />
-          <button
-            onClick={() => setView('info')}
-            className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-blue-500"
-            aria-label="Show info"
-            >
-             <InfoIcon className="w-5 h-5" />
-            </button>
+      <header className="flex items-center justify-between p-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/50 backdrop-blur-sm sticky top-0 z-10">
+        <div className="flex items-center gap-4">
+            <h1 className="text-xl font-bold px-2">{APP_NAME}</h1>
+            <nav className="flex items-center gap-1 bg-gray-200/50 dark:bg-gray-700/50 p-1 rounded-lg">
+              <NavButton active={view === 'chat'} onClick={() => setView('chat')} ariaLabel="Chat View">
+                <MessageSquareIcon className="w-4 h-4" />
+                <span>Chat</span>
+              </NavButton>
+              <NavButton active={view === 'settings'} onClick={() => setView('settings')} ariaLabel="Settings View">
+                 <SettingsIcon className="w-4 h-4" />
+                <span>Settings</span>
+              </NavButton>
+              <NavButton active={view === 'info'} onClick={() => setView('info')} ariaLabel="Info View">
+                <InfoIcon className="w-4 h-4" />
+                <span>Info</span>
+              </NavButton>
+            </nav>
+        </div>
+
+        <div className="flex items-center gap-2 pr-2">
            <button
             onClick={() => setIsLogPanelVisible(!isLogPanelVisible)}
             className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-blue-500"
