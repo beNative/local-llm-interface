@@ -15,6 +15,10 @@ async function build() {
   // Copy index.html to the output directory
   await fs.copy(path.join(appDir, 'index.html'), path.join(outDir, 'index.html'));
 
+  // Copy Pyodide assets
+  const pyodidePackagePath = path.dirname(require.resolve('pyodide/package.json'));
+  await fs.copy(pyodidePackagePath, path.join(outDir, 'pyodide'));
+
   // Build main process
   await esbuild.build({
     entryPoints: [path.join(appDir, 'electron/main.ts')],

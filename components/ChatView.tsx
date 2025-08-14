@@ -8,6 +8,8 @@ import type { ChatMessage, Theme } from '../types';
 import SendIcon from './icons/SendIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
 import ModelIcon from './icons/ModelIcon';
+import PlayIcon from './icons/PlayIcon';
+import { runPythonCode } from '../services/pyodideService';
 
 interface ChatViewProps {
   modelId: string;
@@ -20,9 +22,20 @@ interface ChatViewProps {
 
 const CodeBlock = ({ node, inline, className, children, theme }: any) => {
   const [isCopied, setIsCopied] = useState(false);
+  const [pyodideState, setPyodideState] = useState<{
+    isLoading: boolean;
+    output: string | null;
+    error: string | null;
+  }>({
+    isLoading: false,
+    output: null,
+    error: null,
+  });
+
   const match = /language-(\w+)/.exec(className || '');
   const codeText = String(children).replace(/\n$/, '');
   const syntaxTheme = theme === 'dark' ? atomDark : coy;
+  const isPython = match && match[1].toLowerCase() === 'python';
 
   const handleCopy = () => {
     navigator.clipboard.writeText(codeText);
@@ -30,25 +43,56 @@ const CodeBlock = ({ node, inline, className, children, theme }: any) => {
     setTimeout(() => setIsCopied(false), 2000);
   };
   
+  const handleRunPython = async () => {
+    setPyodideState({ isLoading: true, output: null, error: null });
+    const { result, error } = await runPythonCode(codeText);
+    setPyodideState({ isLoading: false, output: result, error: error });
+  };
+  
+  const runButtonText = pyodideState.isLoading ? 'Loading...' : 'Run';
+
   return !inline && match ? (
     <div className="relative bg-gray-100 dark:bg-gray-800 my-2 rounded-md border border-gray-200 dark:border-gray-700">
-      <div className="flex items-center justify-between px-4 py-1 bg-gray-200/50 dark:bg-gray-700/50 rounded-t-md">
-        <span className="text-xs font-sans text-gray-500 dark:text-gray-400">{match[1]}</span>
-        <button 
-          onClick={handleCopy}
-          className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded"
-        >
-          {isCopied ? 'Copied!' : 'Copy code'}
-        </button>
+      <div className="flex items-center justify-between px-4 py-1 bg-gray-200/50 dark:bg-gray-700/50 rounded-t-md text-xs">
+        <span className="font-sans text-gray-500 dark:text-gray-400">{match[1]}</span>
+        <div className="flex items-center gap-2">
+            {isPython && (
+              <button
+                onClick={handleRunPython}
+                disabled={pyodideState.isLoading}
+                className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded disabled:cursor-wait disabled:text-gray-400 dark:disabled:text-gray-500"
+              >
+                  <PlayIcon className="w-3 h-3"/>
+                  {runButtonText}
+              </button>
+            )}
+            <button 
+              onClick={handleCopy}
+              className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded"
+            >
+              {isCopied ? 'Copied!' : 'Copy code'}
+            </button>
+        </div>
       </div>
       <SyntaxHighlighter
         style={syntaxTheme}
         language={match[1]}
         PreTag="div"
-        customStyle={{ margin: 0, padding: '1rem', background: 'transparent' }}
+        customStyle={{ margin: 0, padding: '1rem', background: 'transparent', overflowX: 'auto' }}
       >
         {codeText}
       </SyntaxHighlighter>
+      {(pyodideState.output || pyodideState.error) && (
+        <div className="border-t border-gray-200 dark:border-gray-700 p-4 font-mono text-xs">
+           <h4 className="text-gray-500 dark:text-gray-400 font-sans font-semibold text-sm mb-2">Output</h4>
+           {pyodideState.output && (
+             <pre className="whitespace-pre-wrap text-gray-800 dark:text-gray-200">{pyodideState.output}</pre>
+           )}
+           {pyodideState.error && (
+             <pre className="whitespace-pre-wrap text-red-600 dark:text-red-400">{pyodideState.error}</pre>
+           )}
+        </div>
+      )}
     </div>
   ) : (
     <code className="px-1.5 py-1 bg-blue-100 dark:bg-gray-600/50 text-blue-800 dark:text-blue-300 rounded-md text-sm font-mono">

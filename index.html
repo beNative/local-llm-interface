@@ -4,23 +4,24 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Local LLM Interface</title>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:* http://127.0.0.1:*; img-src 'self' data:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; img-src 'self' data:;">
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
-  <script type="importmap">
+<script type="importmap">
 {
   "imports": {
+    "react": "https://esm.sh/react@^19.1.1",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
+    "react/": "https://esm.sh/react@^19.1.1/",
+    "react-dom": "https://esm.sh/react-dom@^19.1.1",
+    "react-markdown": "https://esm.sh/react-markdown@^10.1.0",
+    "react-syntax-highlighter": "https://esm.sh/react-syntax-highlighter@^15.6.1",
+    "react-syntax-highlighter/": "https://esm.sh/react-syntax-highlighter@^15.6.1/",
+    "remark-gfm": "https://esm.sh/remark-gfm@^4.0.1",
     "electron": "https://esm.sh/electron@^37.2.6",
     "path": "https://esm.sh/path@^0.12.7",
     "fs": "https://esm.sh/fs@^0.0.1-security",
     "os": "https://esm.sh/os@^0.1.2",
-    "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
-    "react/": "https://esm.sh/react@^19.1.1/",
-    "react": "https://esm.sh/react@^19.1.1",
-    "react-dom": "https://esm.sh/react-dom@^19.1.1",
-    "react-syntax-highlighter/": "https://esm.sh/react-syntax-highlighter@^15.6.1/",
-    "react-syntax-highlighter": "https://esm.sh/react-syntax-highlighter@^15.6.1",
-    "remark-gfm": "https://esm.sh/remark-gfm@^4.0.1",
-    "react-markdown": "https://esm.sh/react-markdown@^10.1.0"
+    "pyodide": "https://esm.sh/pyodide@^0.28.1"
   }
 }
 </script>
