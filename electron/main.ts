@@ -3,6 +3,9 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
+import { spawn } from 'child_process';
+import * as crypto from 'crypto';
+
 
 // The path where user settings will be stored.
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
@@ -67,6 +70,48 @@ app.whenReady().then(() => {
     // Set up IPC listeners for the renderer process
     ipcMain.handle('settings:get', readSettings);
     ipcMain.handle('settings:save', (_, settings) => saveSettings(settings));
+
+    ipcMain.handle('app:is-packaged', () => {
+        return app.isPackaged;
+    });
+
+    ipcMain.handle('python:run', async (_, code: string): Promise<{ stdout: string; stderr: string }> => {
+        const tempDir = os.tmpdir();
+        const tempFileName = `pyscript_${crypto.randomBytes(6).toString('hex')}.py`;
+        const tempFilePath = path.join(tempDir, tempFileName);
+
+        fs.writeFileSync(tempFilePath, code, 'utf-8');
+
+        try {
+            return await new Promise((resolve, reject) => {
+                const child = spawn('python', [tempFilePath]);
+                let stdout = '';
+                let stderr = '';
+
+                child.stdout.on('data', (data) => { stdout += data.toString(); });
+                child.stderr.on('data', (data) => { stderr += data.toString(); });
+
+                child.on('error', (error) => {
+                    console.error('Failed to start python subprocess.', error);
+                    reject(error);
+                });
+
+                child.on('close', (exitCode) => {
+                    console.log(`Python process exited with code ${exitCode}`);
+                    resolve({ stdout, stderr });
+                });
+            });
+        } catch(error) {
+            const errorMessage = `Failed to execute script: ${error instanceof Error ? error.message : String(error)}`;
+            console.error(errorMessage);
+            return { stdout: '', stderr: errorMessage };
+        } finally {
+            if (fs.existsSync(tempFilePath)) {
+                fs.unlinkSync(tempFilePath);
+            }
+        }
+    });
+
 
     createWindow();
 

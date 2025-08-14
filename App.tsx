@@ -21,6 +21,7 @@ const App: React.FC = () => {
   const [currentChatModelId, setCurrentChatModelId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isResponding, setIsResponding] = useState<boolean>(false);
+  const [isElectron, setIsElectron] = useState(false);
 
   useEffect(() => {
     if (config.theme === 'dark') {
@@ -31,7 +32,7 @@ const App: React.FC = () => {
   }, [config.theme]);
 
   useEffect(() => {
-    const loadSettings = async () => {
+    const loadInitialData = async () => {
       const defaultConfig: Config = { 
         provider: 'Ollama', 
         baseUrl: PROVIDER_CONFIGS.Ollama.baseUrl,
@@ -40,27 +41,30 @@ const App: React.FC = () => {
       
       let finalConfig = defaultConfig;
 
-      try {
-        let loadedSettings: Partial<Config> | null = null;
-        if (window.electronAPI) {
-          loadedSettings = await window.electronAPI.getSettings();
-        } else {
-          const localSettings = localStorage.getItem('llm_config');
-          if (localSettings) {
-            loadedSettings = JSON.parse(localSettings);
+      // Check for electron environment and load settings
+      if (window.electronAPI) {
+        setIsElectron(true);
+        const packaged = await window.electronAPI.isPackaged();
+        console.log(`Running in Electron. Packaged: ${packaged}`);
+        const loadedSettings = await window.electronAPI.getSettings();
+        if (loadedSettings) {
+          finalConfig = { ...defaultConfig, ...loadedSettings };
+        }
+      } else {
+        const localSettings = localStorage.getItem('llm_config');
+        if (localSettings) {
+          try {
+            const loadedSettings = JSON.parse(localSettings);
+            finalConfig = { ...defaultConfig, ...loadedSettings };
+          } catch (e) {
+             console.error("Failed to parse local settings, using defaults.", e);
           }
         }
-
-        if (loadedSettings) {
-            finalConfig = { ...defaultConfig, ...loadedSettings };
-        }
-      } catch (e) {
-        console.error("Failed to load or parse settings, using defaults.", e);
       }
       
       setConfig(finalConfig);
     };
-    loadSettings();
+    loadInitialData();
   }, []);
 
   const handleConfigChange = async (newConfig: Config) => {
@@ -179,6 +183,7 @@ const App: React.FC = () => {
             isResponding={isResponding}
             onBack={handleBackToSelection}
             theme={config.theme || 'dark'}
+            isElectron={isElectron}
           />
         ) : (
           <div className="h-full overflow-y-auto">

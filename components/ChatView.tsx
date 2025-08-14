@@ -9,6 +9,7 @@ import SendIcon from './icons/SendIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
 import ModelIcon from './icons/ModelIcon';
 import PlayIcon from './icons/PlayIcon';
+import TerminalIcon from './icons/TerminalIcon';
 import { runPythonCode } from '../services/pyodideService';
 
 interface ChatViewProps {
@@ -18,11 +19,12 @@ interface ChatViewProps {
   isResponding: boolean;
   onBack: () => void;
   theme: Theme;
+  isElectron: boolean;
 }
 
-const CodeBlock = ({ node, inline, className, children, theme }: any) => {
+const CodeBlock = ({ node, inline, className, children, theme, isElectron }: any) => {
   const [isCopied, setIsCopied] = useState(false);
-  const [pyodideState, setPyodideState] = useState<{
+  const [runState, setRunState] = useState<{
     isLoading: boolean;
     output: string | null;
     error: string | null;
@@ -35,7 +37,9 @@ const CodeBlock = ({ node, inline, className, children, theme }: any) => {
   const match = /language-(\w+)/.exec(className || '');
   const codeText = String(children).replace(/\n$/, '');
   const syntaxTheme = theme === 'dark' ? atomDark : coy;
+  
   const isPython = match && match[1].toLowerCase() === 'python';
+  const canRunNative = isPython && isElectron;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(codeText);
@@ -43,13 +47,19 @@ const CodeBlock = ({ node, inline, className, children, theme }: any) => {
     setTimeout(() => setIsCopied(false), 2000);
   };
   
-  const handleRunPython = async () => {
-    setPyodideState({ isLoading: true, output: null, error: null });
-    const { result, error } = await runPythonCode(codeText);
-    setPyodideState({ isLoading: false, output: result, error: error });
+  const handleRun = async () => {
+    setRunState({ isLoading: true, output: null, error: null });
+    if (canRunNative && window.electronAPI) {
+      const { stdout, stderr } = await window.electronAPI.runPython(codeText);
+      setRunState({ isLoading: false, output: stdout, error: stderr || null });
+    } else {
+      const { result, error } = await runPythonCode(codeText);
+      setRunState({ isLoading: false, output: result, error });
+    }
   };
   
-  const runButtonText = pyodideState.isLoading ? 'Loading...' : 'Run';
+  const RunIcon = canRunNative ? TerminalIcon : PlayIcon;
+  const runButtonText = runState.isLoading ? (canRunNative ? 'Running...' : 'Loading...') : 'Run';
 
   return !inline && match ? (
     <div className="relative bg-gray-100 dark:bg-gray-800 my-2 rounded-md border border-gray-200 dark:border-gray-700">
@@ -58,11 +68,11 @@ const CodeBlock = ({ node, inline, className, children, theme }: any) => {
         <div className="flex items-center gap-2">
             {isPython && (
               <button
-                onClick={handleRunPython}
-                disabled={pyodideState.isLoading}
+                onClick={handleRun}
+                disabled={runState.isLoading}
                 className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded disabled:cursor-wait disabled:text-gray-400 dark:disabled:text-gray-500"
               >
-                  <PlayIcon className="w-3 h-3"/>
+                  <RunIcon className="w-3 h-3"/>
                   {runButtonText}
               </button>
             )}
@@ -82,14 +92,14 @@ const CodeBlock = ({ node, inline, className, children, theme }: any) => {
       >
         {codeText}
       </SyntaxHighlighter>
-      {(pyodideState.output || pyodideState.error) && (
+      {(runState.output || runState.error) && (
         <div className="border-t border-gray-200 dark:border-gray-700 p-4 font-mono text-xs">
            <h4 className="text-gray-500 dark:text-gray-400 font-sans font-semibold text-sm mb-2">Output</h4>
-           {pyodideState.output && (
-             <pre className="whitespace-pre-wrap text-gray-800 dark:text-gray-200">{pyodideState.output}</pre>
+           {runState.output && (
+             <pre className="whitespace-pre-wrap text-gray-800 dark:text-gray-200">{runState.output}</pre>
            )}
-           {pyodideState.error && (
-             <pre className="whitespace-pre-wrap text-red-600 dark:text-red-400">{pyodideState.error}</pre>
+           {runState.error && (
+             <pre className="whitespace-pre-wrap text-red-600 dark:text-red-400">{runState.error}</pre>
            )}
         </div>
       )}
@@ -102,7 +112,7 @@ const CodeBlock = ({ node, inline, className, children, theme }: any) => {
 };
 
 
-const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, isResponding, onBack, theme }) => {
+const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, isResponding, onBack, theme, isElectron }) => {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -158,7 +168,7 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
                 : <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
-                      components={{ code: (props) => <CodeBlock {...props} theme={theme} /> }}
+                      components={{ code: (props) => <CodeBlock {...props} theme={theme} isElectron={isElectron} /> }}
                     >
                       {msg.content}
                     </ReactMarkdown>
