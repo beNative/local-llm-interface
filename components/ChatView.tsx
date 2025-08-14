@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -347,6 +346,7 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
   const [input, setInput] = useState('');
   const [saveModalState, setSaveModalState] = useState<{ code: string; lang: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -362,6 +362,14 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
       onPrefillConsumed();
     }
   }, [prefilledInput, onPrefillConsumed]);
+
+  useEffect(() => {
+    // Refocus the textarea when a response is finished, or when prefilled input is added.
+    // This ensures the user can immediately start typing again.
+    if (!isResponding) {
+      textareaRef.current?.focus();
+    }
+  }, [isResponding, prefilledInput]);
 
   const handleSend = () => {
     if (input.trim() && !isResponding) {
@@ -440,6 +448,7 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
       <footer className="p-4 bg-[--bg-secondary] border-t border-[--border-primary]">
         <div className="relative">
           <textarea
+            ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
@@ -447,6 +456,7 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
             rows={1}
             disabled={isResponding}
             className="w-full pl-4 pr-12 py-3 bg-[--bg-tertiary] text-[--text-primary] rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[--border-focus] disabled:cursor-not-allowed"
+            autoFocus
           />
           <button
             onClick={handleSend}

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import type { Config, CodeProject, ProjectType, FileSystemEntry } from '../types';
 import CodeIcon from './icons/CodeIcon';
@@ -7,6 +6,7 @@ import TrashIcon from './icons/TrashIcon';
 import GlobeIcon from './icons/GlobeIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
 import MessagePlusIcon from './icons/MessagePlusIcon';
+import PlayIcon from './icons/PlayIcon';
 import FileTree from './FileTree';
 import { logger } from '../services/logger';
 
@@ -99,20 +99,23 @@ const ProjectCard: React.FC<{
     project: CodeProject;
     onDelete: () => void;
     onInstall: () => void;
+    onRun: () => void;
     onOpen: () => void;
-    onOpenWebApp: () => void;
     isBusy: boolean;
     isExpanded: boolean;
     onToggleExpand: () => void;
     onFileClick: (file: FileSystemEntry) => void;
-}> = ({ project, onDelete, onInstall, onOpen, onOpenWebApp, isBusy, isExpanded, onToggleExpand, onFileClick }) => {
+}> = ({ project, onDelete, onInstall, onRun, onOpen, isBusy, isExpanded, onToggleExpand, onFileClick }) => {
     
     const typeColor = project.type === 'python' ? 'text-blue-500' 
                     : project.type === 'nodejs' ? 'text-green-500'
                     : 'text-purple-500';
+
+    const RunIcon = project.type === 'webapp' ? GlobeIcon : PlayIcon;
+    const runText = project.type === 'webapp' ? 'Run in Browser' : 'Run Project';
     
     return (
-        <div className="bg-[--bg-secondary] rounded-lg border border-[--border-primary] flex flex-col">
+        <div className="bg-[--bg-secondary] rounded-lg border border-[--border-primary] flex flex-col transition-shadow hover:shadow-md">
             <div className="p-4">
                 <div 
                     className="flex items-center gap-3 mb-2 cursor-pointer"
@@ -126,28 +129,31 @@ const ProjectCard: React.FC<{
                 </div>
                 <p className="text-xs text-[--text-muted] font-mono break-all">{project.path}</p>
             
-                <div className="flex items-center gap-2 mt-4">
-                    {project.type === 'webapp' ? (
-                         <button onClick={onOpenWebApp} disabled={isBusy} className="flex-1 text-sm px-3 py-1.5 rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:bg-purple-400 disabled:cursor-wait flex items-center justify-center gap-2">
-                            <GlobeIcon className="w-4 h-4" />
-                            {isBusy ? 'Working...' : 'Open in Browser'}
-                        </button>
-                    ) : (
-                         <button onClick={onInstall} disabled={isBusy} className="flex-1 text-sm px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-wait">
-                            {isBusy ? 'Working...' : 'Install Deps'}
+                <div className="grid grid-cols-2 gap-2 mt-4">
+                    <button onClick={onRun} disabled={isBusy} className="col-span-2 text-sm px-3 py-2 rounded-md bg-[--bg-accent] text-[--text-on-accent] hover:bg-[--bg-accent-hover] disabled:bg-[--bg-accent-disabled] disabled:cursor-wait flex items-center justify-center gap-2 font-semibold">
+                        {isBusy ? <SpinnerIcon className="w-5 h-5"/> : <RunIcon className="w-5 h-5" />}
+                        {isBusy ? 'Working...' : runText}
+                    </button>
+
+                    {project.type !== 'webapp' && (
+                         <button onClick={onInstall} disabled={isBusy} className="text-xs px-3 py-1.5 rounded-md bg-[--bg-tertiary] text-[--text-secondary] hover:bg-[--bg-hover] disabled:opacity-50">
+                            Install Deps
                         </button>
                     )}
                    
-                    <button onClick={onOpen} disabled={isBusy} className="p-2 rounded-md bg-[--bg-tertiary] text-[--text-secondary] hover:bg-[--bg-hover] disabled:opacity-50" title="Open folder">
+                    <button onClick={onOpen} disabled={isBusy} className="text-xs px-3 py-1.5 rounded-md bg-[--bg-tertiary] text-[--text-secondary] hover:bg-[--bg-hover] disabled:opacity-50 flex items-center justify-center gap-1.5" title="Open folder">
                         <FolderOpenIcon className="w-4 h-4"/>
+                        <span>Folder</span>
                     </button>
-                    <button onClick={onDelete} disabled={isBusy} className="p-2 rounded-md bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900 disabled:opacity-50" title="Delete project">
+
+                    <button onClick={onDelete} disabled={isBusy} className={`col-span-2 ${project.type !== 'webapp' ? '' : 'col-start-2'} mt-1 text-xs px-3 py-1 rounded-md bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900 disabled:opacity-50 flex items-center justify-center gap-1.5`} title="Delete project">
                         <TrashIcon className="w-4 h-4" />
+                        <span>Delete</span>
                     </button>
                 </div>
             </div>
             {isExpanded && (
-                <div className="border-t border-[--border-primary] max-h-80 overflow-y-auto">
+                <div className="border-t border-[--border-primary] max-h-80 overflow-y-auto bg-black/5 dark:bg-black/20">
                    <FileTree projectPath={project.path} onFileClick={onFileClick} />
                 </div>
             )}
@@ -195,9 +201,10 @@ interface ProjectsViewProps {
   onConfigChange: (newConfig: Config) => void;
   isElectron: boolean;
   onInjectContentForChat: (filename: string, content: string) => void;
+  onRunProject: (project: CodeProject) => void;
 }
 
-const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isElectron, onInjectContentForChat }) => {
+const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isElectron, onInjectContentForChat, onRunProject }) => {
     const [busyProjects, setBusyProjects] = useState<Set<string>>(new Set());
     const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
     const [editingFile, setEditingFile] = useState<{ path: string, name: string } | null>(null);
@@ -282,13 +289,15 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
             setProjectBusy(project.id, false);
         }
     };
+    
+    const handleRunProjectWithBusyState = async (project: CodeProject) => {
+        setProjectBusy(project.id, true);
+        await onRunProject(project);
+        setProjectBusy(project.id, false);
+    };
 
     const handleOpenFolder = (project: CodeProject) => {
         window.electronAPI?.openProjectFolder(project.path);
-    };
-
-    const handleOpenWebApp = (project: CodeProject) => {
-        window.electronAPI?.openWebApp(project.path);
     };
 
     const handleToggleExpand = (projectId: string) => {
@@ -338,8 +347,8 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
                                 isBusy={busyProjects.has(p.id)}
                                 onDelete={() => handleDeleteProject(p)}
                                 onInstall={() => handleInstallDeps(p)}
+                                onRun={() => handleRunProjectWithBusyState(p)}
                                 onOpen={() => handleOpenFolder(p)}
-                                onOpenWebApp={() => handleOpenWebApp(p)}
                                 isExpanded={expandedProjectId === p.id}
                                 onToggleExpand={() => handleToggleExpand(p.id)}
                                 onFileClick={handleFileClick}

@@ -1,4 +1,3 @@
-
 import type { Config, LogEntry, CodeProject, ProjectType, FileSystemEntry, ApiRequest, ApiResponse } from './types';
 
 export interface IElectronAPI {
@@ -18,6 +17,7 @@ export interface IElectronAPI {
   openWebApp: (projectPath: string) => Promise<void>;
   installProjectDeps: (project: CodeProject) => Promise<{ stdout: string; stderr: string }>;
   runScriptInProject: (args: { project: CodeProject; code: string }) => Promise<{ stdout: string; stderr: string }>;
+  runProject: (project: CodeProject) => Promise<{ stdout: string; stderr: string }>;
 
   // File System APIs for Project Viewer/Editor
   readProjectDir: (dirPath: string) => Promise<FileSystemEntry[]>;

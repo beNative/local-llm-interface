@@ -1,5 +1,5 @@
-
 import { contextBridge, ipcRenderer } from 'electron';
+import type { CodeProject } from '../src/types';
 
 /**
  * Expose protected methods that allow the renderer process to use
@@ -61,6 +61,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openWebApp: (projectPath: string) => ipcRenderer.invoke('project:open-webapp', projectPath),
   installProjectDeps: (project: any) => ipcRenderer.invoke('project:install-deps', project),
   runScriptInProject: (args: any) => ipcRenderer.invoke('project:run-script', args),
+  runProject: (project: CodeProject) => ipcRenderer.invoke('project:run', project),
 
   // File System APIs for Project Viewer/Editor
   readProjectDir: (dirPath: string) => ipcRenderer.invoke('project:read-dir', dirPath),

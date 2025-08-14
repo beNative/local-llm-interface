@@ -1,100 +1,93 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Local LLM Interface</title>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://cdn.tailwindcss.com https://esm.sh; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http: https:; worker-src 'self' blob:; img-src 'self' data:;">
-    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
-<style>
-:root {
-  color-scheme: light;
-  /* Backgrounds */
-  --bg-primary: #ffffff;       /* For main page background */
-  --bg-secondary: #f9fafb;     /* For secondary panels, headers, footers */
-  --bg-tertiary: #f3f4f6;      /* For interactive elements like inputs */
-  --bg-hover: #f3f4f6;         /* Hover for list items etc. */
-  --bg-accent: #2563eb;        /* blue-600 */
-  --bg-accent-hover: #1d4ed8;  /* blue-700 */
-  --bg-accent-disabled: #93c5fd; /* blue-300 */
-  --bg-backdrop: rgba(17, 24, 39, 0.5);
+    <style>
+      :root {
+        --bg-primary: #ffffff;
+        --bg-secondary: #f8fafc;
+        --bg-tertiary: #f1f5f9;
+        --bg-hover: #e2e8f0;
+        --bg-backdrop: rgba(255, 255, 255, 0.5);
 
-  /* Text */
-  --text-primary: #111827;     /* gray-900 */
-  --text-secondary: #374151;   /* gray-700 */
-  --text-muted: #6b7280;       /* gray-500 */
-  --text-accent: #2563eb;
-  --text-on-accent: #ffffff;
+        --text-primary: #0f172a;
+        --text-secondary: #334155;
+        --text-muted: #64748b;
+        --text-accent: #2563eb;
+        --text-on-accent: #ffffff;
 
-  /* Borders */
-  --border-primary: #e5e7eb;   /* gray-200 */
-  --border-secondary: #d1d5db; /* gray-300 */
-  --border-focus: #3b82f6;     /* blue-500 */
+        --border-primary: #e2e8f0;
+        --border-secondary: #cbd5e1;
+        --border-focus: #3b82f6;
 
-  /* Special */
-  --code-bg: #f3f4f6;
-  --code-output-bg: #f9fafb;
-}
+        --bg-accent: #2563eb;
+        --bg-accent-hover: #1d4ed8;
+        --bg-accent-disabled: #93c5fd;
 
-html.dark {
-  color-scheme: dark;
-  /* Backgrounds */
-  --bg-primary: #111827;       /* gray-900 */
-  --bg-secondary: #1f2937;     /* gray-800 */
-  --bg-tertiary: #374151;      /* gray-700 */
-  --bg-hover: #374151;         /* gray-700 */
-  --bg-accent: #3b82f6;        /* blue-500 */
-  --bg-accent-hover: #2563eb;  /* blue-600 */
-  --bg-accent-disabled: rgba(37, 99, 235, 0.5);
-  --bg-backdrop: rgba(17, 24, 39, 0.5);
+        --code-bg: #f8fafc;
+        --code-output-bg: #f1f5f9;
+      }
+      html.dark {
+        --bg-primary: #0f172a;
+        --bg-secondary: #1e293b;
+        --bg-tertiary: #334155;
+        --bg-hover: #475569;
+        --bg-backdrop: rgba(0, 0, 0, 0.5);
 
-  /* Text */
-  --text-primary: #f9fafb;     /* gray-50 */
-  --text-secondary: #d1d5db;   /* gray-300 */
-  --text-muted: #9ca3af;       /* gray-400 */
-  --text-accent: #60a5fa;      /* blue-400 */
-  --text-on-accent: #ffffff;
+        --text-primary: #f8fafc;
+        --text-secondary: #cbd5e1;
+        --text-muted: #94a3b8;
+        --text-accent: #60a5fa;
+        --text-on-accent: #ffffff;
+        
+        --border-primary: #334155;
+        --border-secondary: #475569;
+        --border-focus: #60a5fa;
 
-  /* Borders */
-  --border-primary: #374151;   /* gray-700 */
-  --border-secondary: #4b5563; /* gray-600 */
-  --border-focus: #3b82f6;     /* blue-500 */
-  
-  /* Special */
-  --code-bg: #1f2937;
-  --code-output-bg: #111827;
-}
-</style>
-<script type="importmap">
+        --bg-accent: #3b82f6;
+        --bg-accent-hover: #2563eb;
+        --bg-accent-disabled: #1e40af;
+
+        --code-bg: #1e293b;
+        --code-output-bg: #0f172a;
+      }
+      body {
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        -webkit-font-smoothing: subpixel-antialiased;
+      }
+    </style>
+  <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@^19.1.1",
+    "http": "https://esm.sh/http@^0.0.1-security",
+    "https": "https://esm.sh/https@^1.0.0",
+    "fs/": "https://esm.sh/fs@^0.0.1-security/",
+    "fs": "https://esm.sh/fs@^0.0.1-security",
     "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
     "react/": "https://esm.sh/react@^19.1.1/",
-    "react-dom": "https://esm.sh/react-dom@^19.1.1",
-    "react-markdown": "https://esm.sh/react-markdown@^10.1.0",
-    "react-syntax-highlighter": "https://esm.sh/react-syntax-highlighter@^15.6.1",
-    "react-syntax-highlighter/": "https://esm.sh/react-syntax-highlighter@^15.6.1/",
-    "remark-gfm": "https://esm.sh/remark-gfm@^4.0.1",
-    "electron": "https://esm.sh/electron@^37.2.6",
-    "path": "https://esm.sh/path@^0.12.7",
-    "fs": "https://esm.sh/fs@^0.0.1-security",
+    "react": "https://esm.sh/react@^19.1.1",
     "os": "https://esm.sh/os@^0.1.2",
-    "pyodide": "https://esm.sh/pyodide@^0.28.1",
-    "crypto": "https://esm.sh/crypto@^1.0.1",
+    "path": "https://esm.sh/path@^0.12.7",
+    "electron": "https://esm.sh/electron@^37.2.6",
+    "remark-gfm": "https://esm.sh/remark-gfm@^4.0.1",
+    "react-syntax-highlighter/": "https://esm.sh/react-syntax-highlighter@^15.6.1/",
+    "react-syntax-highlighter": "https://esm.sh/react-syntax-highlighter@^15.6.1",
+    "react-markdown": "https://esm.sh/react-markdown@^10.1.0",
     "child_process": "https://esm.sh/child_process@^1.0.2",
-    "pyodide/": "https://esm.sh/pyodide@^0.28.1/",
-    "fs/": "https://esm.sh/fs@^0.0.1-security/",
-    "http": "https://esm.sh/http@^0.0.1-security",
-    "https": "https://esm.sh/https@^1.0.0"
+    "crypto": "https://esm.sh/crypto@^1.0.1",
+    "pyodide/": "https://esm.sh/pyodide@^0.28.1/"
   }
 }
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-  <body class="bg-[--bg-primary] text-[--text-primary] antialiased font-sans">
+  <body class="subpixel-antialiased">
+    <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
-    <script defer src="./renderer.js"></script>
+    <script src="./renderer.js"></script>
   <script type="module" src="/index.tsx"></script>
 </body>
 </html>

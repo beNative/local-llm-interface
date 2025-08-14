@@ -1,4 +1,3 @@
-
 import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -9,7 +8,7 @@ import * as crypto from 'crypto';
 import { request as httpRequest } from 'http';
 import { request as httpsRequest } from 'https';
 import type { IncomingHttpHeaders } from 'http';
-import type { ApiRequest, ApiResponse } from '../src/types';
+import type { ApiRequest, ApiResponse, CodeProject, ProjectType } from '../src/types';
 
 
 // The path where user settings will be stored.
@@ -353,6 +352,59 @@ app.whenReady().then(() => {
             return await runCommand('npm', ['install'], project.path);
         }
         return { stdout: '', stderr: 'Unknown project type' };
+    });
+    
+    ipcMain.handle('project:run', async (_, project: CodeProject): Promise<{ stdout: string; stderr: string }> => {
+        if (!isPathInAllowedBase(project.path)) {
+            return { stdout: '', stderr: 'Execution denied: project path is not in an allowed base directory.' };
+        }
+        
+        if (project.type === 'webapp') {
+            const indexPath = path.join(project.path, 'index.html');
+            if (fs.existsSync(indexPath)) {
+                shell.openPath(indexPath);
+                return { stdout: `Successfully opened ${indexPath} in the default browser.`, stderr: '' };
+            }
+            return { stdout: '', stderr: `Could not find index.html in ${project.path}` };
+        }
+        
+        if (project.type === 'python') {
+            const entryPoints = ['main.py', 'app.py'];
+            const entryFile = entryPoints.find(f => fs.existsSync(path.join(project.path, f)));
+            if (!entryFile) {
+                return { stdout: '', stderr: `Could not find an entry point (e.g., ${entryPoints.join(', ')}) in project.` };
+            }
+            const pythonExec = getPythonExecutable(path.join(project.path, 'venv'));
+            return runCommand(pythonExec, [entryFile], project.path);
+        }
+        
+        if (project.type === 'nodejs') {
+            let entryFile: string | undefined;
+            const packageJsonPath = path.join(project.path, 'package.json');
+            if (fs.existsSync(packageJsonPath)) {
+                try {
+                    const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+                    if (pkg.main) {
+                        entryFile = pkg.main;
+                    }
+                } catch (e) {
+                    return { stdout: '', stderr: `Error reading package.json: ${e instanceof Error ? e.message : String(e)}` };
+                }
+            }
+            
+            if (!entryFile) {
+                const entryPoints = ['index.js', 'main.js', 'app.js', 'server.js'];
+                entryFile = entryPoints.find(f => fs.existsSync(path.join(project.path, f)));
+            }
+            
+            if (!entryFile) {
+                return { stdout: '', stderr: `Could not find an entry point (package.json 'main' or index.js, etc.) in project.` };
+            }
+            
+            return runCommand('node', [entryFile], project.path);
+        }
+
+        return { stdout: '', stderr: `Project type "${project.type}" cannot be run.` };
     });
 
     ipcMain.handle('project:run-script', async (_, { project, code }: { project: { type: 'python' | 'nodejs', path: string }, code: string }) => {
