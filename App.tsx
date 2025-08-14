@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Config, Model, ChatMessage } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT } from './constants';
@@ -9,7 +8,11 @@ import ModelSelector from './components/ModelSelector';
 import ChatView from './components/ChatView';
 import ThemeSwitcher from './components/ThemeSwitcher';
 import LoggingPanel from './components/LoggingPanel';
+import InfoView from './components/InfoView';
 import FileTextIcon from './components/icons/FileTextIcon';
+import InfoIcon from './components/icons/InfoIcon';
+
+type View = 'models' | 'chat' | 'info';
 
 const App: React.FC = () => {
   const [config, setConfig] = useState<Config>({ 
@@ -22,6 +25,7 @@ const App: React.FC = () => {
   const [isLoadingModels, setIsLoadingModels] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [view, setView] = useState<View>('models');
   const [currentChatModelId, setCurrentChatModelId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isResponding, setIsResponding] = useState<boolean>(false);
@@ -97,7 +101,8 @@ const App: React.FC = () => {
       logger.info('Settings saved to localStorage.');
     }
     if (newConfig.baseUrl !== config.baseUrl || newConfig.provider !== config.provider) {
-      logger.info('Provider or Base URL changed, resetting chat.');
+      logger.info('Provider or Base URL changed, resetting to model selection.');
+      setView('models');
       setCurrentChatModelId(null); 
       setMessages([]);
     }
@@ -144,19 +149,23 @@ const App: React.FC = () => {
   }, [config.baseUrl]);
 
   useEffect(() => {
-    loadModels();
-  }, [loadModels]);
+    if (view === 'models') {
+      loadModels();
+    }
+  }, [view, loadModels]);
 
   const handleSelectModel = (modelId: string) => {
     logger.info(`Model selected: ${modelId}`);
     setCurrentChatModelId(modelId);
     setMessages([{ role: 'system', content: DEFAULT_SYSTEM_PROMPT }]);
+    setView('chat');
   };
 
   const handleBackToSelection = () => {
     logger.info('Returning to model selection screen.');
     setCurrentChatModelId(null);
     setMessages([]);
+    setView('models');
   };
 
   const handleSendMessage = async (userInput: string) => {
@@ -197,6 +206,41 @@ const App: React.FC = () => {
     );
   };
   
+  const renderContent = () => {
+    switch(view) {
+        case 'chat':
+            if (!currentChatModelId) {
+                setView('models'); // Should not happen, but as a fallback
+                return null;
+            }
+            return (
+                <ChatView
+                    modelId={currentChatModelId}
+                    messages={messages.filter(m => m.role !== 'system')}
+                    onSendMessage={handleSendMessage}
+                    isResponding={isResponding}
+                    onBack={handleBackToSelection}
+                    theme={config.theme || 'dark'}
+                    isElectron={isElectron}
+                />
+            );
+        case 'info':
+            return <InfoView onBack={() => setView('models')} />;
+        case 'models':
+        default:
+             return (
+                <div className="h-full overflow-y-auto">
+                    <ModelSelector
+                        models={models}
+                        onSelectModel={handleSelectModel}
+                        isLoading={isLoadingModels}
+                        error={error}
+                    />
+                </div>
+            );
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen font-sans">
       <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/50 backdrop-blur-sm sticky top-0 z-10">
@@ -208,6 +252,13 @@ const App: React.FC = () => {
             isConnecting={isLoadingModels}
             isElectron={isElectron}
           />
+          <button
+            onClick={() => setView('info')}
+            className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-blue-500"
+            aria-label="Show info"
+            >
+             <InfoIcon className="w-5 h-5" />
+            </button>
            <button
             onClick={() => setIsLogPanelVisible(!isLogPanelVisible)}
             className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-blue-500"
@@ -219,26 +270,7 @@ const App: React.FC = () => {
         </div>
       </header>
       <main className="flex-1 overflow-hidden">
-        {currentChatModelId ? (
-          <ChatView
-            modelId={currentChatModelId}
-            messages={messages.filter(m => m.role !== 'system')}
-            onSendMessage={handleSendMessage}
-            isResponding={isResponding}
-            onBack={handleBackToSelection}
-            theme={config.theme || 'dark'}
-            isElectron={isElectron}
-          />
-        ) : (
-          <div className="h-full overflow-y-auto">
-            <ModelSelector
-              models={models}
-              onSelectModel={handleSelectModel}
-              isLoading={isLoadingModels}
-              error={error}
-            />
-          </div>
-        )}
+        {renderContent()}
       </main>
       {isLogPanelVisible && <LoggingPanel onClose={() => setIsLogPanelVisible(false)} />}
     </div>

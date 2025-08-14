@@ -1,20 +1,45 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Local LLM Interface
 
-# Run and deploy your AI Studio app
+A user-friendly desktop application to chat with locally installed LLMs serviced through Ollama, LMStudio, or any other OpenAI-compatible API endpoint.
 
-This contains everything you need to run your app locally.
+![App Screenshot](https://user-images.githubusercontent.com/12345/screenshot.png) <!-- Placeholder for a real screenshot -->
 
-View your app in AI Studio: https://ai.studio/apps/drive/1ABiqsHQdaBQ9trfX8eTgFmiiUACm1eoZ
+## Features
 
-## Run Locally
+- **Multiple Provider Support**: Connect to Ollama, LMStudio, or a custom OpenAI-compatible server.
+- **Model Discovery**: Automatically fetches and displays a list of available models from the connected service.
+- **Intuitive Chat Interface**: A clean, modern chat view for interacting with your chosen model.
+- **Markdown & Syntax Highlighting**: Renders model responses in Markdown, with beautiful syntax highlighting for code snippets.
+- **Code Execution**: Run Python code directly from the chat interface.
+  - **Native Execution**: Uses your system's Python interpreter for full capability in the Electron app.
+  - **WASM Fallback**: Uses Pyodide (Python in WebAssembly) for safe, in-browser execution as a fallback.
+- **Advanced Logging**: A dockable logging panel shows all internal application events, with filtering by severity level (DEBUG, INFO, WARNING, ERROR).
+- **File Logging**: Option to automatically save logs to a file for easier debugging.
+- **Persistent Settings**: Remembers your connection settings and theme preference between sessions.
+- **Light & Dark Themes**: Switch between themes to suit your preference.
+- **Cross-Platform**: Built with Electron to run on Windows, macOS, and Linux.
 
-**Prerequisites:**  Node.js
+## Tech Stack
 
+- **Framework**: Electron
+- **Frontend**: React with TypeScript
+- **Bundler**: esbuild
+- **Styling**: TailwindCSS
+- **Python in Browser**: Pyodide
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Getting Started
+
+### Running in Development
+
+1.  **Prerequisites**: Node.js and npm installed.
+2.  Clone the repository: `git clone <repository_url>`
+3.  Install dependencies: `npm install`
+4.  Build the application: `npm run build`
+5.  Run the app: `npm start`
+
+### Packaged Application
+
+To create a distributable executable, run:
+`npm run package`
+
+The output will be in the `release/` directory. The installer will place all necessary files, including this documentation, into the installation directory.

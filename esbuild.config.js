@@ -7,13 +7,18 @@ const isProduction = process.argv.includes('--production');
 // Source and output directories
 const appDir = __dirname;
 const outDir = path.join(__dirname, 'dist');
+const docFiles = ['README.md', 'FUNCTIONAL_MANUAL.md', 'TECHNICAL_MANUAL.md', 'CHANGELOG.md'];
 
 async function build() {
   // Clean the output directory
   await fs.emptyDir(outDir);
 
-  // Copy index.html to the output directory
+  // Copy index.html and documentation to the output directory
   await fs.copy(path.join(appDir, 'index.html'), path.join(outDir, 'index.html'));
+  for (const file of docFiles) {
+    await fs.copy(path.join(appDir, file), path.join(outDir, file));
+  }
+
 
   // Copy Pyodide assets
   const pyodidePackagePath = path.dirname(require.resolve('pyodide/package.json'));
