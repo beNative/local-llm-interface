@@ -1,3 +1,4 @@
+
 # Functional Manual
 
 This document provides a detailed guide on how to use the Local LLM Interface application.
@@ -33,8 +34,12 @@ Click **Save & Refresh Connection** to apply changes. The app will attempt to re
 The "Projects" tab is a powerful feature for managing local code projects and integrating them with the LLM. This is only available in the desktop application.
 
 ### Project Types
-- **Python/Node.js**: For running backend scripts. These get dedicated environments (`venv` for Python, `package.json` for Node.js).
-- **Web App**: For single-file HTML/JS/CSS applications that can be run directly in your browser.
+- **Python**: For running backend scripts. The application will automatically manage a dedicated `venv` virtual environment for each project.
+- **Node.js**: A versatile project type for server-side applications or web experiments. It supports JavaScript and TypeScript. When you run a Node.js project, the app will look for an entry point in this order:
+  1. An `npm start` script in your `package.json`.
+  2. Common script files like `index.ts` or `index.js`. (Note: To run TypeScript files, you must install `typescript` and `ts-node` as project dependencies).
+  3. An `index.html` file, which will be opened in your browser as a fallback.
+- **Web App**: A simple project type for static websites. Use this if your project's main entry point is a single `index.html` file and you don't need a Node.js backend.
 
 ### Managing Projects
 - **Base Directory**: For each project type (Python, Node.js, Web App), you must first choose a "base directory" where all your projects of that type will be stored.

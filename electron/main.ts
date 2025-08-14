@@ -1,3 +1,4 @@
+
 import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -400,29 +401,58 @@ app.whenReady().then(() => {
         }
         
         if (project.type === 'nodejs') {
-            let entryFile: string | undefined;
             const packageJsonPath = path.join(project.path, 'package.json');
+            
+            // 1. Try `npm run start` first, as it's the standard.
             if (fs.existsSync(packageJsonPath)) {
                 try {
                     const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
-                    if (pkg.main) {
-                        entryFile = pkg.main;
+                    if (pkg.scripts && pkg.scripts.start) {
+                        console.log(`Found 'start' script in package.json. Running 'npm start' for ${project.name}`);
+                        return runCommand('npm', ['start'], project.path);
                     }
                 } catch (e) {
                     return { stdout: '', stderr: `Error reading package.json: ${e instanceof Error ? e.message : String(e)}` };
                 }
             }
             
-            if (!entryFile) {
-                const entryPoints = ['index.js', 'main.js', 'app.js', 'server.js'];
-                entryFile = entryPoints.find(f => fs.existsSync(path.join(project.path, f)));
+            // 2. If no start script, try to find a script entry point (.ts or .js)
+            let entryFile: string | undefined;
+            if (fs.existsSync(packageJsonPath)) {
+                try {
+                    const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+                    if (pkg.main) {
+                        entryFile = pkg.main;
+                    }
+                } catch (e) { /* ignore if we can't parse, will fall back to file search */ }
             }
             
             if (!entryFile) {
-                return { stdout: '', stderr: `Could not find an entry point (package.json 'main' or index.js, etc.) in project.` };
+                const scriptEntryPoints = ['index.ts', 'main.ts', 'app.ts', 'server.ts', 'index.js', 'main.js', 'app.js', 'server.js'];
+                entryFile = scriptEntryPoints.find(f => fs.existsSync(path.join(project.path, f)));
             }
             
-            return runCommand('node', [entryFile], project.path);
+            // If a script is found, run it with the appropriate runner.
+            if (entryFile) {
+                if (entryFile.endsWith('.ts')) {
+                    console.log(`Found TypeScript entry file: ${entryFile}. Running with 'npx ts-node'.`);
+                    return runCommand('npx', ['ts-node', entryFile], project.path);
+                } else { // .js file
+                    console.log(`Found JavaScript entry file: ${entryFile}. Running with 'node'.`);
+                    return runCommand('node', [entryFile], project.path);
+                }
+            }
+
+            // 3. As a fallback for nodejs projects, check for an index.html file.
+            const indexPath = path.join(project.path, 'index.html');
+            if (fs.existsSync(indexPath)) {
+                console.log(`No script entry point found for nodejs project ${project.name}, but found index.html. Opening in browser.`);
+                shell.openPath(indexPath);
+                return { stdout: `No script found. Opened ${indexPath} in the default browser.`, stderr: '' };
+            }
+
+            // 4. If nothing runnable is found, return an error.
+            return { stdout: '', stderr: `Could not find an entry point. Looked for: 'npm start' script, common script files (e.g., index.js, index.ts), or an index.html file.` };
         }
 
         return { stdout: '', stderr: `Project type "${project.type}" cannot be run.` };
