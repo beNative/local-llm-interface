@@ -36,6 +36,7 @@ export interface Config {
   webAppsPath?: string;
   projects?: CodeProject[];
   pythonCommand?: string;
+  apiRecentPrompts?: string[];
 }
 
 export interface Model {

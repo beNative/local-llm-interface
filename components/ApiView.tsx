@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -14,9 +15,11 @@ interface ApiViewProps {
     theme: Theme;
     config: Config | null;
     models: Model[];
+    onSaveApiPrompt: (prompt: string) => void;
+    onClearApiPrompts: () => void;
 }
 
-const ApiView: React.FC<ApiViewProps> = ({ isElectron, theme, config, models }) => {
+const ApiView: React.FC<ApiViewProps> = ({ isElectron, theme, config, models, onSaveApiPrompt, onClearApiPrompts }) => {
     const [prompt, setPrompt] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -25,6 +28,7 @@ const ApiView: React.FC<ApiViewProps> = ({ isElectron, theme, config, models }) 
     const [selectedModelId, setSelectedModelId] = useState<string>('');
     
     const syntaxTheme = theme === 'dark' ? atomDark : coy;
+    const recentPrompts = config?.apiRecentPrompts || [];
 
     useEffect(() => {
         // Pre-select the first model if available and none is selected
@@ -47,6 +51,7 @@ const ApiView: React.FC<ApiViewProps> = ({ isElectron, theme, config, models }) 
             setError("Cannot generate request. Check prompt, model selection, and app configuration.");
             return;
         }
+        onSaveApiPrompt(prompt);
         setIsLoading(true);
         setError(null);
         setApiRequest(null);
@@ -187,7 +192,35 @@ Description: "${prompt}"`;
                     className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
                     rows={3}
                 />
-                <div className="flex justify-between items-center">
+                
+                {recentPrompts.length > 0 && (
+                    <div className="mt-4">
+                        <div className="flex justify-between items-center mb-2">
+                            <h4 className="text-sm font-semibold text-[--text-muted]">Recent Prompts</h4>
+                            <button 
+                                onClick={onClearApiPrompts} 
+                                className="text-xs text-red-500 hover:underline flex items-center gap-1"
+                                title="Clear history"
+                            >
+                                <TrashIcon className="w-3 h-3" /> Clear
+                            </button>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {recentPrompts.map((p, i) => (
+                                <button 
+                                    key={i}
+                                    onClick={() => setPrompt(p)}
+                                    className="px-2.5 py-1.5 text-xs font-mono text-[--text-secondary] bg-[--bg-tertiary] rounded-md hover:bg-[--bg-hover] hover:text-[--text-primary] transition-colors truncate max-w-xs"
+                                    title={p}
+                                >
+                                    {p}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                
+                <div className="flex justify-between items-center pt-2">
                     <div className="flex-grow">
                         <label htmlFor="api-model-select" className="sr-only">Model</label>
                         <select

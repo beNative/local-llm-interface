@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Config, Model, ChatMessage, Theme, CodeProject } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT } from './constants';
@@ -68,6 +69,7 @@ const App: React.FC = () => {
         webAppsPath: '',
         projects: [],
         pythonCommand: 'python',
+        apiRecentPrompts: [],
       };
       
       let loadedConfig = defaultConfig;
@@ -137,7 +139,7 @@ const App: React.FC = () => {
       
       // When settings are saved from the panel, we want to retain the theme.
       // The theme is only changed by the theme toggler.
-      return { ...newConfig, theme: currentConfig.theme };
+      return { ...newConfig, theme: currentConfig.theme, apiRecentPrompts: currentConfig.apiRecentPrompts };
     });
     
     logger.setConfig({ logToFile: newConfig.logToFile });
@@ -252,6 +254,24 @@ const App: React.FC = () => {
     setPrefilledInput('');
   };
   
+  const handleSaveApiPrompt = (prompt: string) => {
+    setConfig(currentConfig => {
+        if (!currentConfig) return null;
+        const recent = currentConfig.apiRecentPrompts || [];
+        const updatedRecent = [prompt, ...recent.filter(p => p !== prompt)].slice(0, 10); // Limit to 10
+        return { ...currentConfig, apiRecentPrompts: updatedRecent };
+    });
+    logger.info(`Saved API prompt to history.`);
+  };
+
+  const handleClearApiPrompts = () => {
+      setConfig(currentConfig => {
+          if (!currentConfig) return null;
+          return { ...currentConfig, apiRecentPrompts: [] };
+      });
+      logger.info('Cleared API prompt history.');
+  };
+
   const renderContent = () => {
     if (!config) {
         // Initial loading state before config is loaded from storage
@@ -284,6 +304,8 @@ const App: React.FC = () => {
                 theme={config.theme || 'dark'}
                 config={config}
                 models={models}
+                onSaveApiPrompt={handleSaveApiPrompt}
+                onClearApiPrompts={handleClearApiPrompts}
               />;
         case 'chat':
         default:
