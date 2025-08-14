@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import type { Config, Model, ChatMessage, Theme } from './types';
+import type { Config, Model, ChatMessage, Theme, CodeProject } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT } from './constants';
 import { fetchModels, streamChatCompletion, LLMServiceError } from './services/llmService';
 import { logger } from './services/logger';
@@ -9,12 +9,14 @@ import ChatView from './components/ChatView';
 import ThemeSwitcher from './components/ThemeSwitcher';
 import LoggingPanel from './components/LoggingPanel';
 import InfoView from './components/InfoView';
+import ProjectsView from './components/ProjectsView';
 import FileTextIcon from './components/icons/FileTextIcon';
 import SettingsIcon from './components/icons/SettingsIcon';
 import InfoIcon from './components/icons/InfoIcon';
 import MessageSquareIcon from './components/icons/MessageSquareIcon';
+import CodeIcon from './components/icons/CodeIcon';
 
-type View = 'chat' | 'settings' | 'info';
+type View = 'chat' | 'settings' | 'info' | 'projects';
 
 const NavButton: React.FC<{
   active: boolean;
@@ -41,6 +43,9 @@ const App: React.FC = () => {
     baseUrl: PROVIDER_CONFIGS.Ollama.baseUrl,
     theme: 'dark',
     logToFile: false,
+    pythonProjectsPath: '',
+    nodejsProjectsPath: '',
+    projects: [],
   });
   const [models, setModels] = useState<Model[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState<boolean>(true);
@@ -70,6 +75,9 @@ const App: React.FC = () => {
         baseUrl: PROVIDER_CONFIGS.Ollama.baseUrl,
         theme: 'dark',
         logToFile: false,
+        pythonProjectsPath: '',
+        nodejsProjectsPath: '',
+        projects: [],
       };
       
       let finalConfig = defaultConfig;
@@ -81,7 +89,7 @@ const App: React.FC = () => {
         if (loadedSettings) {
           logger.info('Loaded settings from file.');
           logger.debug(`Settings loaded: ${JSON.stringify(loadedSettings)}`);
-          finalConfig = { ...defaultConfig, ...loadedSettings };
+          finalConfig = { ...defaultConfig, ...loadedSettings, projects: loadedSettings.projects || [] };
         } else {
           logger.info('No settings file found, using defaults.');
         }
@@ -93,7 +101,7 @@ const App: React.FC = () => {
             const loadedSettings = JSON.parse(localSettings);
             logger.info('Loaded settings from localStorage.');
             logger.debug(`Settings loaded: ${JSON.stringify(loadedSettings)}`);
-            finalConfig = { ...defaultConfig, ...loadedSettings };
+            finalConfig = { ...defaultConfig, ...loadedSettings, projects: loadedSettings.projects || [] };
           } catch (e) {
              logger.error("Failed to parse local settings, using defaults.");
           }
@@ -112,18 +120,22 @@ const App: React.FC = () => {
     logger.info('Configuration change requested.');
     logger.debug(`New config: ${JSON.stringify(newConfig)}`);
     const needsModelReload = newConfig.baseUrl !== config.baseUrl || newConfig.provider !== config.provider;
-    setConfig(newConfig);
-    logger.setConfig({ logToFile: newConfig.logToFile });
+    
+    // Ensure projects is always an array
+    const finalConfig = { ...newConfig, projects: newConfig.projects || [] };
+    setConfig(finalConfig);
+
+    logger.setConfig({ logToFile: finalConfig.logToFile });
     
     if (window.electronAPI) {
-      await window.electronAPI.saveSettings(newConfig);
+      await window.electronAPI.saveSettings(finalConfig);
       logger.info('Settings saved to file.');
     } else {
-      localStorage.setItem('llm_config', JSON.stringify(newConfig));
+      localStorage.setItem('llm_config', JSON.stringify(finalConfig));
       logger.info('Settings saved to localStorage.');
     }
     
-    if (needsModelReload) {
+    if (needsModelReload && view !== 'settings') {
       logger.info('Provider or Base URL changed, resetting to model selection.');
       setCurrentChatModelId(null); 
       setMessages([]);
@@ -134,8 +146,7 @@ const App: React.FC = () => {
   const handleThemeToggle = () => {
       const newTheme = config.theme === 'light' ? 'dark' : 'light';
       logger.info(`Theme toggled to ${newTheme}.`);
-      const newConfig: Config = { ...config, theme: newTheme };
-      handleConfigChange(newConfig);
+      handleConfigChange({ ...config, theme: newTheme });
   };
 
   const loadModels = useCallback(async () => {
@@ -235,12 +246,21 @@ const App: React.FC = () => {
         case 'settings':
             return <SettingsPanel 
                 config={config} 
-                onConfigChange={handleConfigChange} 
+                onConfigChange={(newConfig) => {
+                  handleConfigChange(newConfig);
+                  setView('chat');
+                }} 
                 isConnecting={isLoadingModels}
                 isElectron={isElectron}
               />;
         case 'info':
             return <InfoView />;
+        case 'projects':
+            return <ProjectsView 
+                config={config}
+                onConfigChange={handleConfigChange}
+                isElectron={isElectron}
+              />;
         case 'chat':
         default:
              if (currentChatModelId) {
@@ -253,6 +273,7 @@ const App: React.FC = () => {
                         onBack={handleBackToSelection}
                         theme={config.theme || 'dark'}
                         isElectron={isElectron}
+                        projects={config.projects || []}
                     />
                 );
              }
@@ -278,6 +299,10 @@ const App: React.FC = () => {
               <NavButton active={view === 'chat'} onClick={() => setView('chat')} ariaLabel="Chat View">
                 <MessageSquareIcon className="w-4 h-4" />
                 <span>Chat</span>
+              </NavButton>
+              <NavButton active={view === 'projects'} onClick={() => setView('projects')} ariaLabel="Projects View">
+                <CodeIcon className="w-4 h-4" />
+                <span>Projects</span>
               </NavButton>
               <NavButton active={view === 'settings'} onClick={() => setView('settings')} ariaLabel="Settings View">
                  <SettingsIcon className="w-4 h-4" />

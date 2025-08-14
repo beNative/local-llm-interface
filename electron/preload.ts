@@ -37,4 +37,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @returns {Promise<void>} A promise that resolves when the log is written.
    */
   writeLog: (entry: object) => ipcRenderer.invoke('log:write', entry),
+
+  // Project Management APIs
+  selectDirectory: () => ipcRenderer.invoke('dialog:select-directory'),
+  createProject: (args: any) => ipcRenderer.invoke('project:create', args),
+  deleteProject: (projectPath: string) => ipcRenderer.invoke('project:delete', projectPath),
+  openProjectFolder: (folderPath: string) => ipcRenderer.invoke('project:open-folder', folderPath),
+  installProjectDeps: (project: any) => ipcRenderer.invoke('project:install-deps', project),
+  runScriptInProject: (args: any) => ipcRenderer.invoke('project:run-script', args),
 });

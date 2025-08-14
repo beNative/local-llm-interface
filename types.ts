@@ -10,11 +10,23 @@ export interface LogEntry {
 
 export type LLMProvider = 'Ollama' | 'LMStudio' | 'Custom';
 
+export type ProjectType = 'python' | 'nodejs';
+
+export interface CodeProject {
+  id: string;
+  name: string;
+  type: ProjectType;
+  path: string; // Full path to the project directory
+}
+
 export interface Config {
   provider: LLMProvider;
   baseUrl: string;
   theme?: Theme;
   logToFile?: boolean;
+  pythonProjectsPath?: string;
+  nodejsProjectsPath?: string;
+  projects?: CodeProject[];
 }
 
 export interface Model {

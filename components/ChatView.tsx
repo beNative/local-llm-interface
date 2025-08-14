@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
-import type { ChatMessage, Theme } from '../types';
+import type { ChatMessage, Theme, CodeProject, ProjectType } from '../types';
 import SendIcon from './icons/SendIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
 import ModelIcon from './icons/ModelIcon';
@@ -21,10 +21,12 @@ interface ChatViewProps {
   onBack: () => void;
   theme: Theme;
   isElectron: boolean;
+  projects: CodeProject[];
 }
 
-const CodeBlock = ({ node, inline, className, children, theme, isElectron }: any) => {
+const CodeBlock = ({ node, inline, className, children, theme, isElectron, projects }: any) => {
   const [isCopied, setIsCopied] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState('standalone');
   const [runState, setRunState] = useState<{
     isLoading: boolean;
     output: string | null;
@@ -36,11 +38,15 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron }: any
   });
 
   const match = /language-(\w+)/.exec(className || '');
+  const lang = match ? match[1].toLowerCase() : '';
+  const isPython = lang === 'python';
+  const isNode = ['javascript', 'js', 'nodejs'].includes(lang);
+  
   const codeText = String(children).replace(/\n$/, '');
   const syntaxTheme = theme === 'dark' ? atomDark : coy;
   
-  const isPython = match && match[1].toLowerCase() === 'python';
-  const canRunNative = isPython && isElectron;
+  const canRunNative = (isPython || isNode) && isElectron;
+  const relevantProjects = projects.filter(p => p.type === (isPython ? 'python' : 'nodejs'));
 
   const handleCopy = () => {
     navigator.clipboard.writeText(codeText);
@@ -50,17 +56,36 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron }: any
   
   const handleRun = async () => {
     setRunState({ isLoading: true, output: null, error: null });
-    const executionEnv = canRunNative ? 'native Python' : 'Pyodide (WASM)';
-    logger.info(`Running Python code via ${executionEnv}`);
+    
+    const project = relevantProjects.find(p => p.id === selectedProjectId);
+    const isStandalone = selectedProjectId === 'standalone' || !project;
+    
+    let executionEnv = '';
+    if (isStandalone) {
+        executionEnv = isPython ? (isElectron ? 'standalone Python' : 'Pyodide (WASM)') : 'standalone Node.js';
+    } else {
+        executionEnv = `project: ${project?.name}`;
+    }
+    
+    logger.info(`Running ${lang} code via ${executionEnv}`);
     logger.debug(`Code:\n---\n${codeText}\n---`);
 
     try {
-        if (canRunNative && window.electronAPI) {
-          const { stdout, stderr } = await window.electronAPI.runPython(codeText);
-          setRunState({ isLoading: false, output: stdout, error: stderr || null });
-          logger.info(`Native Python stdout:\n${stdout}`);
-          if(stderr) logger.warn(`Native Python stderr:\n${stderr}`);
-        } else {
+        if (isElectron && window.electronAPI) {
+            let result: { stdout: string, stderr: string };
+            if (isStandalone) {
+                 if(isPython) {
+                    result = await window.electronAPI.runPython(codeText);
+                 } else { // isNode
+                    result = { stdout: '', stderr: 'Standalone Node.js execution is not supported. Please run in a project.'};
+                 }
+            } else {
+                result = await window.electronAPI.runScriptInProject({ project: project!, code: codeText });
+            }
+            setRunState({ isLoading: false, output: result.stdout, error: result.stderr || null });
+            logger.info(`Native execution stdout:\n${result.stdout}`);
+            if(result.stderr) logger.warn(`Native execution stderr:\n${result.stderr}`);
+        } else if (isPython) { // Pyodide fallback for Python in browser
           const { result, error } = await runPythonCode(codeText);
           setRunState({ isLoading: false, output: result, error });
           logger.info(`Pyodide output:\n${result}`);
@@ -69,27 +94,41 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron }: any
     } catch (e) {
         const errorMsg = e instanceof Error ? e.message : String(e);
         setRunState({ isLoading: false, output: null, error: errorMsg });
-        logger.error(`Failed to run Python code: ${errorMsg}`);
+        logger.error(`Failed to run code: ${errorMsg}`);
     }
   };
   
   const RunIcon = canRunNative ? TerminalIcon : PlayIcon;
-  const runButtonText = runState.isLoading ? (canRunNative ? 'Running...' : 'Loading...') : 'Run';
+  const runButtonText = runState.isLoading ? 'Running...' : 'Run';
 
   return !inline && match ? (
     <div className="relative bg-gray-100 dark:bg-gray-800 my-2 rounded-md border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between px-4 py-1 bg-gray-200/50 dark:bg-gray-700/50 rounded-t-md text-xs">
         <span className="font-sans text-gray-500 dark:text-gray-400">{match[1]}</span>
         <div className="flex items-center gap-2">
-            {isPython && (
-              <button
-                onClick={handleRun}
-                disabled={runState.isLoading}
-                className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded disabled:cursor-wait disabled:text-gray-400 dark:disabled:text-gray-500"
-              >
-                  <RunIcon className="w-3 h-3"/>
-                  {runButtonText}
-              </button>
+            {(isPython || (isNode && isElectron)) && (
+              <div className="flex items-center gap-1">
+                {canRunNative && relevantProjects.length > 0 && (
+                    <select 
+                        value={selectedProjectId} 
+                        onChange={e => setSelectedProjectId(e.target.value)}
+                        className="text-xs bg-gray-200 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:border-blue-500"
+                        disabled={runState.isLoading}
+                    >
+                        <option value="standalone">Standalone</option>
+                        {relevantProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                )}
+                <button
+                    onClick={handleRun}
+                    disabled={runState.isLoading || (isNode && isElectron && selectedProjectId === 'standalone')}
+                    className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded disabled:cursor-not-allowed disabled:text-gray-400 dark:disabled:text-gray-500"
+                    title={isNode && isElectron && selectedProjectId === 'standalone' ? 'Please select a project to run Node.js code' : ''}
+                >
+                    <RunIcon className="w-3 h-3"/>
+                    {runButtonText}
+                </button>
+              </div>
             )}
             <button 
               onClick={handleCopy}
@@ -127,7 +166,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron }: any
 };
 
 
-const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, isResponding, onBack, theme, isElectron }) => {
+const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, isResponding, onBack, theme, isElectron, projects }) => {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -183,7 +222,7 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
                 : <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
-                      components={{ code: (props) => <CodeBlock {...props} theme={theme} isElectron={isElectron} /> }}
+                      components={{ code: (props) => <CodeBlock {...props} theme={theme} isElectron={isElectron} projects={projects} /> }}
                     >
                       {msg.content}
                     </ReactMarkdown>

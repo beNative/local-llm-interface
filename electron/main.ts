@@ -1,5 +1,5 @@
 
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -36,6 +36,37 @@ const saveSettings = (settings: object) => {
   } catch (error) {
     console.error('Failed to save settings file:', error);
   }
+};
+
+const runCommand = (command: string, args: string[], cwd: string): Promise<{ stdout: string; stderr:string }> => {
+    return new Promise((resolve) => {
+        const child = spawn(command, args, { cwd, shell: os.platform() === 'win32' });
+        let stdout = '';
+        let stderr = '';
+
+        child.stdout.on('data', (data) => { stdout += data.toString(); });
+        child.stderr.on('data', (data) => { stderr += data.toString(); });
+        
+        child.on('error', (error) => {
+            console.error(`Spawn error for ${command}`, error);
+            stderr += `\nFailed to start command: ${error.message}`;
+            resolve({ stdout, stderr });
+        });
+
+        child.on('close', (code) => {
+            if (code !== 0) {
+                 stderr += `\nProcess exited with non-zero code: ${code}`;
+            }
+            resolve({ stdout, stderr });
+        });
+    });
+};
+
+const getPythonExecutable = (venvPath: string): string => {
+    if (os.platform() === 'win32') {
+        return path.join(venvPath, 'Scripts', 'python.exe');
+    }
+    return path.join(venvPath, 'bin', 'python');
 };
 
 const createWindow = () => {
@@ -127,6 +158,95 @@ app.whenReady().then(() => {
         }
     });
 
+    // Project Management Handlers
+    ipcMain.handle('dialog:select-directory', async () => {
+        const { canceled, filePaths } = await dialog.showOpenDialog({
+            properties: ['openDirectory']
+        });
+        if (!canceled && filePaths.length > 0) {
+            return filePaths[0];
+        }
+        return null;
+    });
+
+    ipcMain.handle('project:create', async (_, { projectType, name, basePath }: { projectType: 'python' | 'nodejs', name: string, basePath: string }) => {
+        const projectPath = path.join(basePath, name);
+        if (fs.existsSync(projectPath)) {
+            throw new Error(`Project directory already exists: ${projectPath}`);
+        }
+        fs.mkdirSync(projectPath, { recursive: true });
+
+        try {
+            if (projectType === 'python') {
+                const venvPath = path.join(projectPath, 'venv');
+                const { stderr } = await runCommand('python', ['-m', 'venv', venvPath], projectPath);
+                if (stderr) throw new Error(stderr);
+            } else if (projectType === 'nodejs') {
+                const { stderr } = await runCommand('npm', ['init', '-y'], projectPath);
+                if (stderr) throw new Error(stderr);
+            }
+        } catch (e: any) {
+            // Clean up created directory on failure
+            if (fs.existsSync(projectPath)) {
+              fs.rmSync(projectPath, { recursive: true, force: true });
+            }
+            throw new Error(`Failed to create project: ${e.message}`);
+        }
+        
+        return {
+            id: crypto.randomBytes(8).toString('hex'),
+            name,
+            type: projectType,
+            path: projectPath,
+        };
+    });
+
+    ipcMain.handle('project:delete', async (_, projectPath: string) => {
+        if (fs.existsSync(projectPath)) {
+            fs.rmSync(projectPath, { recursive: true, force: true });
+        }
+    });
+
+    ipcMain.handle('project:open-folder', async (_, folderPath: string) => {
+        shell.openPath(folderPath);
+    });
+
+    ipcMain.handle('project:install-deps', async (_, project: { type: 'python' | 'nodejs', path: string }) => {
+        if (project.type === 'python') {
+            const reqFile = path.join(project.path, 'requirements.txt');
+            if (!fs.existsSync(reqFile)) {
+                fs.writeFileSync(reqFile, '# Add your python dependencies here');
+                return { stdout: 'Created empty requirements.txt.', stderr: '' };
+            }
+            const venvPath = path.join(project.path, 'venv');
+            const pythonExec = getPythonExecutable(venvPath);
+            return await runCommand(pythonExec, ['-m', 'pip', 'install', '-r', 'requirements.txt'], project.path);
+        } else if (project.type === 'nodejs') {
+            return await runCommand('npm', ['install'], project.path);
+        }
+        return { stdout: '', stderr: 'Unknown project type' };
+    });
+
+    ipcMain.handle('project:run-script', async (_, { project, code }: { project: { type: 'python' | 'nodejs', path: string }, code: string }) => {
+        const extension = project.type === 'python' ? 'py' : 'js';
+        const tempFileName = `script_${crypto.randomBytes(6).toString('hex')}.${extension}`;
+        const tempFilePath = path.join(project.path, tempFileName);
+        
+        fs.writeFileSync(tempFilePath, code, 'utf-8');
+
+        try {
+            if (project.type === 'python') {
+                const pythonExec = getPythonExecutable(path.join(project.path, 'venv'));
+                return await runCommand(pythonExec, [tempFilePath], project.path);
+            } else { // nodejs
+                return await runCommand('node', [tempFilePath], project.path);
+            }
+        } finally {
+            if (fs.existsSync(tempFilePath)) {
+                fs.unlinkSync(tempFilePath);
+            }
+        }
+    });
 
     createWindow();
 
