@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { logger } from '../services/logger';
 import type { LogEntry, LogLevel } from '../types';
 import TrashIcon from './icons/TrashIcon';
@@ -18,85 +19,123 @@ const levelClasses: Record<LogLevel, { text: string, bg: string, border: string 
 };
 
 const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [allLogs, setAllLogs] = useState<LogEntry[]>(logger.getLogs());
   const [filters, setFilters] = useState<Set<LogLevel>>(new Set(LOG_LEVELS));
   const [isCopied, setIsCopied] = useState(false);
+  const [height, setHeight] = useState(window.innerHeight / 3);
+  
   const logContainerRef = useRef<HTMLDivElement>(null);
+  const isResizing = useRef(false);
 
   useEffect(() => {
-    const handleLogs = (newLogs: LogEntry[]) => {
-      setLogs(newLogs);
-    };
+    const handleLogs = (newLogs: LogEntry[]) => setAllLogs(newLogs);
     logger.subscribe(handleLogs);
     return () => logger.unsubscribe(handleLogs);
   }, []);
+
+  const filteredLogs = useMemo(() => allLogs.filter(log => filters.has(log.level)), [allLogs, filters]);
 
   useEffect(() => {
     if (logContainerRef.current) {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
-  }, [logs]);
+  }, [filteredLogs]);
+
+  const handleResize = useCallback((e: MouseEvent) => {
+    if (!isResizing.current) return;
+    const newHeight = window.innerHeight - e.clientY;
+    const minHeight = 80;
+    const maxHeight = window.innerHeight * 0.9;
+    setHeight(Math.max(minHeight, Math.min(newHeight, maxHeight)));
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    isResizing.current = false;
+    window.removeEventListener('mousemove', handleResize);
+    window.removeEventListener('mouseup', stopResizing);
+    document.body.style.cursor = 'default';
+    document.body.style.userSelect = 'auto';
+  }, [handleResize]);
+
+  const startResizing = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizing.current = true;
+    window.addEventListener('mousemove', handleResize);
+    window.addEventListener('mouseup', stopResizing);
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
+  }, [handleResize, stopResizing]);
 
   const toggleFilter = (level: LogLevel) => {
     setFilters(prev => {
       const newFilters = new Set(prev);
-      if (newFilters.has(level)) {
-        newFilters.delete(level);
-      } else {
-        newFilters.add(level);
-      }
+      if (newFilters.has(level)) newFilters.delete(level);
+      else newFilters.add(level);
       return newFilters;
     });
   };
 
   const copyLogs = () => {
-    const logText = logs
+    const logText = allLogs
       .map(log => `[${log.timestamp.toISOString()}] [${log.level}] ${log.message}`)
       .join('\n');
     navigator.clipboard.writeText(logText);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
   };
-
-  const filteredLogs = logs.filter(log => filters.has(log.level));
+  
+  const logCounts = useMemo(() => {
+    return allLogs.reduce((acc, log) => {
+      acc[log.level] = (acc[log.level] || 0) + 1;
+      return acc;
+    }, {} as Record<LogLevel, number>);
+  }, [allLogs]);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 h-1/3 flex flex-col bg-gray-50 dark:bg-gray-900 shadow-[0_-2px_15px_-3px_rgba(0,0,0,0.1)] border-t border-gray-200 dark:border-gray-700">
-      <header className="flex items-center justify-between p-2 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+    <div 
+      style={{ height: `${height}px` }}
+      className="fixed bottom-0 left-0 right-0 z-40 flex flex-col bg-gray-50 dark:bg-gray-900 shadow-[0_-2px_15px_-3px_rgba(0,0,0,0.1)]"
+    >
+      <div 
+        onMouseDown={startResizing}
+        className="absolute top-0 left-0 w-full h-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-blue-500 cursor-ns-resize transition-colors duration-200"
+        aria-label="Resize panel"
+      />
+      <header className="flex items-center justify-between p-2 pt-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
         <div className="flex items-center gap-2">
           <h3 className="font-semibold text-sm px-2">Application Logs</h3>
           {LOG_LEVELS.map(level => (
             <button
               key={level}
               onClick={() => toggleFilter(level)}
-              className={`px-2.5 py-1 text-xs font-medium rounded-full border ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border transition-colors ${
                 filters.has(level)
                   ? `${levelClasses[level].bg} ${levelClasses[level].text} ${levelClasses[level].border}`
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border-transparent hover:border-gray-400'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border-transparent hover:border-gray-400 dark:hover:border-gray-500'
               }`}
             >
-              {level}
+              <span>{level}</span>
+              <span className={`px-1.5 py-0.5 text-xs rounded-full ${filters.has(level) ? 'bg-black/10 dark:bg-white/10' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                {logCounts[level] || 0}
+              </span>
             </button>
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={copyLogs} className="p-1.5 rounded text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700">
+          <button onClick={copyLogs} className="p-1.5 rounded text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700" title={isCopied ? 'Copied!' : 'Copy Logs'}>
             <ClipboardIcon className="w-4 h-4" />
-            <span className="sr-only">{isCopied ? 'Copied!' : 'Copy Logs'}</span>
           </button>
-          <button onClick={logger.clearLogs} className="p-1.5 rounded text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700">
+          <button onClick={logger.clearLogs} className="p-1.5 rounded text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700" title="Clear Logs">
             <TrashIcon className="w-4 h-4" />
-            <span className="sr-only">Clear Logs</span>
           </button>
-          <button onClick={onClose} className="p-1.5 rounded text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700">
+          <button onClick={onClose} className="p-1.5 rounded text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700" title="Close Panel">
              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-             <span className="sr-only">Close Panel</span>
           </button>
         </div>
       </header>
       <div ref={logContainerRef} className="flex-1 overflow-y-auto p-2 font-mono text-xs">
         {filteredLogs.map((log, i) => (
-          <div key={i} className={`flex items-start gap-3 py-1 px-2 rounded ${levelClasses[log.level].bg}`}>
+          <div key={i} className={`flex items-start gap-3 py-1 px-2 rounded hover:bg-black/5 dark:hover:bg-white/5`}>
             <span className="flex-shrink-0 text-gray-500">{log.timestamp.toLocaleTimeString()}</span>
             <span className={`flex-shrink-0 font-bold w-16 ${levelClasses[log.level].text}`}>[{log.level}]</span>
             <pre className="whitespace-pre-wrap break-words text-gray-800 dark:text-gray-200">{log.message}</pre>

@@ -213,8 +213,8 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
             <div
               className={`max-w-2xl p-4 rounded-xl ${
                 msg.role === 'user'
-                  ? 'bg-blue-600 text-white rounded-br-none'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-bl-none'
+                  ? 'bg-blue-500 dark:bg-blue-700 text-white rounded-br-none'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-bl-none'
               }`}
             >
               {msg.role === 'assistant' && msg.content === '' && isResponding

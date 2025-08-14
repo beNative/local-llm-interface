@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Config, Model, ChatMessage, Theme, CodeProject } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT } from './constants';
@@ -58,16 +59,9 @@ const App: React.FC = () => {
   const [isElectron, setIsElectron] = useState(false);
   const [isLogPanelVisible, setIsLogPanelVisible] = useState(false);
 
+  // This effect runs once on mount to load settings and set initial state.
   useEffect(() => {
     logger.info('App initialized.');
-    if (config.theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [config.theme]);
-
-  useEffect(() => {
     const loadInitialData = async () => {
       logger.debug('Loading initial data and settings.');
       const defaultConfig: Config = { 
@@ -115,6 +109,17 @@ const App: React.FC = () => {
     };
     loadInitialData();
   }, []);
+  
+  // This effect runs whenever the theme property in the config changes.
+  useEffect(() => {
+    if (config.theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    logger.debug(`Theme set to: ${config.theme}`);
+  }, [config.theme]);
+
 
   const handleConfigChange = async (newConfig: Config) => {
     logger.info('Configuration change requested.');
