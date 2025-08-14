@@ -41,7 +41,7 @@ const NavButton: React.FC<{
 const App: React.FC = () => {
   const [config, setConfig] = useState<Config>({ 
     provider: 'Ollama', 
-    baseUrl: PROVIDER_CONFIGS.Ollama.baseUrl,
+    baseUrl: '', // Initially empty to prevent premature fetching
     theme: 'dark',
     logToFile: false,
     pythonProjectsPath: '',
@@ -49,7 +49,7 @@ const App: React.FC = () => {
     projects: [],
   });
   const [models, setModels] = useState<Model[]>([]);
-  const [isLoadingModels, setIsLoadingModels] = useState<boolean>(true);
+  const [isLoadingModels, setIsLoadingModels] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const [view, setView] = useState<View>('chat');
@@ -61,9 +61,9 @@ const App: React.FC = () => {
 
   // Effect for app initialization and loading settings
   useEffect(() => {
-    logger.info('App initialized.');
-    const loadInitialData = async () => {
-      logger.debug('Loading initial data and settings.');
+    logger.info('App initializing...');
+    const loadInitialConfig = async () => {
+      logger.debug('Loading initial config.');
       const defaultConfig: Config = { 
         provider: 'Ollama', 
         baseUrl: PROVIDER_CONFIGS.Ollama.baseUrl,
@@ -74,16 +74,15 @@ const App: React.FC = () => {
         projects: [],
       };
       
-      let finalConfig = defaultConfig;
+      let loadedConfig = defaultConfig;
 
       if (window.electronAPI) {
         setIsElectron(true);
         logger.info('Electron environment detected.');
-        const loadedSettings = await window.electronAPI.getSettings();
-        if (loadedSettings) {
+        const savedSettings = await window.electronAPI.getSettings();
+        if (savedSettings) {
           logger.info('Loaded settings from file.');
-          logger.debug(`Settings loaded: ${JSON.stringify(loadedSettings)}`);
-          finalConfig = { ...defaultConfig, ...loadedSettings, projects: loadedSettings.projects || [] };
+          loadedConfig = { ...defaultConfig, ...savedSettings, projects: savedSettings.projects || [] };
         } else {
           logger.info('No settings file found, using defaults.');
         }
@@ -92,55 +91,54 @@ const App: React.FC = () => {
         const localSettings = localStorage.getItem('llm_config');
         if (localSettings) {
           try {
-            const loadedSettings = JSON.parse(localSettings);
+            const savedSettings = JSON.parse(localSettings);
             logger.info('Loaded settings from localStorage.');
-            logger.debug(`Settings loaded: ${JSON.stringify(loadedSettings)}`);
-            finalConfig = { ...defaultConfig, ...loadedSettings, projects: loadedSettings.projects || [] };
+            loadedConfig = { ...defaultConfig, ...savedSettings, projects: savedSettings.projects || [] };
           } catch (e) {
              logger.error("Failed to parse local settings, using defaults.");
           }
-        } else {
-            logger.info('No settings found in localStorage, using defaults.');
         }
       }
       
-      setConfig(finalConfig);
-      logger.setConfig({ logToFile: finalConfig.logToFile });
+      setConfig(loadedConfig);
+      logger.setConfig({ logToFile: loadedConfig.logToFile });
     };
-    loadInitialData();
+    loadInitialConfig();
   }, []);
   
-  // Effect to apply the theme class to the document whenever it changes.
+  // Effect to apply the theme class to the document and persist config changes.
   useEffect(() => {
+    if (!config.baseUrl) return; // Don't run on initial empty config
+
+    // Apply theme
     if (config.theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
     logger.debug(`Theme set to: ${config.theme}`);
-  }, [config.theme]);
+    
+    // Persist config
+    if (window.electronAPI) {
+      window.electronAPI.saveSettings(config);
+    } else {
+      localStorage.setItem('llm_config', JSON.stringify(config));
+    }
+    logger.debug('Configuration persisted.');
+
+  }, [config]);
 
 
-  const handleConfigChange = async (newConfig: Config) => {
+  const handleConfigChange = (newConfig: Config) => {
     logger.info('Configuration change requested.');
     logger.debug(`New config: ${JSON.stringify(newConfig)}`);
+    
     const needsModelReload = newConfig.baseUrl !== config.baseUrl || newConfig.provider !== config.provider;
     
-    // Ensure projects is always an array
-    const finalConfig = { ...newConfig, projects: newConfig.projects || [] };
-    setConfig(finalConfig);
-
-    logger.setConfig({ logToFile: finalConfig.logToFile });
+    setConfig(newConfig);
+    logger.setConfig({ logToFile: newConfig.logToFile });
     
-    if (window.electronAPI) {
-      await window.electronAPI.saveSettings(finalConfig);
-      logger.info('Settings saved to file.');
-    } else {
-      localStorage.setItem('llm_config', JSON.stringify(finalConfig));
-      logger.info('Settings saved to localStorage.');
-    }
-    
-    if (needsModelReload && view !== 'settings') {
+    if (needsModelReload) {
       logger.info('Provider or Base URL changed, resetting to model selection.');
       setCurrentChatModelId(null); 
       setMessages([]);
@@ -149,16 +147,16 @@ const App: React.FC = () => {
   };
 
   const handleThemeToggle = () => {
-      const newTheme = config.theme === 'light' ? 'dark' : 'light';
-      logger.info(`Theme toggled to ${newTheme}.`);
-      handleConfigChange({ ...config, theme: newTheme });
+      setConfig(currentConfig => {
+        const newTheme = currentConfig.theme === 'light' ? 'dark' : 'light';
+        logger.info(`Theme toggled to ${newTheme}.`);
+        return { ...currentConfig, theme: newTheme };
+      });
   };
 
   const loadModels = useCallback(async () => {
     if (!config.baseUrl) {
-        const msg = "The Base URL is not configured. Please check your settings.";
-        logger.warn(msg);
-        setError(msg);
+        setError("Base URL not configured. Please check your settings.");
         setModels([]);
         setIsLoadingModels(false);
         return;
@@ -168,19 +166,9 @@ const App: React.FC = () => {
     try {
       const fetchedModels = await fetchModels(config.baseUrl);
       setModels(fetchedModels);
-      if (fetchedModels.length === 0) {
-        logger.warn('Successfully connected, but no models were found.');
-      } else {
-        logger.info(`Successfully fetched ${fetchedModels.length} models.`);
-      }
     } catch (err) {
-      if (err instanceof LLMServiceError) {
-        setError(err.message);
-      } else {
-        const msg = 'An unexpected error occurred while fetching models.';
-        logger.error(msg);
-        setError(msg);
-      }
+      const errorMessage = err instanceof LLMServiceError ? err.message : 'An unexpected error occurred.';
+      setError(errorMessage);
       setModels([]);
     } finally {
       setIsLoadingModels(false);
@@ -188,11 +176,11 @@ const App: React.FC = () => {
   }, [config.baseUrl]);
 
   useEffect(() => {
-    // Load models if we are on the chat tab and no model is selected yet.
-    if (view === 'chat' && !currentChatModelId) {
+    // Load models if config is ready, we are on chat tab, and no model is selected.
+    if (config.baseUrl && view === 'chat' && !currentChatModelId) {
       loadModels();
     }
-  }, [view, currentChatModelId, loadModels]);
+  }, [view, currentChatModelId, config.baseUrl, loadModels]);
 
   const handleSelectModel = (modelId: string) => {
     logger.info(`Model selected: ${modelId}`);
@@ -205,7 +193,7 @@ const App: React.FC = () => {
     logger.info('Returning to model selection screen.');
     setCurrentChatModelId(null);
     setMessages([]);
-    setView('chat');
+    setView('chat'); // Stays on chat view to trigger model load
   };
 
   const handleSendMessage = async (userInput: string) => {
