@@ -14,6 +14,12 @@ export interface IElectronAPI {
   openProjectFolder: (folderPath: string) => Promise<void>;
   installProjectDeps: (project: CodeProject) => Promise<{ stdout: string; stderr: string }>;
   runScriptInProject: (args: { project: CodeProject; code: string }) => Promise<{ stdout: string; stderr: string }>;
+  addFileToProject: (args: {
+    projectPath: string;
+    filename: string;
+    content: string;
+    overwrite: boolean;
+  }) => Promise<{ success: boolean; error?: string }>;
 }
 
 declare global {

@@ -248,6 +248,34 @@ app.whenReady().then(() => {
         }
     });
 
+    ipcMain.handle('project:add-file', async (_, { projectPath, filename, content, overwrite }) => {
+        try {
+            // Basic sanitization to prevent invalid filenames
+            const sanitizedFilename = path.basename(filename);
+            if (sanitizedFilename !== filename) {
+                throw new Error('Invalid filename. Subdirectories are not allowed.');
+            }
+
+            const filePath = path.join(projectPath, sanitizedFilename);
+
+            // Security check to prevent path traversal
+            if (!filePath.startsWith(projectPath)) {
+                throw new Error('Path traversal detected. Invalid filename.');
+            }
+            
+            if (fs.existsSync(filePath) && !overwrite) {
+                return { success: false, error: 'File already exists. Select "overwrite" to replace it.' };
+            }
+
+            fs.writeFileSync(filePath, content, 'utf-8');
+            return { success: true };
+        } catch (e) {
+            const message = e instanceof Error ? e.message : 'An unknown error occurred';
+            console.error(`Failed to add file to project:`, message);
+            return { success: false, error: message };
+        }
+    });
+
     createWindow();
 
     // Re-create a window on macOS when the dock icon is clicked and there are no other windows open.

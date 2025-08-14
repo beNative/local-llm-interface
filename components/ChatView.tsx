@@ -9,22 +9,123 @@ import SendIcon from './icons/SendIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
 import ModelIcon from './icons/ModelIcon';
 import PlayIcon from './icons/PlayIcon';
+import FilePlusIcon from './icons/FilePlusIcon';
 import TerminalIcon from './icons/TerminalIcon';
 import { runPythonCode } from '../services/pyodideService';
 import { logger } from '../services/logger';
 
-interface ChatViewProps {
-  modelId: string;
-  onSendMessage: (message: string) => Promise<void>;
-  messages: ChatMessage[];
-  isResponding: boolean;
-  onBack: () => void;
-  theme: Theme;
-  isElectron: boolean;
-  projects: CodeProject[];
+interface SaveModalProps {
+    code: string;
+    lang: string;
+    projects: CodeProject[];
+    onClose: () => void;
 }
 
-const CodeBlock = ({ node, inline, className, children, theme, isElectron, projects }: any) => {
+const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, onClose }) => {
+    const relevantProjects = projects.filter(p => p.type === (lang === 'python' ? 'python' : 'nodejs'));
+    const [selectedProjectId, setSelectedProjectId] = useState<string>(relevantProjects[0]?.id || '');
+    const [filename, setFilename] = useState('');
+    const [overwrite, setOverwrite] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        const firstLine = code.split('\n')[0];
+        const match = /#\s*filename:\s*(\S+)|^\/\/\s*filename:\s*(\S+)/.exec(firstLine);
+        if (match) {
+            setFilename(match[1] || match[2] || '');
+        } else {
+            const extension = lang === 'python' ? 'py' : 'js';
+            setFilename(`script-${new Date().toISOString().slice(0,10)}.${extension}`);
+        }
+    }, [code, lang]);
+
+    const handleSave = async () => {
+        if (!filename.trim() || !selectedProjectId) {
+            alert('Please select a project and enter a valid filename.');
+            return;
+        }
+        setIsSaving(true);
+        const project = projects.find(p => p.id === selectedProjectId);
+        if (!project) {
+            alert('Selected project not found.');
+            setIsSaving(false);
+            return;
+        }
+        
+        logger.info(`Saving file "${filename}" to project "${project.name}"...`);
+        try {
+            const result = await window.electronAPI!.addFileToProject({
+                projectPath: project.path,
+                filename: filename.trim(),
+                content: code,
+                overwrite: overwrite,
+            });
+
+            if (result.success) {
+                logger.info(`Successfully saved file "${filename}" to project "${project.name}".`);
+                onClose();
+            } else {
+                logger.error(`Failed to save file: ${result.error}`);
+                alert(`Error: ${result.error}`);
+            }
+        } catch (e) {
+            const errorMsg = e instanceof Error ? e.message : String(e);
+            logger.error(`An unexpected error occurred while saving file: ${errorMsg}`);
+            alert(`An unexpected error occurred: ${errorMsg}`);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Save Code to Project</h2>
+                <div className="space-y-4">
+                     <div>
+                        <label htmlFor="project-select" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Project</label>
+                        <select
+                            id="project-select"
+                            value={selectedProjectId}
+                            onChange={e => setSelectedProjectId(e.target.value)}
+                            className="w-full px-3 py-2 text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="" disabled>-- Select a project --</option>
+                            {relevantProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                    </div>
+                     <div>
+                        <label htmlFor="filename-input" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Filename</label>
+                        <input
+                            id="filename-input"
+                            type="text"
+                            value={filename}
+                            onChange={e => setFilename(e.target.value)}
+                            className="w-full px-3 py-2 text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                     <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={overwrite}
+                            onChange={e => setOverwrite(e.target.checked)}
+                            className="w-4 h-4 rounded text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600"
+                        />
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Overwrite if file exists</span>
+                    </label>
+                </div>
+                <div className="flex justify-end gap-3 mt-6">
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">Cancel</button>
+                    <button onClick={handleSave} disabled={isSaving || !selectedProjectId || !filename.trim()} className="flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-blue-400 dark:disabled:bg-blue-800">
+                        {isSaving ? <SpinnerIcon className="w-5 h-5"/> : 'Save File'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const CodeBlock = ({ node, inline, className, children, theme, isElectron, projects, onSaveRequest }: any) => {
   const [isCopied, setIsCopied] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState('standalone');
   const [runState, setRunState] = useState<{
@@ -45,7 +146,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
   const codeText = String(children).replace(/\n$/, '');
   const syntaxTheme = theme === 'dark' ? atomDark : coy;
   
-  const canRunNative = (isPython || isNode) && isElectron;
+  const canRunOrSaveNative = (isPython || isNode) && isElectron;
   const relevantProjects = projects.filter(p => p.type === (isPython ? 'python' : 'nodejs'));
 
   const handleCopy = () => {
@@ -72,7 +173,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
 
     try {
         if (isElectron && window.electronAPI) {
-            let result: { stdout: string, stderr: string };
+            let result: { stdout: string; stderr: string };
             if (isStandalone) {
                  if(isPython) {
                     result = await window.electronAPI.runPython(codeText);
@@ -98,7 +199,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
     }
   };
   
-  const RunIcon = canRunNative ? TerminalIcon : PlayIcon;
+  const RunIcon = canRunOrSaveNative ? TerminalIcon : PlayIcon;
   const runButtonText = runState.isLoading ? 'Running...' : 'Run';
 
   return !inline && match ? (
@@ -107,35 +208,53 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
         <span className="font-sans text-gray-500 dark:text-gray-400">{match[1]}</span>
         <div className="flex items-center gap-2">
             {(isPython || (isNode && isElectron)) && (
-              <div className="flex items-center gap-1">
-                {canRunNative && relevantProjects.length > 0 && (
-                    <select 
-                        value={selectedProjectId} 
-                        onChange={e => setSelectedProjectId(e.target.value)}
-                        className="text-xs bg-gray-200 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:border-blue-500"
-                        disabled={runState.isLoading}
+              <div className="flex items-center divide-x divide-gray-300 dark:divide-gray-600">
+                <div className="flex items-center gap-1 pr-2">
+                    {canRunOrSaveNative && relevantProjects.length > 0 && (
+                        <select 
+                            value={selectedProjectId} 
+                            onChange={e => setSelectedProjectId(e.target.value)}
+                            className="text-xs bg-gray-200 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:border-blue-500"
+                            disabled={runState.isLoading}
+                        >
+                            <option value="standalone">Standalone</option>
+                            {relevantProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                    )}
+                    <button
+                        onClick={handleRun}
+                        disabled={runState.isLoading || (isNode && isElectron && selectedProjectId === 'standalone')}
+                        className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded disabled:cursor-not-allowed disabled:text-gray-400 dark:disabled:text-gray-500"
+                        title={isNode && isElectron && selectedProjectId === 'standalone' ? 'Please select a project to run Node.js code' : ''}
                     >
-                        <option value="standalone">Standalone</option>
-                        {relevantProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
-                )}
-                <button
-                    onClick={handleRun}
-                    disabled={runState.isLoading || (isNode && isElectron && selectedProjectId === 'standalone')}
-                    className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded disabled:cursor-not-allowed disabled:text-gray-400 dark:disabled:text-gray-500"
-                    title={isNode && isElectron && selectedProjectId === 'standalone' ? 'Please select a project to run Node.js code' : ''}
-                >
-                    <RunIcon className="w-3 h-3"/>
-                    {runButtonText}
-                </button>
+                        <RunIcon className="w-3 h-3"/>
+                        {runButtonText}
+                    </button>
+                </div>
+                <div className="pl-2 flex items-center gap-2">
+                    {canRunOrSaveNative && relevantProjects.length > 0 && (
+                         <button onClick={() => onSaveRequest(codeText, lang)} className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded" title="Save to Project">
+                            <FilePlusIcon className="w-3.5 h-3.5" />
+                            Save
+                        </button>
+                    )}
+                    <button 
+                      onClick={handleCopy}
+                      className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded"
+                    >
+                      {isCopied ? 'Copied!' : 'Copy code'}
+                    </button>
+                </div>
               </div>
             )}
-            <button 
-              onClick={handleCopy}
-              className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded"
-            >
-              {isCopied ? 'Copied!' : 'Copy code'}
-            </button>
+            {!(isPython || (isNode && isElectron)) && (
+                <button 
+                  onClick={handleCopy}
+                  className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded"
+                >
+                  {isCopied ? 'Copied!' : 'Copy code'}
+                </button>
+            )}
         </div>
       </div>
       <SyntaxHighlighter
@@ -159,15 +278,26 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
       )}
     </div>
   ) : (
-    <code className="px-1.5 py-1 bg-blue-100 dark:bg-gray-600/50 text-blue-800 dark:text-blue-300 rounded-md text-sm font-mono">
+    <code className="px-1.5 py-1 bg-blue-100 dark:bg-gray-700 text-blue-800 dark:text-blue-300 rounded-md text-sm font-mono">
       {children}
     </code>
   );
 };
 
+interface ChatViewProps {
+  modelId: string;
+  onSendMessage: (userInput: string) => void;
+  messages: ChatMessage[];
+  isResponding: boolean;
+  onBack: () => void;
+  theme: Theme;
+  isElectron: boolean;
+  projects: CodeProject[];
+}
 
 const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, isResponding, onBack, theme, isElectron, projects }) => {
   const [input, setInput] = useState('');
+  const [saveModalState, setSaveModalState] = useState<{ code: string; lang: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -191,9 +321,20 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
       handleSend();
     }
   };
+  
+  const handleSaveRequest = (code: string, lang: string) => {
+    setSaveModalState({ code, lang });
+  };
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-900">
+     {saveModalState && isElectron && (
+        <SaveToProjectModal 
+            {...saveModalState}
+            projects={projects}
+            onClose={() => setSaveModalState(null)}
+        />
+     )}
       <header className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
          <div className="flex items-center gap-3">
             <ModelIcon className="w-6 h-6 text-blue-500 dark:text-blue-400"/>
@@ -213,8 +354,8 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
             <div
               className={`max-w-2xl p-4 rounded-xl ${
                 msg.role === 'user'
-                  ? 'bg-blue-500 dark:bg-blue-700 text-white rounded-br-none'
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-bl-none'
+                  ? 'bg-blue-600 dark:bg-blue-700 text-white rounded-br-none'
+                  : 'bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-gray-200 rounded-bl-none'
               }`}
             >
               {msg.role === 'assistant' && msg.content === '' && isResponding
@@ -222,7 +363,7 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
                 : <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
-                      components={{ code: (props) => <CodeBlock {...props} theme={theme} isElectron={isElectron} projects={projects} /> }}
+                      components={{ code: (props) => <CodeBlock {...props} theme={theme} isElectron={isElectron} projects={projects} onSaveRequest={handleSaveRequest} /> }}
                     >
                       {msg.content}
                     </ReactMarkdown>
