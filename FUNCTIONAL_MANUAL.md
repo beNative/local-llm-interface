@@ -11,14 +11,13 @@ The application window is composed of a header, a main content area, and an opti
 The header is always visible and contains the primary navigation and control elements:
 
 - **App Name**: Displays "Local LLM Interface".
-- **Settings Button**: (Provider icon, e.g., Ollama) Opens the settings panel to configure the LLM provider.
-- **Info Button**: (Info icon) Opens this documentation view.
+- **Navigation Tabs**: Switch between the main application views: "Chat", "Projects", "Settings", and "Info".
 - **Logs Button**: (File icon) Toggles the visibility of the logging panel at the bottom of the screen.
 - **Theme Switcher**: (Sun/Moon icon) Toggles between light and dark mode instantly.
 
 ## 2. Settings Panel
 
-Clicking the provider button in the header opens the Settings modal. Here you can configure how the app connects to your local LLM service.
+The "Settings" tab allows you to configure how the app connects to your local LLM service.
 
 - **LLM Provider**: A dropdown to quickly select a pre-configured profile.
   - **Ollama**: Defaults to `http://localhost:11434/v1`.
@@ -27,41 +26,58 @@ Clicking the provider button in the header opens the Settings modal. Here you ca
 - **Base URL**: The full URL for the API endpoint (e.g., of your self-hosted model). This must be an OpenAI v1-compatible endpoint.
 - **Automatically save logs to file**: (Electron app only) When checked, all logs are appended to a file named `local-llm-interface-YYYY-MM-DD.log` in the application's directory. This is useful for debugging.
 
-Click **Save & Refresh** to apply changes. The app will attempt to reconnect and fetch the model list.
+Click **Save & Refresh Connection** to apply changes. The app will attempt to reconnect and fetch the model list.
 
-## 3. Model Selection
+## 3. Projects View
 
-After successful configuration, the main view will display a grid of all available models from your LLM service.
+The "Projects" tab is a powerful feature for managing local code projects and integrating them with the LLM. This is only available in the desktop application.
+
+- **Base Directory**: For both Python and Node.js, you must first choose a "base directory" where all your projects of that type will be stored.
+- **Creating Projects**: Once a base directory is set, you can create new projects.
+  - For Python, this creates a new folder with a `venv` virtual environment inside.
+  - For Node.js, this creates a folder and initializes an empty `package.json`.
+- **Managing Projects**: Each project appears as a card with several actions:
+  - **Install Deps**: Installs dependencies from `requirements.txt` (for Python) or `package.json` (for Node.js).
+  - **Open Folder**: Opens the project's folder in your system's file explorer.
+  - **Delete**: Permanently deletes the project folder and all its contents.
+
+### Project File Viewer & Editor
+
+- **Expand Project**: Click the project name on a card to expand it and reveal an interactive file tree.
+- **Browse Files**: You can navigate the project's entire directory structure. Folders can be expanded and collapsed.
+- **Edit Files**: Click on any file in the tree to open it in a built-in code editor. You can make changes and save them directly back to the file.
+
+## 4. Model Selection
+
+In the "Chat" tab, if no model is selected, you will see a grid of all available models from your LLM service.
 
 - Each card shows the model's name and creation date.
 - If the app cannot connect, an error message with diagnostic information will be shown.
 - If the connection is successful but no models are found, a message will guide you to add models in your LLM service (e.g., `ollama pull <model_name>`).
 - Click the **"Chat with this model"** button on a card to start a conversation.
 
-## 4. Chat View
+## 5. Chat View
 
 The chat view is where you interact with the selected LLM.
 
-- **Header**: Shows the name of the current model and a button to go back to the model selection screen.
-- **Message History**: Displays the conversation. User messages are on the right, and assistant messages are on the left.
-- **Input Box**: Type your message and press Enter or click the Send button.
-- **Markdown Rendering**: The assistant's responses are rendered as Markdown, supporting lists, tables, formatted text, and more.
+### Code Execution & Management
 
-### Code Execution
+The chat interface has powerful features for working with code.
 
-The chat interface can execute Python code blocks.
+- **Run Button**: Code blocks for Python or Node.js will have a "Run" button.
+  - **Execution Environment**: In the desktop app, you can choose to run code as a "Standalone" script or within the context of one of your created projects, using its environment and dependencies.
+  - **Output**: The output (`stdout` and `stderr`) from the code execution will be displayed in a box directly below the code block.
+- **Save to Project Button**: Click the "Save" button on a code block to save it to one of your projects.
+  - A dialog will appear where you can select the target project.
+  - You can either type a new filename or select an existing file from a dropdown to overwrite it.
+  - This provides a seamless way to build projects from code generated by the LLM.
 
-- **Run Button**: Python code blocks will have a "Run" button.
-- **Execution Environment**:
-  - In the **Electron app**, the code runs in your system's native Python environment, allowing it to interact with files and packages you have installed.
-  - In a **web browser**, the code runs in a sandboxed WebAssembly environment (Pyodide). It cannot access local files or pre-installed packages.
-- **Output**: The standard output (`stdout`) and standard error (`stderr`) from the code execution will be displayed in a box directly below the code block.
-
-## 5. Logging Panel
+## 6. Logging Panel
 
 Click the file icon in the header to toggle the logging panel at the bottom. This panel is invaluable for debugging connection issues or unexpected behavior.
 
-- **Filters**: Click the `DEBUG`, `INFO`, `WARNING`, or `ERROR` buttons to toggle visibility for each log level.
+- **Filters**: Click the `DEBUG`, `INFO`, `WARNING`, or `ERROR` buttons to toggle visibility for each log level. A count of messages for each level is displayed on the button.
+- **Resizable**: You can click and drag the top edge of the panel to resize it.
 - **Copy Logs**: Copies the entire log history to your clipboard.
 - **Clear Logs**: Clears all logs from the panel.
 - **Close**: Hides the logging panel.

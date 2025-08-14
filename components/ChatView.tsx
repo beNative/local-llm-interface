@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
-import type { ChatMessage, Theme, CodeProject, ProjectType } from '../types';
+import type { ChatMessage, Theme, CodeProject, ProjectType, FileSystemEntry } from '../types';
 import SendIcon from './icons/SendIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
 import ModelIcon from './icons/ModelIcon';
@@ -25,10 +25,12 @@ const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, on
     const relevantProjects = projects.filter(p => p.type === (lang === 'python' ? 'python' : 'nodejs'));
     const [selectedProjectId, setSelectedProjectId] = useState<string>(relevantProjects[0]?.id || '');
     const [filename, setFilename] = useState('');
-    const [overwrite, setOverwrite] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [existingFiles, setExistingFiles] = useState<FileSystemEntry[]>([]);
+    const [isLoadingFiles, setIsLoadingFiles] = useState(false);
 
     useEffect(() => {
+        // Auto-detect filename from comment
         const firstLine = code.split('\n')[0];
         const match = /#\s*filename:\s*(\S+)|^\/\/\s*filename:\s*(\S+)/.exec(firstLine);
         if (match) {
@@ -39,35 +41,53 @@ const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, on
         }
     }, [code, lang]);
 
+    useEffect(() => {
+        // Fetch existing files when project changes
+        if (!selectedProjectId) return;
+        const project = projects.find(p => p.id === selectedProjectId);
+        if (!project) return;
+        
+        const fetchFiles = async () => {
+            setIsLoadingFiles(true);
+            try {
+                const files = await window.electronAPI!.readProjectDir(project.path);
+                setExistingFiles(files.filter(f => !f.isDirectory));
+            } catch (e) {
+                logger.error(`Failed to fetch project files: ${e}`);
+                setExistingFiles([]);
+            } finally {
+                setIsLoadingFiles(false);
+            }
+        };
+        fetchFiles();
+    }, [selectedProjectId, projects]);
+
     const handleSave = async () => {
         if (!filename.trim() || !selectedProjectId) {
             alert('Please select a project and enter a valid filename.');
             return;
         }
-        setIsSaving(true);
+        
         const project = projects.find(p => p.id === selectedProjectId);
         if (!project) {
             alert('Selected project not found.');
-            setIsSaving(false);
             return;
         }
-        
-        logger.info(`Saving file "${filename}" to project "${project.name}"...`);
-        try {
-            const result = await window.electronAPI!.addFileToProject({
-                projectPath: project.path,
-                filename: filename.trim(),
-                content: code,
-                overwrite: overwrite,
-            });
 
-            if (result.success) {
-                logger.info(`Successfully saved file "${filename}" to project "${project.name}".`);
-                onClose();
-            } else {
-                logger.error(`Failed to save file: ${result.error}`);
-                alert(`Error: ${result.error}`);
+        const isOverwriting = existingFiles.some(f => f.name === filename.trim());
+        if (isOverwriting) {
+            if (!confirm(`The file "${filename.trim()}" already exists. Do you want to overwrite it?`)) {
+                return;
             }
+        }
+
+        setIsSaving(true);
+        const finalPath = `${project.path}/${filename.trim()}`;
+        logger.info(`Saving file to "${finalPath}"...`);
+        try {
+            await window.electronAPI!.writeProjectFile(finalPath, code);
+            logger.info(`Successfully saved file "${filename}" to project "${project.name}".`);
+            onClose();
         } catch (e) {
             const errorMsg = e instanceof Error ? e.message : String(e);
             logger.error(`An unexpected error occurred while saving file: ${errorMsg}`);
@@ -76,6 +96,13 @@ const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, on
             setIsSaving(false);
         }
     };
+    
+    const handleFileSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const selectedFile = e.target.value;
+        if (selectedFile) {
+            setFilename(selectedFile);
+        }
+    }
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
@@ -102,17 +129,22 @@ const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, on
                             value={filename}
                             onChange={e => setFilename(e.target.value)}
                             className="w-full px-3 py-2 text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Enter new filename or select existing"
                         />
                     </div>
-                     <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={overwrite}
-                            onChange={e => setOverwrite(e.target.checked)}
-                            className="w-4 h-4 rounded text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600"
-                        />
-                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Overwrite if file exists</span>
-                    </label>
+                     {selectedProjectId && !isLoadingFiles && existingFiles.length > 0 && (
+                         <div>
+                            <label htmlFor="file-select" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Or overwrite existing file</label>
+                             <select
+                                id="file-select"
+                                onChange={handleFileSelect}
+                                className="w-full px-3 py-2 text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="">-- Choose a file to overwrite --</option>
+                                {existingFiles.map(f => <option key={f.path} value={f.name}>{f.name}</option>)}
+                            </select>
+                         </div>
+                     )}
                 </div>
                 <div className="flex justify-end gap-3 mt-6">
                     <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">Cancel</button>

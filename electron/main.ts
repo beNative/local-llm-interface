@@ -2,6 +2,7 @@
 import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
+import { readdir, stat, readFile, writeFile, mkdir } from 'fs/promises';
 import * as os from 'os';
 import { spawn } from 'child_process';
 import * as crypto from 'crypto';
@@ -285,32 +286,45 @@ app.whenReady().then(() => {
         }
     });
 
-    ipcMain.handle('project:add-file', async (_, { projectPath, filename, content, overwrite }) => {
-        try {
-            // Basic sanitization to prevent invalid filenames
-            const sanitizedFilename = path.basename(filename);
-            if (sanitizedFilename !== filename) {
-                throw new Error('Invalid filename. Subdirectories are not allowed.');
-            }
+    // File System Handlers for Project Viewer
+    const isPathInAllowedBase = (filePath: string) => {
+        const settings = readSettings();
+        const allowedBasePaths = [settings?.pythonProjectsPath, settings?.nodejsProjectsPath].filter(Boolean);
+        return allowedBasePaths.some(base => filePath.startsWith(base + path.sep));
+    };
 
-            const filePath = path.join(projectPath, sanitizedFilename);
-
-            // Security check to prevent path traversal
-            if (!filePath.startsWith(projectPath)) {
-                throw new Error('Path traversal detected. Invalid filename.');
+    ipcMain.handle('project:read-dir', async (_, dirPath: string) => {
+        if (!isPathInAllowedBase(dirPath)) throw new Error('Access denied to path.');
+        
+        const dirents = await readdir(dirPath, { withFileTypes: true });
+        const files = await Promise.all(dirents.map(async (dirent) => {
+            if (dirent.name === '.git' || dirent.name === 'node_modules' || dirent.name === 'venv' || dirent.name.startsWith('.')) {
+                return null;
             }
-            
-            if (fs.existsSync(filePath) && !overwrite) {
-                return { success: false, error: 'File already exists. Select "overwrite" to replace it.' };
-            }
+            return {
+                name: dirent.name,
+                path: path.join(dirPath, dirent.name),
+                isDirectory: dirent.isDirectory(),
+            };
+        }));
 
-            fs.writeFileSync(filePath, content, 'utf-8');
-            return { success: true };
-        } catch (e) {
-            const message = e instanceof Error ? e.message : 'An unknown error occurred';
-            console.error(`Failed to add file to project:`, message);
-            return { success: false, error: message };
-        }
+        return files.filter(Boolean).sort((a, b) => {
+            if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+            return a.name.localeCompare(b.name);
+        });
+    });
+
+    ipcMain.handle('project:read-file', async (_, filePath: string) => {
+        if (!isPathInAllowedBase(filePath)) throw new Error('Access denied to path.');
+        return await readFile(filePath, 'utf-8');
+    });
+
+    ipcMain.handle('project:write-file', async (_, { filePath, content }: { filePath: string, content: string }) => {
+        const dirPath = path.dirname(filePath);
+        if (!isPathInAllowedBase(dirPath)) throw new Error('Access denied to path.');
+        
+        await mkdir(dirPath, { recursive: true });
+        await writeFile(filePath, content, 'utf-8');
     });
 
     createWindow();

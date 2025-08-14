@@ -19,6 +19,13 @@ export interface CodeProject {
   path: string; // Full path to the project directory
 }
 
+export interface FileSystemEntry {
+  name: string;
+  path: string; // Full path
+  isDirectory: boolean;
+  children?: FileSystemEntry[]; // For tree view state
+}
+
 export interface Config {
   provider: LLMProvider;
   baseUrl: string;

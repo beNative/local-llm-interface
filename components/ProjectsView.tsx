@@ -1,16 +1,89 @@
+
 import React, { useState } from 'react';
-import type { Config, CodeProject, ProjectType } from '../types';
+import type { Config, CodeProject, ProjectType, FileSystemEntry } from '../types';
 import CodeIcon from './icons/CodeIcon';
 import FolderOpenIcon from './icons/FolderOpenIcon';
 import TrashIcon from './icons/TrashIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
+import FileTree from './FileTree';
 import { logger } from '../services/logger';
 
-interface ProjectsViewProps {
-  config: Config;
-  onConfigChange: (newConfig: Config) => void;
-  isElectron: boolean;
+interface EditorModalProps {
+  file: { path: string, name: string };
+  onClose: () => void;
 }
+
+const EditorModal: React.FC<EditorModalProps> = ({ file, onClose }) => {
+    const [content, setContent] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState<string|null>(null);
+
+    React.useEffect(() => {
+        const loadFile = async () => {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const fileContent = await window.electronAPI!.readProjectFile(file.path);
+                setContent(fileContent);
+            } catch (e) {
+                const msg = `Failed to read file: ${e instanceof Error ? e.message : String(e)}`;
+                logger.error(msg);
+                setError(msg);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadFile();
+    }, [file.path]);
+    
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            await window.electronAPI!.writeProjectFile(file.path, content);
+            logger.info(`Saved changes to ${file.path}`);
+            onClose();
+        } catch (e) {
+             const msg = `Failed to save file: ${e instanceof Error ? e.message : String(e)}`;
+            logger.error(msg);
+            alert(msg);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                <header className="p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-between items-center">
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-white font-mono">{file.name}</h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-mono hidden sm:block">{file.path}</p>
+                </header>
+                <main className="flex-1 overflow-hidden p-2">
+                    {isLoading ? (
+                        <div className="h-full flex items-center justify-center"><SpinnerIcon className="w-8 h-8" /></div>
+                    ) : error ? (
+                        <div className="h-full flex items-center justify-center text-red-500">{error}</div>
+                    ) : (
+                        <textarea
+                            value={content}
+                            onChange={(e) => setContent(e.target.value)}
+                            className="w-full h-full p-2 font-mono text-sm bg-gray-100 dark:bg-gray-900 rounded-md resize-none focus:outline-none"
+                            spellCheck="false"
+                        />
+                    )}
+                </main>
+                 <footer className="flex justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">Cancel</button>
+                    <button onClick={handleSave} disabled={isSaving || isLoading} className="flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-blue-400 dark:disabled:bg-blue-800">
+                        {isSaving ? <SpinnerIcon className="w-5 h-5"/> : 'Save Changes'}
+                    </button>
+                </footer>
+            </div>
+        </div>
+    );
+};
+
 
 const ProjectCard: React.FC<{
     project: CodeProject;
@@ -18,11 +91,17 @@ const ProjectCard: React.FC<{
     onInstall: () => void;
     onOpen: () => void;
     isBusy: boolean;
-}> = ({ project, onDelete, onInstall, onOpen, isBusy }) => {
+    isExpanded: boolean;
+    onToggleExpand: () => void;
+    onFileClick: (file: FileSystemEntry) => void;
+}> = ({ project, onDelete, onInstall, onOpen, isBusy, isExpanded, onToggleExpand, onFileClick }) => {
     return (
-        <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 flex flex-col justify-between">
-            <div>
-                <div className="flex items-center gap-3 mb-2">
+        <div className="bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex flex-col">
+            <div className="p-4">
+                <div 
+                    className="flex items-center gap-3 mb-2 cursor-pointer"
+                    onClick={onToggleExpand}
+                >
                     <CodeIcon className={`w-6 h-6 ${project.type === 'python' ? 'text-blue-500' : 'text-green-500'}`} />
                     <h4 className="text-lg font-semibold text-gray-900 dark:text-white truncate">{project.name}</h4>
                     <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
@@ -30,18 +109,24 @@ const ProjectCard: React.FC<{
                     </span>
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 font-mono break-all">{project.path}</p>
+            
+                <div className="flex items-center gap-2 mt-4">
+                    <button onClick={onInstall} disabled={isBusy} className="flex-1 text-sm px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-wait">
+                        {isBusy ? 'Working...' : 'Install Deps'}
+                    </button>
+                    <button onClick={onOpen} disabled={isBusy} className="p-2 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50" title="Open folder">
+                        <FolderOpenIcon className="w-4 h-4"/>
+                    </button>
+                    <button onClick={onDelete} disabled={isBusy} className="p-2 rounded-md bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900 disabled:opacity-50" title="Delete project">
+                        <TrashIcon className="w-4 h-4" />
+                    </button>
+                </div>
             </div>
-            <div className="flex items-center gap-2 mt-4">
-                <button onClick={onInstall} disabled={isBusy} className="flex-1 text-sm px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-wait">
-                    {isBusy ? 'Working...' : 'Install Deps'}
-                </button>
-                <button onClick={onOpen} disabled={isBusy} className="p-2 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50">
-                    <FolderOpenIcon className="w-4 h-4"/>
-                </button>
-                <button onClick={onDelete} disabled={isBusy} className="p-2 rounded-md bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900 disabled:opacity-50">
-                    <TrashIcon className="w-4 h-4" />
-                </button>
-            </div>
+            {isExpanded && (
+                <div className="border-t border-gray-200 dark:border-gray-700 max-h-80 overflow-y-auto">
+                   <FileTree projectPath={project.path} onFileClick={onFileClick} />
+                </div>
+            )}
         </div>
     );
 };
@@ -81,9 +166,16 @@ const NewProjectForm: React.FC<{
     );
 };
 
+interface ProjectsViewProps {
+  config: Config;
+  onConfigChange: (newConfig: Config) => void;
+  isElectron: boolean;
+}
 
 const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isElectron }) => {
     const [busyProjects, setBusyProjects] = useState<Set<string>>(new Set());
+    const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
+    const [editingFile, setEditingFile] = useState<{ path: string, name: string } | null>(null);
     
     if (!isElectron) {
         return (
@@ -165,6 +257,14 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
     const handleOpenFolder = (project: CodeProject) => {
         window.electronAPI?.openProjectFolder(project.path);
     };
+
+    const handleToggleExpand = (projectId: string) => {
+        setExpandedProjectId(current => current === projectId ? null : projectId);
+    };
+
+    const handleFileClick = (file: FileSystemEntry) => {
+        setEditingFile({ path: file.path, name: file.name });
+    };
     
     const renderProjectSection = (type: ProjectType) => {
         const title = type === 'python' ? 'Python Projects' : 'Node.js Projects';
@@ -202,6 +302,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
                                 onDelete={() => handleDeleteProject(p)}
                                 onInstall={() => handleInstallDeps(p)}
                                 onOpen={() => handleOpenFolder(p)}
+                                isExpanded={expandedProjectId === p.id}
+                                onToggleExpand={() => handleToggleExpand(p.id)}
+                                onFileClick={handleFileClick}
                             />
                        ))}
                     </div>
@@ -212,6 +315,8 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
     }
 
   return (
+    <>
+    {editingFile && <EditorModal file={editingFile} onClose={() => setEditingFile(null)} />}
     <div className="p-4 sm:p-6 h-full overflow-y-auto bg-white dark:bg-gray-900">
       <div className="max-w-4xl mx-auto">
         <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900 dark:text-white mb-8">
@@ -228,6 +333,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
         </div>
       </div>
     </div>
+    </>
   );
 };
 

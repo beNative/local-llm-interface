@@ -1,5 +1,5 @@
 
-import type { Config, LogEntry, CodeProject, ProjectType } from './types';
+import type { Config, LogEntry, CodeProject, ProjectType, FileSystemEntry } from './types';
 
 export interface IElectronAPI {
   getSettings: () => Promise<Config | null>;
@@ -16,12 +16,11 @@ export interface IElectronAPI {
   openProjectFolder: (folderPath: string) => Promise<void>;
   installProjectDeps: (project: CodeProject) => Promise<{ stdout: string; stderr: string }>;
   runScriptInProject: (args: { project: CodeProject; code: string }) => Promise<{ stdout: string; stderr: string }>;
-  addFileToProject: (args: {
-    projectPath: string;
-    filename: string;
-    content: string;
-    overwrite: boolean;
-  }) => Promise<{ success: boolean; error?: string }>;
+
+  // File System APIs for Project Viewer/Editor
+  readProjectDir: (dirPath: string) => Promise<FileSystemEntry[]>;
+  readProjectFile: (filePath: string) => Promise<string>;
+  writeProjectFile: (filePath: string, content: string) => Promise<void>;
 }
 
 declare global {
