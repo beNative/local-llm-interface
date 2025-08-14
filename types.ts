@@ -10,7 +10,7 @@ export interface LogEntry {
 
 export type LLMProvider = 'Ollama' | 'LMStudio' | 'Custom';
 
-export type ProjectType = 'python' | 'nodejs' | 'webapp';
+export type ProjectType = 'python' | 'nodejs' | 'webapp' | 'java';
 
 export interface CodeProject {
   id: string;
@@ -34,6 +34,7 @@ export interface Config {
   pythonProjectsPath?: string;
   nodejsProjectsPath?: string;
   webAppsPath?: string;
+  javaProjectsPath?: string;
   projects?: CodeProject[];
   pythonCommand?: string;
   apiRecentPrompts?: string[];

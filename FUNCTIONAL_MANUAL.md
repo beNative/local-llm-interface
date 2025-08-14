@@ -39,14 +39,19 @@ The "Projects" tab is a powerful feature for managing local code projects and in
   1. An `npm start` script in your `package.json`.
   2. Common script files like `index.ts` or `index.js`. (Note: To run TypeScript files, you must install `typescript` and `ts-node` as project dependencies).
   3. An `index.html` file, which will be opened in your browser as a fallback.
+- **Java**: For creating and running Java applications. This project type is managed with Maven.
+  - **Prerequisites**: You must have a Java Development Kit (JDK) and Apache Maven installed on your system and accessible via the system's PATH.
+  - When created, a standard Maven project structure with a `pom.xml` and a sample `Main.java` file is generated.
+  - **Run Project**: Executes `mvn compile exec:java`.
+  - **Install Deps**: Executes `mvn install`.
 - **Web App**: A simple project type for static websites. Use this if your project's main entry point is a single `index.html` file and you don't need a Node.js backend.
 
 ### Managing Projects
-- **Base Directory**: For each project type (Python, Node.js, Web App), you must first choose a "base directory" where all your projects of that type will be stored.
+- **Base Directory**: For each project type (Python, Node.js, Java, Web App), you must first choose a "base directory" where all your projects of that type will be stored.
 - **Creating Projects**: Once a base directory is set, you can create new projects. The application will create the necessary folder and boilerplate files.
 - **Project Actions**: Each project appears as a card with several actions:
-  - **Install Deps**: (Python/Node.js) Installs dependencies from `requirements.txt` or `package.json`.
-  - **Open in Browser**: (Web App) Opens the project's `index.html` in your default web browser.
+  - **Install Deps**: (Python/Node.js/Java) Installs dependencies from `requirements.txt`, `package.json`, or `pom.xml`.
+  - **Run Project**: Runs the project using its standard entry mechanism.
   - **Open Folder**: Opens the project's folder in your system's file explorer.
   - **Delete**: Permanently deletes the project folder and all its contents.
 
@@ -72,7 +77,7 @@ The chat view is where you interact with the selected LLM.
 - **Run Button**: Code blocks for Python or Node.js will have a "Run" button.
   - **Execution Environment**: In the desktop app, you can choose to run code as a "Standalone" script or within the context of one of your created projects.
   - **Output**: The output (`stdout` and `stderr`) from the code execution will be displayed directly below the code block.
-- **Save to Project Button**: Click the "Save" button on a code block (Python, Node.js, or HTML) to save it to one of your projects.
+- **Save to Project Button**: Click the "Save" button on a code block (Python, Node.js, Java, or HTML) to save it to one of your projects.
   - A dialog will appear where you can select the target project.
   - You can either type a new filename or select an existing file from a dropdown to overwrite it.
 

@@ -100,6 +100,7 @@ const App: React.FC = () => {
         pythonProjectsPath: '',
         nodejsProjectsPath: '',
         webAppsPath: '',
+        javaProjectsPath: '',
         projects: [],
         pythonCommand: 'python',
         apiRecentPrompts: [],

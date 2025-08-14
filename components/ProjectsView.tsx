@@ -109,6 +109,7 @@ const ProjectCard: React.FC<{
     
     const typeColor = project.type === 'python' ? 'text-blue-500' 
                     : project.type === 'nodejs' ? 'text-green-500'
+                    : project.type === 'java' ? 'text-red-500'
                     : 'text-purple-500';
 
     const RunIcon = project.type === 'webapp' ? GlobeIcon : PlayIcon;
@@ -232,6 +233,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
         if (path) {
             const key = type === 'python' ? 'pythonProjectsPath' 
                       : type === 'nodejs' ? 'nodejsProjectsPath'
+                      : type === 'java' ? 'javaProjectsPath'
                       : 'webAppsPath';
             onConfigChange({...config, [key]: path});
         }
@@ -240,6 +242,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
     const handleCreateProject = async (projectType: ProjectType, name: string) => {
         const basePath = projectType === 'python' ? config.pythonProjectsPath 
                        : projectType === 'nodejs' ? config.nodejsProjectsPath
+                       : projectType === 'java' ? config.javaProjectsPath
                        : config.webAppsPath;
         if (!basePath) return;
 
@@ -311,9 +314,11 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
     const renderProjectSection = (type: ProjectType) => {
         const title = type === 'python' ? 'Python Projects' 
                     : type === 'nodejs' ? 'Node.js Projects' 
+                    : type === 'java' ? 'Java Projects'
                     : 'Web App Projects';
         const path = type === 'python' ? config.pythonProjectsPath 
                    : type === 'nodejs' ? config.nodejsProjectsPath 
+                   : type === 'java' ? config.javaProjectsPath
                    : config.webAppsPath;
         const projects = config.projects?.filter(p => p.type === type) || [];
         
@@ -374,6 +379,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
         <div className="space-y-8">
             {renderProjectSection('python')}
             {renderProjectSection('nodejs')}
+            {renderProjectSection('java')}
             {renderProjectSection('webapp')}
         </div>
       </div>

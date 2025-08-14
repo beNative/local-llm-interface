@@ -286,7 +286,7 @@ app.whenReady().then(() => {
         return null;
     });
 
-    ipcMain.handle('project:create', async (_, { projectType, name, basePath }: { projectType: 'python' | 'nodejs' | 'webapp', name: string, basePath: string }) => {
+    ipcMain.handle('project:create', async (_, { projectType, name, basePath }: { projectType: ProjectType, name: string, basePath: string }) => {
         const projectPath = path.join(basePath, name);
         if (fs.existsSync(projectPath)) {
             throw new Error(`Project directory already exists: ${projectPath}`);
@@ -303,6 +303,46 @@ app.whenReady().then(() => {
             } else if (projectType === 'nodejs') {
                 const { stderr } = await runCommand('npm', ['init', '-y'], projectPath);
                 if (stderr) throw new Error(stderr);
+            } else if (projectType === 'java') {
+                 // Create Maven structure and files
+                const srcPath = path.join(projectPath, 'src/main/java/com/example');
+                fs.mkdirSync(srcPath, { recursive: true });
+
+                const pomContent = `
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>${name}</artifactId>
+  <version>1.0-SNAPSHOT</version>
+  <properties>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+  </properties>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.0.0</version>
+        <configuration>
+          <mainClass>com.example.Main</mainClass>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>`;
+                fs.writeFileSync(path.join(projectPath, 'pom.xml'), pomContent);
+                
+                const mainJavaContent = `package com.example;
+
+public class Main {
+    public static void main(String[] args) {
+        System.out.println("Hello, Java World from ${name}!");
+    }
+}`;
+                fs.writeFileSync(path.join(srcPath, 'Main.java'), mainJavaContent);
+
             } else if (projectType === 'webapp') {
                  fs.writeFileSync(path.join(projectPath, 'index.html'), `<!DOCTYPE html>
 <html lang="en">
@@ -345,7 +385,12 @@ app.whenReady().then(() => {
     const isPathInAllowedBase = (filePath: string) => {
         const settings = readSettings() as any;
         if (!settings) return false;
-        const allowedBasePaths = [settings.pythonProjectsPath, settings.nodejsProjectsPath, settings.webAppsPath].filter(Boolean);
+        const allowedBasePaths = [
+            settings.pythonProjectsPath, 
+            settings.nodejsProjectsPath, 
+            settings.webAppsPath,
+            settings.javaProjectsPath
+        ].filter(Boolean);
         // Normalize paths to handle different OS path separators
         const normalizedFilePath = path.normalize(filePath);
         return allowedBasePaths.some(base => normalizedFilePath.startsWith(path.normalize(base) + path.sep));
@@ -360,7 +405,7 @@ app.whenReady().then(() => {
         }
     });
 
-    ipcMain.handle('project:install-deps', async (_, project: { type: 'python' | 'nodejs', path: string }) => {
+    ipcMain.handle('project:install-deps', async (_, project: CodeProject) => {
         if (project.type === 'python') {
             const reqFile = path.join(project.path, 'requirements.txt');
             if (!fs.existsSync(reqFile)) {
@@ -372,6 +417,8 @@ app.whenReady().then(() => {
             return await runCommand(pythonExec, ['-m', 'pip', 'install', '-r', 'requirements.txt'], project.path);
         } else if (project.type === 'nodejs') {
             return await runCommand('npm', ['install'], project.path);
+        } else if (project.type === 'java') {
+            return await runCommand('mvn', ['install'], project.path);
         }
         return { stdout: '', stderr: 'Unknown project type' };
     });
@@ -454,12 +501,17 @@ app.whenReady().then(() => {
             // 4. If nothing runnable is found, return an error.
             return { stdout: '', stderr: `Could not find an entry point. Looked for: 'npm start' script, common script files (e.g., index.js, index.ts), or an index.html file.` };
         }
+        
+        if (project.type === 'java') {
+            // Note: This requires Maven to be installed on the user's system and in their PATH.
+            return runCommand('mvn', ['compile', 'exec:java'], project.path);
+        }
 
         return { stdout: '', stderr: `Project type "${project.type}" cannot be run.` };
     });
 
-    ipcMain.handle('project:run-script', async (_, { project, code }: { project: { type: 'python' | 'nodejs', path: string }, code: string }) => {
-        const extension = project.type === 'python' ? 'py' : 'js';
+    ipcMain.handle('project:run-script', async (_, { project, code }: { project: CodeProject, code: string }) => {
+        const extension = project.type === 'python' ? 'py' : project.type === 'java' ? 'java' : 'js';
         const tempFileName = `script_${crypto.randomBytes(6).toString('hex')}.${extension}`;
         const tempFilePath = path.join(project.path, tempFileName);
         
@@ -469,8 +521,10 @@ app.whenReady().then(() => {
             if (project.type === 'python') {
                 const pythonExec = getPythonExecutable(path.join(project.path, 'venv'));
                 return await runCommand(pythonExec, [tempFilePath], project.path);
-            } else { // nodejs
+            } else if (project.type === 'nodejs') {
                 return await runCommand('node', [tempFilePath], project.path);
+            } else {
+                 return { stdout: '', stderr: `Running standalone scripts is not supported for project type: ${project.type}`};
             }
         } finally {
             if (fs.existsSync(tempFilePath)) {
@@ -485,7 +539,7 @@ app.whenReady().then(() => {
         
         const dirents = await readdir(dirPath, { withFileTypes: true });
         const files = await Promise.all(dirents.map(async (dirent) => {
-            if (dirent.name === '.git' || dirent.name === 'node_modules' || dirent.name === 'venv' || dirent.name.startsWith('.')) {
+            if (dirent.name === '.git' || dirent.name === 'node_modules' || dirent.name === 'venv' || dirent.name.startsWith('.') || dirent.name === 'target') {
                 return null;
             }
             return {

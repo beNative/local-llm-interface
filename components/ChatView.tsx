@@ -18,6 +18,7 @@ const getProjectTypeForLang = (lang: string): ProjectType | null => {
     if (lang === 'python') return 'python';
     if (['javascript', 'js', 'nodejs'].includes(lang)) return 'nodejs';
     if (['html', 'html5'].includes(lang)) return 'webapp';
+    if (lang === 'java') return 'java';
     return null;
 }
 
@@ -44,8 +45,8 @@ const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, on
         if (match) {
             setFilename(match[1] || match[2] || match[3] || '');
         } else {
-            const extension = lang === 'python' ? 'py' : lang === 'html' ? 'html' : 'js';
-            const defaultName = extension === 'html' ? 'index' : `script-${new Date().toISOString().slice(0,10)}`;
+            const extension = lang === 'python' ? 'py' : lang === 'html' ? 'html' : lang === 'java' ? 'java' : 'js';
+            const defaultName = extension === 'html' ? 'index' : extension === 'java' ? 'Main' : `script-${new Date().toISOString().slice(0,10)}`;
             setFilename(`${defaultName}.${extension}`);
         }
     }, [code, lang]);
@@ -59,7 +60,9 @@ const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, on
         const fetchFiles = async () => {
             setIsLoadingFiles(true);
             try {
-                const files = await window.electronAPI!.readProjectDir(project.path);
+                // For Java, we should suggest putting files in the correct source dir
+                const dirToList = project.type === 'java' ? `${project.path}/src/main/java/com/example` : project.path;
+                const files = await window.electronAPI!.readProjectDir(dirToList);
                 setExistingFiles(files.filter(f => !f.isDirectory));
             } catch (e) {
                 logger.error(`Failed to fetch project files: ${e}`);
@@ -91,7 +94,10 @@ const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, on
         }
 
         setIsSaving(true);
-        const finalPath = `${project.path}/${filename.trim()}`;
+        const finalPath = project.type === 'java' 
+            ? `${project.path}/src/main/java/com/example/${filename.trim()}`
+            : `${project.path}/${filename.trim()}`;
+
         logger.info(`Saving file to "${finalPath}"...`);
         try {
             await window.electronAPI!.writeProjectFile(finalPath, code);
