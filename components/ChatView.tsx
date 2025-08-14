@@ -312,7 +312,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
         {codeText}
       </SyntaxHighlighter>
       {(runState.output || runState.error) && (
-        <div className="border-t border-gray-200 dark:border-gray-700 p-4 font-mono text-xs">
+        <div className="border-t border-gray-200 dark:border-gray-700 p-4 font-mono text-xs bg-gray-100 dark:bg-gray-900/50 rounded-b-md">
            <h4 className="text-gray-500 dark:text-gray-400 font-sans font-semibold text-sm mb-2">Output</h4>
            {runState.output && (
              <pre className="whitespace-pre-wrap text-gray-800 dark:text-gray-200">{runState.output}</pre>
@@ -400,7 +400,7 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
             <div
               className={`max-w-2xl p-4 rounded-xl ${
                 msg.role === 'user'
-                  ? 'bg-blue-100 dark:bg-blue-600 text-gray-900 dark:text-white rounded-br-none'
+                  ? 'bg-blue-600 text-white rounded-br-none'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-bl-none'
               }`}
             >
@@ -409,7 +409,14 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
                 : <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
-                      components={{ code: (props) => <CodeBlock {...props} theme={theme} isElectron={isElectron} projects={projects} onSaveRequest={handleSaveRequest} /> }}
+                      components={{
+                          code: (props) => (
+                              <CodeBlock {...props} theme={theme} isElectron={isElectron} projects={projects} onSaveRequest={handleSaveRequest} />
+                          ),
+                          // This fixes blurred text in code blocks by removing the outer <pre>
+                          // that react-markdown wraps around the custom component.
+                          pre: ({ children }) => <>{children}</>,
+                      }}
                     >
                       {msg.content}
                     </ReactMarkdown>

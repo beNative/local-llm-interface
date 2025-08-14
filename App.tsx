@@ -39,16 +39,7 @@ const NavButton: React.FC<{
 
 
 const App: React.FC = () => {
-  const [config, setConfig] = useState<Config>({ 
-    provider: 'Ollama', 
-    baseUrl: '', // Initially empty to prevent premature fetching
-    theme: 'dark',
-    logToFile: false,
-    pythonProjectsPath: '',
-    nodejsProjectsPath: '',
-    webAppsPath: '',
-    projects: [],
-  });
+  const [config, setConfig] = useState<Config | null>(null);
   const [models, setModels] = useState<Model[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +51,7 @@ const App: React.FC = () => {
   const [isElectron, setIsElectron] = useState(false);
   const [isLogPanelVisible, setIsLogPanelVisible] = useState(false);
 
-  // Effect for app initialization and loading settings
+  // Effect for one-time app initialization and loading settings
   useEffect(() => {
     logger.info('App initializing...');
     const loadInitialConfig = async () => {
@@ -108,39 +99,41 @@ const App: React.FC = () => {
     loadInitialConfig();
   }, []);
   
-  // Effect to apply the theme class to the document and persist config changes.
+  // Effect to apply the theme class to the document.
   useEffect(() => {
-    if (!config.baseUrl) return; // Don't run on initial empty config
-
-    // Apply theme
+    if (!config) return;
     if (config.theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
     logger.debug(`Theme set to: ${config.theme}`);
-    
-    // Persist config
+  }, [config?.theme]);
+
+  // Effect to persist config changes.
+  useEffect(() => {
+    if (!config) return;
     if (window.electronAPI) {
       window.electronAPI.saveSettings(config);
     } else {
       localStorage.setItem('llm_config', JSON.stringify(config));
     }
     logger.debug('Configuration persisted.');
-
   }, [config]);
 
 
   const handleConfigChange = (newConfig: Config) => {
+    if (!config) return;
     logger.info('Configuration change requested.');
     
-    const configWithTheme = { ...newConfig, theme: config.theme };
-    logger.debug(`New config: ${JSON.stringify(configWithTheme)}`);
+    // Preserve the current theme when other settings change
+    const updatedConfig = { ...newConfig, theme: config.theme };
+    logger.debug(`New config: ${JSON.stringify(updatedConfig)}`);
 
-    const needsModelReload = configWithTheme.baseUrl !== config.baseUrl || configWithTheme.provider !== config.provider;
+    const needsModelReload = updatedConfig.baseUrl !== config.baseUrl || updatedConfig.provider !== config.provider;
     
-    setConfig(configWithTheme);
-    logger.setConfig({ logToFile: configWithTheme.logToFile });
+    setConfig(updatedConfig);
+    logger.setConfig({ logToFile: updatedConfig.logToFile });
     
     if (needsModelReload) {
       logger.info('Provider or Base URL changed, resetting to model selection.');
@@ -152,7 +145,7 @@ const App: React.FC = () => {
 
   const handleThemeToggle = () => {
       setConfig(currentConfig => {
-        if (!currentConfig.baseUrl) return currentConfig; // Prevent update on initial empty config
+        if (!currentConfig) return null;
         const newTheme = currentConfig.theme === 'light' ? 'dark' : 'light';
         logger.info(`Theme toggled to ${newTheme}.`);
         return { ...currentConfig, theme: newTheme };
@@ -160,7 +153,7 @@ const App: React.FC = () => {
   };
 
   const loadModels = useCallback(async () => {
-    if (!config.baseUrl) {
+    if (!config?.baseUrl) {
         setError("Base URL not configured. Please check your settings.");
         setModels([]);
         setIsLoadingModels(false);
@@ -178,14 +171,14 @@ const App: React.FC = () => {
     } finally {
       setIsLoadingModels(false);
     }
-  }, [config.baseUrl]);
+  }, [config?.baseUrl]);
 
   useEffect(() => {
     // Load models if config is ready, we are on chat tab, and no model is selected.
-    if (config.baseUrl && view === 'chat' && !currentChatModelId) {
+    if (config?.baseUrl && view === 'chat' && !currentChatModelId) {
       loadModels();
     }
-  }, [view, currentChatModelId, config.baseUrl, loadModels]);
+  }, [view, currentChatModelId, config?.baseUrl, loadModels]);
 
   const handleSelectModel = (modelId: string) => {
     logger.info(`Model selected: ${modelId}`);
@@ -202,7 +195,7 @@ const App: React.FC = () => {
   };
 
   const handleSendMessage = async (userInput: string) => {
-    if (!currentChatModelId) return;
+    if (!currentChatModelId || !config) return;
 
     logger.info(`Sending message from user to model ${currentChatModelId}.`);
     const newMessages: ChatMessage[] = [...messages, { role: 'user', content: userInput }];
@@ -240,6 +233,11 @@ const App: React.FC = () => {
   };
   
   const renderContent = () => {
+    if (!config) {
+        // Initial loading state before config is loaded from storage
+        return <div className="flex items-center justify-center h-full">Loading settings...</div>;
+    }
+
     switch(view) {
         case 'settings':
             return <SettingsPanel 
@@ -321,7 +319,7 @@ const App: React.FC = () => {
             >
              <FileTextIcon className="w-5 h-5" />
             </button>
-          <ThemeSwitcher theme={config.theme || 'dark'} onToggle={handleThemeToggle} />
+          <ThemeSwitcher theme={config?.theme || 'dark'} onToggle={handleThemeToggle} />
         </div>
       </header>
       <main className="flex-1 overflow-hidden">
