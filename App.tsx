@@ -65,6 +65,7 @@ const App: React.FC = () => {
         nodejsProjectsPath: '',
         webAppsPath: '',
         projects: [],
+        pythonCommand: 'python',
       };
       
       let loadedConfig = defaultConfig;
@@ -126,20 +127,26 @@ const App: React.FC = () => {
     if (!config) return;
     logger.info('Configuration change requested.');
     
-    // Preserve the current theme when other settings change
-    const updatedConfig = { ...newConfig, theme: config.theme };
-    logger.debug(`New config: ${JSON.stringify(updatedConfig)}`);
+    // Create a stable reference for comparison
+    const previousConfig = { ...config };
 
-    const needsModelReload = updatedConfig.baseUrl !== config.baseUrl || updatedConfig.provider !== config.provider;
+    setConfig(currentConfig => {
+      if (!currentConfig) return newConfig; // Should not happen if config is not null
+      
+      // When settings are saved from the panel, we want to retain the theme.
+      // The theme is only changed by the theme toggler.
+      return { ...newConfig, theme: currentConfig.theme };
+    });
     
-    setConfig(updatedConfig);
-    logger.setConfig({ logToFile: updatedConfig.logToFile });
+    logger.setConfig({ logToFile: newConfig.logToFile });
+    
+    const needsModelReload = newConfig.baseUrl !== previousConfig.baseUrl || newConfig.provider !== previousConfig.provider;
     
     if (needsModelReload) {
       logger.info('Provider or Base URL changed, resetting to model selection.');
       setCurrentChatModelId(null); 
       setMessages([]);
-      setView('chat');
+      // The view change is handled by the component calling onConfigChange
     }
   };
 

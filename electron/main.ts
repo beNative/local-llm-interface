@@ -123,6 +123,9 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('python:run', async (_, code: string): Promise<{ stdout: string; stderr: string }> => {
+        const settings: any = readSettings();
+        const pythonCommand = settings?.pythonCommand || 'python';
+
         const tempDir = os.tmpdir();
         const tempFileName = `pyscript_${crypto.randomBytes(6).toString('hex')}.py`;
         const tempFilePath = path.join(tempDir, tempFileName);
@@ -131,7 +134,8 @@ app.whenReady().then(() => {
 
         try {
             return await new Promise((resolve, reject) => {
-                const child = spawn('python', [tempFilePath], { shell: os.platform() === 'win32' });
+                console.log(`Executing python script with command: ${pythonCommand}`);
+                const child = spawn(pythonCommand, [tempFilePath], { shell: os.platform() === 'win32' });
                 let stdout = '';
                 let stderr = '';
 
@@ -139,7 +143,8 @@ app.whenReady().then(() => {
                 child.stderr.on('data', (data) => { stderr += data.toString(); });
 
                 child.on('error', (error) => {
-                    console.error('Failed to start python subprocess.', error);
+                    console.error(`Failed to start python subprocess with command "${pythonCommand}".`, error);
+                    // On spawn error (e.g., command not found), reject the promise
                     reject(error);
                 });
 
@@ -149,7 +154,7 @@ app.whenReady().then(() => {
                 });
             });
         } catch(error) {
-            const errorMessage = `Failed to execute script: ${error instanceof Error ? error.message : String(error)}`;
+            const errorMessage = `Failed to execute script with command "${pythonCommand}": ${error instanceof Error ? error.message : String(error)}. Please check the Python Command in Settings.`;
             console.error(errorMessage);
             return { stdout: '', stderr: errorMessage };
         } finally {
@@ -216,8 +221,10 @@ app.whenReady().then(() => {
 
         try {
             if (projectType === 'python') {
+                const settings: any = readSettings();
+                const pythonCommand = settings?.pythonCommand || 'python';
                 const venvPath = path.join(projectPath, 'venv');
-                const { stderr } = await runCommand('python', ['-m', 'venv', venvPath], projectPath);
+                const { stderr } = await runCommand(pythonCommand, ['-m', 'venv', venvPath], projectPath);
                 if (stderr) throw new Error(stderr);
             } else if (projectType === 'nodejs') {
                 const { stderr } = await runCommand('npm', ['init', '-y'], projectPath);

@@ -35,6 +35,7 @@ export interface Config {
   nodejsProjectsPath?: string;
   webAppsPath?: string;
   projects?: CodeProject[];
+  pythonCommand?: string;
 }
 
 export interface Model {

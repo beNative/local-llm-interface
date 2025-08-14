@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import type { Config, LLMProvider } from '../types';
 import { PROVIDER_CONFIGS } from '../constants';
@@ -32,6 +33,10 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
   
   const handleLogToFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLocalConfig({ ...localConfig, logToFile: e.target.checked });
+  };
+
+  const handlePythonCommandChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalConfig({ ...localConfig, pythonCommand: e.target.value });
   };
 
   const handleSave = () => {
@@ -93,20 +98,39 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
           {isElectron && (
             <div>
                  <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4 border-b border-gray-200 dark:border-gray-700 pb-3">Advanced</h3>
-                <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                        type="checkbox"
-                        checked={!!localConfig.logToFile}
-                        onChange={handleLogToFileChange}
-                        className="w-4 h-4 rounded text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                    />
-                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                        Automatically save logs to file
-                    </span>
-                </label>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 px-1">
-                    Saves logs to a file in the app directory. Useful for debugging.
-                </p>
+                <div className="space-y-4">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={!!localConfig.logToFile}
+                            onChange={handleLogToFileChange}
+                            className="w-4 h-4 rounded text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                        />
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                            Automatically save logs to file
+                        </span>
+                    </label>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2 px-1">
+                        Saves logs to a file in the app directory. Useful for debugging.
+                    </p>
+                    
+                    <div>
+                        <label htmlFor="pythonCommand" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                            Python Command
+                        </label>
+                        <input
+                            type="text"
+                            id="pythonCommand"
+                            value={localConfig.pythonCommand || ''}
+                            onChange={handlePythonCommandChange}
+                            className="w-full px-3 py-2 text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="e.g., python or python3"
+                        />
+                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 px-1">
+                            The command to execute Python scripts (e.g., 'python', 'python3', or a full path).
+                        </p>
+                    </div>
+                </div>
             </div>
           )}
         </div>
