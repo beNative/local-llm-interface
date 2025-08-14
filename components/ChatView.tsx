@@ -1,8 +1,9 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import type { ChatMessage } from '../types.ts';
-import SendIcon from './icons/SendIcon.tsx';
-import SpinnerIcon from './icons/SpinnerIcon.tsx';
-import ModelIcon from './icons/ModelIcon.tsx';
+import type { ChatMessage } from '../types';
+import SendIcon from './icons/SendIcon';
+import SpinnerIcon from './icons/SpinnerIcon';
+import ModelIcon from './icons/ModelIcon';
 
 interface ChatViewProps {
   modelId: string;

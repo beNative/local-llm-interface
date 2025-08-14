@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
-import type { Config, Model, ChatMessage } from './types.ts';
-import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT } from './constants.ts';
-import { fetchModels, streamChatCompletion, LLMServiceError } from './services/llmService.ts';
-import SettingsPanel from './components/SettingsPanel.tsx';
-import ModelSelector from './components/ModelSelector.tsx';
-import ChatView from './components/ChatView.tsx';
+import type { Config, Model, ChatMessage } from './types';
+import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT } from './constants';
+import { fetchModels, streamChatCompletion, LLMServiceError } from './services/llmService';
+import SettingsPanel from './components/SettingsPanel';
+import ModelSelector from './components/ModelSelector';
+import ChatView from './components/ChatView';
 
 const App: React.FC = () => {
   const [config, setConfig] = useState<Config>({ provider: 'Ollama', baseUrl: PROVIDER_CONFIGS.Ollama.baseUrl });

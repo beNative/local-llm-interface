@@ -1,4 +1,5 @@
-import type { Config, LLMProvider } from './types.ts';
+
+import type { Config, LLMProvider } from './types';
 
 export const PROVIDER_CONFIGS: Record<LLMProvider, Omit<Config, 'provider'>> = {
   Ollama: {

@@ -1,3 +1,4 @@
+
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -51,9 +52,7 @@ const createWindow = () => {
   });
 
   // Load the app's index.html file.
-  // The path is adjusted to work both in development (from project root)
-  // and in production (from the packaged app's resources).
-  const indexPath = path.join(__dirname, '..', '..', 'index.html');
+  const indexPath = path.join(__dirname, 'index.html');
   mainWindow.loadFile(indexPath);
 
   // Open external links in the user's default browser instead of a new Electron window.

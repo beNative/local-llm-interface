@@ -1,8 +1,8 @@
 
 import React from 'react';
-import type { Model } from '../types.ts';
-import ModelIcon from './icons/ModelIcon.tsx';
-import SpinnerIcon from './icons/SpinnerIcon.tsx';
+import type { Model } from '../types';
+import ModelIcon from './icons/ModelIcon';
+import SpinnerIcon from './icons/SpinnerIcon';
 
 interface ModelSelectorProps {
   models: Model[];
