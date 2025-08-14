@@ -40,6 +40,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   runNodejs: (code: string) => ipcRenderer.invoke('nodejs:run', code),
 
   /**
+   * Executes an HTML code snippet by opening it in the browser.
+   * @param {string} code - The HTML code to execute.
+   * @returns {Promise<{stdout: string, stderr: string}>} A promise that resolves with the output.
+   */
+  runHtml: (code: string) => ipcRenderer.invoke('html:run', code),
+
+  /**
    * Invokes the 'log:write' channel to write a log entry to a file.
    * @param {object} entry - The log entry object.
    * @returns {Promise<void>} A promise that resolves when the log is written.

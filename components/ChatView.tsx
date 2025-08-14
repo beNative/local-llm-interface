@@ -10,6 +10,7 @@ import ModelIcon from './icons/ModelIcon';
 import PlayIcon from './icons/PlayIcon';
 import FilePlusIcon from './icons/FilePlusIcon';
 import TerminalIcon from './icons/TerminalIcon';
+import GlobeIcon from './icons/GlobeIcon';
 import { runPythonCode } from '../services/pyodideService';
 import { logger } from '../services/logger';
 
@@ -199,40 +200,60 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
   
   const handleRun = async () => {
     setRunState({ isLoading: true, output: null, error: null });
-    
+
     const project = relevantProjects.find(p => p.id === selectedProjectId);
     const isStandalone = selectedProjectId === 'standalone' || !project;
-    
+
     let executionEnv = '';
     if (isStandalone) {
-        executionEnv = isPython ? (isElectron ? 'standalone Python' : 'Pyodide (WASM)') : 'standalone Node.js';
+        if (isWebApp) executionEnv = 'new browser window';
+        else executionEnv = isPython ? (isElectron ? 'standalone Python' : 'Pyodide (WASM)') : 'standalone Node.js';
     } else {
         executionEnv = `project: ${project?.name}`;
     }
-    
     logger.info(`Running ${lang} code via ${executionEnv}`);
     logger.debug(`Code:\n---\n${codeText}\n---`);
 
     try {
-        if (isElectron && window.electronAPI) {
-            let result: { stdout: string; stderr: string };
-            if (isStandalone) {
-                 if(isPython) {
-                    result = await window.electronAPI.runPython(codeText);
-                 } else { // isNode
-                    result = await window.electronAPI.runNodejs(codeText);
-                 }
+        if (!isElectron || !window.electronAPI) {
+            // Browser-only fallbacks
+            if (isPython) {
+                const { result, error } = await runPythonCode(codeText);
+                setRunState({ isLoading: false, output: result, error });
+                logger.info(`Pyodide output:\n${result}`);
+                if (error) logger.warn(`Pyodide error:\n${error}`);
+            } else if (isWebApp) {
+                setRunState({ isLoading: false, output: "Opening HTML snippets is only supported in the desktop app.", error: null });
             } else {
-                result = await window.electronAPI.runScriptInProject({ project: project!, code: codeText });
+                 setRunState({ isLoading: false, output: "Running this code requires the desktop app.", error: null });
             }
+            return;
+        }
+
+        // Electron API is available
+        if (isStandalone) {
+            let result: { stdout: string; stderr: string };
+            if (isWebApp) {
+                result = await window.electronAPI.runHtml(codeText);
+            } else if (isPython) {
+                result = await window.electronAPI.runPython(codeText);
+            } else if (isNode) {
+                result = await window.electronAPI.runNodejs(codeText);
+            } else {
+                return; // Should not be reached given canRunCode logic
+            }
+             setRunState({ isLoading: false, output: result.stdout, error: result.stderr || null });
+             logger.info(`Standalone execution stdout:\n${result.stdout}`);
+             if(result.stderr) logger.warn(`Standalone execution stderr:\n${result.stderr}`);
+        } else { // In-project execution
+            if (isWebApp) {
+                setRunState({ isLoading: false, output: null, error: "Running HTML snippets within a project context is not supported. Please save the file and run the project instead." });
+                return;
+            }
+            const result = await window.electronAPI.runScriptInProject({ project: project!, code: codeText });
             setRunState({ isLoading: false, output: result.stdout, error: result.stderr || null });
-            logger.info(`Native execution stdout:\n${result.stdout}`);
-            if(result.stderr) logger.warn(`Native execution stderr:\n${result.stderr}`);
-        } else if (isPython) { // Pyodide fallback for Python in browser
-          const { result, error } = await runPythonCode(codeText);
-          setRunState({ isLoading: false, output: result, error });
-          logger.info(`Pyodide output:\n${result}`);
-          if(error) logger.warn(`Pyodide error:\n${error}`);
+            logger.info(`In-project execution stdout:\n${result.stdout}`);
+            if(result.stderr) logger.warn(`In-project execution stderr:\n${result.stderr}`);
         }
     } catch (e) {
         const errorMsg = e instanceof Error ? e.message : String(e);
@@ -241,9 +262,9 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
     }
   };
   
-  const RunIcon = (isPython || isNode) && isElectron ? TerminalIcon : PlayIcon;
-  const runButtonText = runState.isLoading ? 'Running...' : 'Run';
-  const canRunCode = isPython || (isNode && isElectron);
+  const canRunCode = isPython || ((isNode || isWebApp) && isElectron);
+  const RunIcon = isWebApp ? GlobeIcon : (isPython || isNode) && isElectron ? TerminalIcon : PlayIcon;
+  const runButtonText = runState.isLoading ? 'Running...' : isWebApp ? 'Open in Browser' : 'Run';
 
   return !inline && match ? (
     <div className="not-prose relative bg-[--code-bg] my-2 rounded-md border border-[--border-primary]">
@@ -269,7 +290,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
                             onClick={handleRun}
                             disabled={runState.isLoading}
                             className="flex items-center gap-1.5 text-[--text-muted] hover:text-[--text-primary] px-2 py-1 rounded disabled:cursor-not-allowed disabled:opacity-50"
-                            title="Run code"
+                            title={isWebApp ? "Open HTML in a new browser window" : "Run code"}
                         >
                             <RunIcon className="w-3 h-3"/>
                             {runButtonText}

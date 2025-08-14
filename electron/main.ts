@@ -204,6 +204,27 @@ app.whenReady().then(() => {
         }
     });
     
+    ipcMain.handle('html:run', async (_, code: string): Promise<{ stdout: string; stderr: string }> => {
+        const tempDir = os.tmpdir();
+        const tempFileName = `html_snippet_${crypto.randomBytes(6).toString('hex')}.html`;
+        const tempFilePath = path.join(tempDir, tempFileName);
+
+        try {
+            fs.writeFileSync(tempFilePath, code, 'utf-8');
+            await shell.openPath(tempFilePath);
+            // We don't delete the temp file so the browser has time to load it.
+            // The OS will clean up the temp directory eventually.
+            return {
+                stdout: `Successfully opened HTML snippet in default browser. Path: ${tempFilePath}`,
+                stderr: '',
+            };
+        } catch (error) {
+            const errorMessage = `Failed to open HTML snippet: ${error instanceof Error ? error.message : String(error)}`;
+            console.error(errorMessage);
+            return { stdout: '', stderr: errorMessage };
+        }
+    });
+
     ipcMain.handle('api:make-request', async (_, req: ApiRequest): Promise<ApiResponse> => {
         console.log('Making API request:', req);
         const { url, method, headers, body } = req;

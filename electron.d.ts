@@ -6,6 +6,7 @@ export interface IElectronAPI {
   isPackaged: () => Promise<boolean>;
   runPython: (code: string) => Promise<{ stdout: string; stderr: string }>;
   runNodejs: (code: string) => Promise<{ stdout: string; stderr: string }>;
+  runHtml: (code: string) => Promise<{ stdout: string; stderr: string }>;
   writeLog: (entry: LogEntry) => Promise<void>;
   makeApiRequest: (request: ApiRequest) => Promise<ApiResponse>;
 
