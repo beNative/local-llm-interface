@@ -1,6 +1,7 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
-const path = require('path');
-const fs = require('fs');
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
 
 // The path where user settings will be stored.
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
@@ -50,7 +51,9 @@ const createWindow = () => {
   });
 
   // Load the app's index.html file.
-  const indexPath = path.join(__dirname, '..', 'index.html');
+  // The path is adjusted to work both in development (from project root)
+  // and in production (from the packaged app's resources).
+  const indexPath = path.join(__dirname, '..', '..', 'index.html');
   mainWindow.loadFile(indexPath);
 
   // Open external links in the user's default browser instead of a new Electron window.
@@ -78,7 +81,7 @@ app.whenReady().then(() => {
 
 // Quit when all windows are closed, except on macOS.
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+  if (os.platform() !== 'darwin') {
     app.quit();
   }
 });

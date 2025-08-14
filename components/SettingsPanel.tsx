@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import type { Config, LLMProvider } from '../types';
-import { PROVIDER_CONFIGS } from '../constants';
-import SettingsIcon from './icons/SettingsIcon';
-import OllamaIcon from './icons/OllamaIcon';
-import LMStudioIcon from './icons/LMStudioIcon';
+import type { Config, LLMProvider } from '../types.ts';
+import { PROVIDER_CONFIGS } from '../constants.ts';
+import SettingsIcon from './icons/SettingsIcon.tsx';
+import OllamaIcon from './icons/OllamaIcon.tsx';
+import LMStudioIcon from './icons/LMStudioIcon.tsx';
 
 interface SettingsPanelProps {
   config: Config;

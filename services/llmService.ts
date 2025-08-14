@@ -1,4 +1,4 @@
-import type { Model, ChatMessage } from '../types';
+import type { Model, ChatMessage } from '../types.ts';
 
 export class LLMServiceError extends Error {
   constructor(message: string) {
