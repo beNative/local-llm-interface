@@ -11,6 +11,7 @@ import ModelIcon from './icons/ModelIcon';
 import PlayIcon from './icons/PlayIcon';
 import TerminalIcon from './icons/TerminalIcon';
 import { runPythonCode } from '../services/pyodideService';
+import { logger } from '../services/logger';
 
 interface ChatViewProps {
   modelId: string;
@@ -49,12 +50,26 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron }: any
   
   const handleRun = async () => {
     setRunState({ isLoading: true, output: null, error: null });
-    if (canRunNative && window.electronAPI) {
-      const { stdout, stderr } = await window.electronAPI.runPython(codeText);
-      setRunState({ isLoading: false, output: stdout, error: stderr || null });
-    } else {
-      const { result, error } = await runPythonCode(codeText);
-      setRunState({ isLoading: false, output: result, error });
+    const executionEnv = canRunNative ? 'native Python' : 'Pyodide (WASM)';
+    logger.info(`Running Python code via ${executionEnv}`);
+    logger.debug(`Code:\n---\n${codeText}\n---`);
+
+    try {
+        if (canRunNative && window.electronAPI) {
+          const { stdout, stderr } = await window.electronAPI.runPython(codeText);
+          setRunState({ isLoading: false, output: stdout, error: stderr || null });
+          logger.info(`Native Python stdout:\n${stdout}`);
+          if(stderr) logger.warn(`Native Python stderr:\n${stderr}`);
+        } else {
+          const { result, error } = await runPythonCode(codeText);
+          setRunState({ isLoading: false, output: result, error });
+          logger.info(`Pyodide output:\n${result}`);
+          if(error) logger.warn(`Pyodide error:\n${error}`);
+        }
+    } catch (e) {
+        const errorMsg = e instanceof Error ? e.message : String(e);
+        setRunState({ isLoading: false, output: null, error: errorMsg });
+        logger.error(`Failed to run Python code: ${errorMsg}`);
     }
   };
   

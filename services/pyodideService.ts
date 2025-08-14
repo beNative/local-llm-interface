@@ -1,4 +1,5 @@
-import type { PyodideInterface } from 'pyodide';
+import type { PyodideInterface } from 'pyodide/pyodide';
+import { logger } from './logger';
 
 // Make loadPyodide available from window after the script is loaded
 declare global {
@@ -18,6 +19,7 @@ const loadPyodideInstance = async (): Promise<PyodideInterface> => {
         return pyodideLoadingPromise;
     }
 
+    logger.info('Loading Pyodide runtime...');
     pyodideLoadingPromise = new Promise((resolve, reject) => {
         const script = document.createElement('script');
         script.src = './pyodide/pyodide.js';
@@ -25,17 +27,21 @@ const loadPyodideInstance = async (): Promise<PyodideInterface> => {
             window.loadPyodide({
                 indexURL: './pyodide/',
             }).then((instance) => {
+                logger.info('Pyodide runtime loaded successfully.');
                 pyodideInstance = instance;
                 pyodideLoadingPromise = null;
                 resolve(instance);
             }).catch((error) => {
+                logger.error(`Failed to initialize Pyodide: ${error}`);
                 pyodideLoadingPromise = null;
                 reject(error);
             });
         };
         script.onerror = () => {
+            const error = new Error("Failed to load Pyodide script from ./pyodide/pyodide.js");
+            logger.error(error);
             pyodideLoadingPromise = null;
-            reject(new Error("Failed to load Pyodide script"));
+            reject(error);
         };
         document.body.appendChild(script);
     });
@@ -47,15 +53,14 @@ export const runPythonCode = async (code: string): Promise<{ result: string, err
     try {
         const pyodide = await loadPyodideInstance();
         
-        // Capture stdout and stderr
         let stdout = '';
         let stderr = '';
         pyodide.setStdout({ batched: (str) => { stdout += str + '\n'; } });
         pyodide.setStderr({ batched: (str) => { stderr += str + '\n'; } });
 
+        logger.info('Executing code in Pyodide...');
         const result = await pyodide.runPythonAsync(code);
         
-        // Reset streams
         pyodide.setStdout({});
         pyodide.setStderr({});
         
@@ -65,12 +70,12 @@ export const runPythonCode = async (code: string): Promise<{ result: string, err
         }
 
         const finalError = stderr ? `Error: ${stderr}` : null;
+        logger.info('Pyodide execution finished.');
         
         return { result: finalOutput.trim(), error: finalError };
     } catch (err) {
-        if (err instanceof Error) {
-            return { result: '', error: `Error: ${err.message}` };
-        }
-        return { result: '', error: 'An unknown error occurred during Python execution.' };
+        const errorMsg = err instanceof Error ? `Error: ${err.message}` : 'An unknown error occurred during Python execution.';
+        logger.error(`Pyodide execution failed: ${errorMsg}`);
+        return { result: '', error: errorMsg };
     }
 };

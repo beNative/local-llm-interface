@@ -10,9 +10,10 @@ interface SettingsPanelProps {
   config: Config;
   onConfigChange: (newConfig: Config) => void;
   isConnecting: boolean;
+  isElectron: boolean;
 }
 
-const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, isConnecting }) => {
+const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, isConnecting, isElectron }) => {
   const [localConfig, setLocalConfig] = useState<Config>(config);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -22,7 +23,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
 
   const handleProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const provider = e.target.value as LLMProvider;
-    // Preserve other settings like theme when provider changes
     setLocalConfig(current => ({
       ...current,
       provider,
@@ -32,6 +32,10 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLocalConfig({ ...localConfig, baseUrl: e.target.value });
+  };
+  
+  const handleLogToFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalConfig({ ...localConfig, logToFile: e.target.checked });
   };
 
   const handleSave = () => {
@@ -67,42 +71,66 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
       >
         <h2 className="flex items-center gap-3 text-2xl font-bold text-gray-900 dark:text-white mb-6">
           <SettingsIcon className="w-8 h-8"/>
-          Connection Settings
+          Settings
         </h2>
         
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div>
-            <label htmlFor="provider" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
-              LLM Provider
-            </label>
-            <select
-              id="provider"
-              value={localConfig.provider}
-              onChange={handleProviderChange}
-              className="w-full px-3 py-2 text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="Ollama">Ollama</option>
-              <option value="LMStudio">LMStudio</option>
-              <option value="Custom">Custom</option>
-            </select>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 px-1">
-              {providerDescriptions[localConfig.provider]}
-            </p>
+            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">Connection</h3>
+            <div className="space-y-4">
+                <div>
+                    <label htmlFor="provider" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    LLM Provider
+                    </label>
+                    <select
+                    id="provider"
+                    value={localConfig.provider}
+                    onChange={handleProviderChange}
+                    className="w-full px-3 py-2 text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                    <option value="Ollama">Ollama</option>
+                    <option value="LMStudio">LMStudio</option>
+                    <option value="Custom">Custom</option>
+                    </select>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 px-1">
+                    {providerDescriptions[localConfig.provider]}
+                    </p>
+                </div>
+                <div>
+                    <label htmlFor="baseUrl" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    Base URL (v1 compatible)
+                    </label>
+                    <input
+                    type="text"
+                    id="baseUrl"
+                    value={localConfig.baseUrl}
+                    onChange={handleUrlChange}
+                    className="w-full px-3 py-2 text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., http://localhost:11434/v1"
+                    />
+                </div>
+            </div>
           </div>
-
-          <div>
-            <label htmlFor="baseUrl" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
-              Base URL (v1 compatible)
-            </label>
-            <input
-              type="text"
-              id="baseUrl"
-              value={localConfig.baseUrl}
-              onChange={handleUrlChange}
-              className="w-full px-3 py-2 text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="e.g., http://localhost:11434/v1"
-            />
-          </div>
+            
+          {isElectron && (
+            <div>
+                 <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">Advanced</h3>
+                <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                        type="checkbox"
+                        checked={!!localConfig.logToFile}
+                        onChange={handleLogToFileChange}
+                        className="w-4 h-4 rounded text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                    />
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                        Automatically save logs to file
+                    </span>
+                </label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 px-1">
+                    Saves logs to a file in the app directory. Useful for debugging.
+                </p>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-3 mt-8">

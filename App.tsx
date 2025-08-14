@@ -1,18 +1,22 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import type { Config, Model, ChatMessage, Theme } from './types';
+import type { Config, Model, ChatMessage } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT } from './constants';
 import { fetchModels, streamChatCompletion, LLMServiceError } from './services/llmService';
+import { logger } from './services/logger';
 import SettingsPanel from './components/SettingsPanel';
 import ModelSelector from './components/ModelSelector';
 import ChatView from './components/ChatView';
 import ThemeSwitcher from './components/ThemeSwitcher';
+import LoggingPanel from './components/LoggingPanel';
+import FileTextIcon from './components/icons/FileTextIcon';
 
 const App: React.FC = () => {
   const [config, setConfig] = useState<Config>({ 
     provider: 'Ollama', 
     baseUrl: PROVIDER_CONFIGS.Ollama.baseUrl,
-    theme: 'dark' 
+    theme: 'dark',
+    logToFile: false,
   });
   const [models, setModels] = useState<Model[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState<boolean>(true);
@@ -22,8 +26,10 @@ const App: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isResponding, setIsResponding] = useState<boolean>(false);
   const [isElectron, setIsElectron] = useState(false);
+  const [isLogPanelVisible, setIsLogPanelVisible] = useState(false);
 
   useEffect(() => {
+    logger.info('App initialized.');
     if (config.theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
@@ -33,49 +39,65 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const loadInitialData = async () => {
+      logger.debug('Loading initial data and settings.');
       const defaultConfig: Config = { 
         provider: 'Ollama', 
         baseUrl: PROVIDER_CONFIGS.Ollama.baseUrl,
-        theme: 'dark' 
+        theme: 'dark',
+        logToFile: false,
       };
       
       let finalConfig = defaultConfig;
 
-      // Check for electron environment and load settings
       if (window.electronAPI) {
         setIsElectron(true);
-        const packaged = await window.electronAPI.isPackaged();
-        console.log(`Running in Electron. Packaged: ${packaged}`);
+        logger.info('Electron environment detected.');
         const loadedSettings = await window.electronAPI.getSettings();
         if (loadedSettings) {
+          logger.info('Loaded settings from file.');
+          logger.debug(`Settings loaded: ${JSON.stringify(loadedSettings)}`);
           finalConfig = { ...defaultConfig, ...loadedSettings };
+        } else {
+          logger.info('No settings file found, using defaults.');
         }
       } else {
+        logger.info('Running in browser environment.');
         const localSettings = localStorage.getItem('llm_config');
         if (localSettings) {
           try {
             const loadedSettings = JSON.parse(localSettings);
+            logger.info('Loaded settings from localStorage.');
+            logger.debug(`Settings loaded: ${JSON.stringify(loadedSettings)}`);
             finalConfig = { ...defaultConfig, ...loadedSettings };
           } catch (e) {
-             console.error("Failed to parse local settings, using defaults.", e);
+             logger.error("Failed to parse local settings, using defaults.");
           }
+        } else {
+            logger.info('No settings found in localStorage, using defaults.');
         }
       }
       
       setConfig(finalConfig);
+      logger.setConfig({ logToFile: finalConfig.logToFile });
     };
     loadInitialData();
   }, []);
 
   const handleConfigChange = async (newConfig: Config) => {
+    logger.info('Configuration change requested.');
+    logger.debug(`New config: ${JSON.stringify(newConfig)}`);
     setConfig(newConfig);
+    logger.setConfig({ logToFile: newConfig.logToFile });
+    
     if (window.electronAPI) {
       await window.electronAPI.saveSettings(newConfig);
+      logger.info('Settings saved to file.');
     } else {
       localStorage.setItem('llm_config', JSON.stringify(newConfig));
+      logger.info('Settings saved to localStorage.');
     }
-    // Only reset chat if provider or URL changes, not for theme changes
     if (newConfig.baseUrl !== config.baseUrl || newConfig.provider !== config.provider) {
+      logger.info('Provider or Base URL changed, resetting chat.');
       setCurrentChatModelId(null); 
       setMessages([]);
     }
@@ -83,13 +105,16 @@ const App: React.FC = () => {
 
   const handleThemeToggle = () => {
       const newTheme = config.theme === 'light' ? 'dark' : 'light';
+      logger.info(`Theme toggled to ${newTheme}.`);
       const newConfig: Config = { ...config, theme: newTheme };
       handleConfigChange(newConfig);
   };
 
   const loadModels = useCallback(async () => {
     if (!config.baseUrl) {
-        setError("The Base URL is not configured. Please check your settings.");
+        const msg = "The Base URL is not configured. Please check your settings.";
+        logger.warn(msg);
+        setError(msg);
         setModels([]);
         setIsLoadingModels(false);
         return;
@@ -99,11 +124,18 @@ const App: React.FC = () => {
     try {
       const fetchedModels = await fetchModels(config.baseUrl);
       setModels(fetchedModels);
+      if (fetchedModels.length === 0) {
+        logger.warn('Successfully connected, but no models were found.');
+      } else {
+        logger.info(`Successfully fetched ${fetchedModels.length} models.`);
+      }
     } catch (err) {
       if (err instanceof LLMServiceError) {
         setError(err.message);
       } else {
-        setError('An unexpected error occurred.');
+        const msg = 'An unexpected error occurred while fetching models.';
+        logger.error(msg);
+        setError(msg);
       }
       setModels([]);
     } finally {
@@ -116,11 +148,13 @@ const App: React.FC = () => {
   }, [loadModels]);
 
   const handleSelectModel = (modelId: string) => {
+    logger.info(`Model selected: ${modelId}`);
     setCurrentChatModelId(modelId);
     setMessages([{ role: 'system', content: DEFAULT_SYSTEM_PROMPT }]);
   };
 
   const handleBackToSelection = () => {
+    logger.info('Returning to model selection screen.');
     setCurrentChatModelId(null);
     setMessages([]);
   };
@@ -128,6 +162,7 @@ const App: React.FC = () => {
   const handleSendMessage = async (userInput: string) => {
     if (!currentChatModelId) return;
 
+    logger.info(`Sending message from user to model ${currentChatModelId}.`);
     const newMessages: ChatMessage[] = [...messages, { role: 'user', content: userInput }];
     setMessages(newMessages);
     setIsResponding(true);
@@ -150,13 +185,14 @@ const App: React.FC = () => {
         });
       },
       (err) => {
-        console.error('Streaming Error:', err);
-        const errorMsg: ChatMessage = { role: 'assistant', content: `Sorry, an error occurred: ${err.message}` };
+        const errorMsgContent = `Sorry, an error occurred: ${err.message}`;
+        const errorMsg: ChatMessage = { role: 'assistant', content: errorMsgContent };
         setMessages(prev => [...prev.slice(0,-1), errorMsg]);
         setIsResponding(false);
       },
       () => {
         setIsResponding(false);
+        logger.info('Message stream completed.');
       }
     );
   };
@@ -165,12 +201,20 @@ const App: React.FC = () => {
     <div className="flex flex-col h-screen font-sans">
       <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/50 backdrop-blur-sm sticky top-0 z-10">
         <h1 className="text-xl font-bold">{APP_NAME}</h1>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <SettingsPanel 
             config={config} 
             onConfigChange={handleConfigChange} 
             isConnecting={isLoadingModels}
+            isElectron={isElectron}
           />
+           <button
+            onClick={() => setIsLogPanelVisible(!isLogPanelVisible)}
+            className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-blue-500"
+            aria-label="Toggle logs panel"
+            >
+             <FileTextIcon className="w-5 h-5" />
+            </button>
           <ThemeSwitcher theme={config.theme || 'dark'} onToggle={handleThemeToggle} />
         </div>
       </header>
@@ -196,6 +240,7 @@ const App: React.FC = () => {
           </div>
         )}
       </main>
+      {isLogPanelVisible && <LoggingPanel onClose={() => setIsLogPanelVisible(false)} />}
     </div>
   );
 };

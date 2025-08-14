@@ -1,5 +1,12 @@
 
 export type Theme = 'light' | 'dark';
+export type LogLevel = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
+
+export interface LogEntry {
+  timestamp: Date;
+  level: LogLevel;
+  message: string;
+}
 
 export type LLMProvider = 'Ollama' | 'LMStudio' | 'Custom';
 
@@ -7,6 +14,7 @@ export interface Config {
   provider: LLMProvider;
   baseUrl: string;
   theme?: Theme;
+  logToFile?: boolean;
 }
 
 export interface Model {

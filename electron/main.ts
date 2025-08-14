@@ -75,6 +75,21 @@ app.whenReady().then(() => {
         return app.isPackaged;
     });
 
+    ipcMain.handle('log:write', (_, entry: { timestamp: string, level: string, message: string }) => {
+        try {
+            const logDir = app.isPackaged ? path.dirname(app.getPath('exe')) : app.getAppPath();
+            const date = new Date().toISOString().split('T')[0];
+            const logFile = path.join(logDir, `local-llm-interface-${date}.log`);
+            const formatted = `[${entry.timestamp}] [${entry.level}] ${entry.message}\n`;
+            fs.appendFileSync(logFile, formatted);
+        } catch (error) {
+            console.error('Failed to write to log file:', error);
+            // We can't easily inform the renderer from here without a potential loop,
+            // so we'll just log to the main process console.
+            throw error; // Throw error back to renderer
+        }
+    });
+
     ipcMain.handle('python:run', async (_, code: string): Promise<{ stdout: string; stderr: string }> => {
         const tempDir = os.tmpdir();
         const tempFileName = `pyscript_${crypto.randomBytes(6).toString('hex')}.py`;
