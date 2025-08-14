@@ -247,7 +247,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
   const canRunCode = isPython || (isNode && isElectron);
 
   return !inline && match ? (
-    <div className="relative bg-gray-100 dark:bg-gray-800 my-2 rounded-md border border-gray-200 dark:border-gray-700">
+    <div className="not-prose relative bg-gray-100 dark:bg-gray-800 my-2 rounded-md border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between px-4 py-1 bg-gray-200/50 dark:bg-gray-700/50 rounded-t-md text-xs">
         <span className="font-sans text-gray-500 dark:text-gray-400">{match[1]}</span>
         <div className="flex items-center gap-2">
@@ -312,10 +312,10 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
         {codeText}
       </SyntaxHighlighter>
       {(runState.output || runState.error) && (
-        <div className="border-t border-gray-200 dark:border-gray-700 p-4 font-mono text-xs bg-gray-100 dark:bg-gray-900/50 rounded-b-md">
+        <div className="border-t border-gray-200 dark:border-gray-700 p-4 font-mono text-xs bg-gray-100 dark:bg-gray-900 rounded-b-md">
            <h4 className="text-gray-500 dark:text-gray-400 font-sans font-semibold text-sm mb-2">Output</h4>
            {runState.output && (
-             <pre className="whitespace-pre-wrap text-gray-800 dark:text-gray-200">{runState.output}</pre>
+             <pre className="whitespace-pre-wrap text-gray-700 dark:text-gray-300">{runState.output}</pre>
            )}
            {runState.error && (
              <pre className="whitespace-pre-wrap text-red-600 dark:text-red-400">{runState.error}</pre>
@@ -324,7 +324,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
       )}
     </div>
   ) : (
-    <code className="px-1.5 py-1 bg-blue-100 dark:bg-gray-700 text-blue-800 dark:text-blue-300 rounded-md text-sm font-mono">
+    <code className="not-prose px-1.5 py-1 bg-blue-100 dark:bg-gray-700 text-blue-800 dark:text-blue-300 rounded-md text-sm font-mono">
       {children}
     </code>
   );

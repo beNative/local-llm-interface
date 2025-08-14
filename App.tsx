@@ -271,7 +271,7 @@ const App: React.FC = () => {
                 isElectron={isElectron}
               />;
         case 'info':
-            return <InfoView />;
+            return <InfoView theme={config.theme || 'dark'} />;
         case 'projects':
             return <ProjectsView 
                 config={config}
@@ -280,7 +280,7 @@ const App: React.FC = () => {
                 onInjectContentForChat={handleInjectContentForChat}
               />;
         case 'api':
-            return <ApiView isElectron={isElectron} />;
+            return <ApiView isElectron={isElectron} theme={config.theme || 'dark'} />;
         case 'chat':
         default:
              if (currentChatModelId) {

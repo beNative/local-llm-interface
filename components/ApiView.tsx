@@ -1,8 +1,9 @@
+
 import React, { useState } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import type { ApiRequest, ApiResponse, ApiHttpMethod } from '../types';
+import type { ApiRequest, ApiResponse, ApiHttpMethod, Theme } from '../types';
 import { logger } from '../services/logger';
 import ServerIcon from './icons/ServerIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
@@ -31,13 +32,20 @@ const API_REQUEST_SCHEMA = {
   required: ['method', 'url']
 };
 
-const ApiView: React.FC<{ isElectron: boolean }> = ({ isElectron }) => {
+interface ApiViewProps {
+    isElectron: boolean;
+    theme: Theme;
+}
+
+const ApiView: React.FC<ApiViewProps> = ({ isElectron, theme }) => {
     const [prompt, setPrompt] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [apiRequest, setApiRequest] = useState<ApiRequest | null>(null);
     const [apiResponse, setApiResponse] = useState<ApiResponse | null>(null);
     
+    const syntaxTheme = theme === 'dark' ? atomDark : coy;
+
     if (!isElectron) {
         return (
             <div className="p-8 text-center text-gray-500 dark:text-gray-400">
@@ -252,7 +260,7 @@ const ApiView: React.FC<{ isElectron: boolean }> = ({ isElectron }) => {
                         <div className="relative">
                             <SyntaxHighlighter
                                 language={apiResponse.headers['content-type']?.includes('json') ? 'json' : 'text'}
-                                style={coy}
+                                style={syntaxTheme}
                                 customStyle={{ margin: 0, maxHeight: '400px', overflowY: 'auto' }}
                                 wrapLines={true}
                             >

@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import SpinnerIcon from './icons/SpinnerIcon';
+import type { Theme } from '../types';
 
 type Doc = 'README' | 'FUNCTIONAL' | 'TECHNICAL' | 'CHANGELOG';
 const DOC_FILES: Record<Doc, string> = {
@@ -13,11 +15,13 @@ const DOC_FILES: Record<Doc, string> = {
   CHANGELOG: 'CHANGELOG.md',
 };
 
-const InfoView: React.FC = () => {
+const InfoView: React.FC<{ theme: Theme }> = ({ theme }) => {
   const [activeDoc, setActiveDoc] = useState<Doc>('README');
   const [content, setContent] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  const syntaxTheme = theme === 'dark' ? atomDark : coy;
 
   useEffect(() => {
     const fetchDoc = async () => {
@@ -81,7 +85,7 @@ const InfoView: React.FC = () => {
                   const match = /language-(\w+)/.exec(className || '');
                   return !inline && match ? (
                     <SyntaxHighlighter
-                      style={atomDark}
+                      style={syntaxTheme}
                       language={match[1]}
                       PreTag="div"
                     >
