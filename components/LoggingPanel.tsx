@@ -94,16 +94,16 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
   return (
     <div 
       style={{ height: `${height}px` }}
-      className="fixed bottom-0 left-0 right-0 z-40 flex flex-col bg-gray-50 dark:bg-gray-900 shadow-[0_-2px_15px_-3px_rgba(0,0,0,0.1)]"
+      className="fixed bottom-0 left-0 right-0 z-40 flex flex-col bg-[--bg-secondary] shadow-[0_-2px_15px_-3px_rgba(0,0,0,0.1)]"
     >
       <div 
         onMouseDown={startResizing}
-        className="absolute top-0 left-0 w-full h-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-blue-500 cursor-ns-resize transition-colors duration-200"
+        className="absolute top-0 left-0 w-full h-1.5 bg-[--bg-tertiary] hover:bg-blue-500 cursor-ns-resize transition-colors duration-200"
         aria-label="Resize panel"
       />
-      <header className="flex items-center justify-between p-2 pt-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+      <header className="flex items-center justify-between p-2 pt-3 border-b border-[--border-primary] flex-shrink-0">
         <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-sm px-2">Application Logs</h3>
+          <h3 className="font-semibold text-sm px-2 text-[--text-primary]">Application Logs</h3>
           {LOG_LEVELS.map(level => (
             <button
               key={level}
@@ -111,7 +111,7 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
               className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border transition-colors ${
                 filters.has(level)
                   ? `${levelClasses[level].bg} ${levelClasses[level].text} ${levelClasses[level].border}`
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border-transparent hover:border-gray-400 dark:hover:border-gray-500'
+                  : 'bg-[--bg-tertiary] text-[--text-muted] border-transparent hover:border-[--border-secondary]'
               }`}
             >
               <span>{level}</span>
@@ -122,13 +122,13 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={copyLogs} className="p-1.5 rounded text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700" title={isCopied ? 'Copied!' : 'Copy Logs'}>
+          <button onClick={copyLogs} className="p-1.5 rounded text-[--text-muted] hover:bg-[--bg-hover]" title={isCopied ? 'Copied!' : 'Copy Logs'}>
             <ClipboardIcon className="w-4 h-4" />
           </button>
-          <button onClick={logger.clearLogs} className="p-1.5 rounded text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700" title="Clear Logs">
+          <button onClick={logger.clearLogs} className="p-1.5 rounded text-[--text-muted] hover:bg-[--bg-hover]" title="Clear Logs">
             <TrashIcon className="w-4 h-4" />
           </button>
-          <button onClick={onClose} className="p-1.5 rounded text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700" title="Close Panel">
+          <button onClick={onClose} className="p-1.5 rounded text-[--text-muted] hover:bg-[--bg-hover]" title="Close Panel">
              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
           </button>
         </div>
@@ -136,7 +136,7 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
       <div ref={logContainerRef} className="flex-1 overflow-y-auto p-2 font-mono text-xs">
         {filteredLogs.map((log, i) => (
           <div key={i} className={`flex items-start gap-3 py-1 px-2 rounded hover:bg-black/5 dark:hover:bg-white/5`}>
-            <span className="flex-shrink-0 text-gray-500">{log.timestamp.toLocaleTimeString()}</span>
+            <span className="flex-shrink-0 text-[--text-muted]">{log.timestamp.toLocaleTimeString()}</span>
             <span className={`flex-shrink-0 font-bold w-16 ${levelClasses[log.level].text}`}>[{log.level}]</span>
             <pre className={`whitespace-pre-wrap break-words ${levelClasses[log.level].text}`}>{log.message}</pre>
           </div>

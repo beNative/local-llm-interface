@@ -47,18 +47,18 @@ const InfoView: React.FC<{ theme: Theme }> = ({ theme }) => {
   }, [activeDoc]);
 
   return (
-    <div className="flex h-full overflow-hidden bg-white dark:bg-gray-900">
-      <aside className="w-64 p-4 border-r border-gray-200 dark:border-gray-700 overflow-y-auto flex-shrink-0">
+    <div className="flex h-full overflow-hidden bg-[--bg-primary]">
+      <aside className="w-64 p-4 border-r border-[--border-primary] overflow-y-auto flex-shrink-0 bg-[--bg-secondary]">
         <nav className="space-y-2">
-          <h2 className="px-3 py-2 text-xs font-semibold tracking-wider text-gray-500 dark:text-gray-400 uppercase">Documents</h2>
+          <h2 className="px-3 py-2 text-xs font-semibold tracking-wider text-[--text-muted] uppercase">Documents</h2>
           {(Object.keys(DOC_FILES) as Doc[]).map((docKey) => (
             <button
               key={docKey}
               onClick={() => setActiveDoc(docKey)}
               className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                 activeDoc === docKey
-                  ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50'
+                  ? 'bg-blue-500/10 text-[--text-accent]'
+                  : 'text-[--text-secondary] hover:bg-[--bg-hover]'
               }`}
             >
               {DOC_FILES[docKey].replace('.md', '').replace(/_/g, ' ')}
@@ -69,7 +69,7 @@ const InfoView: React.FC<{ theme: Theme }> = ({ theme }) => {
       <main className="flex-1 overflow-y-auto p-6 md:p-8">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
-            <SpinnerIcon className="w-10 h-10 text-gray-400" />
+            <SpinnerIcon className="w-10 h-10 text-[--text-muted]" />
           </div>
         ) : error ? (
           <div className="text-red-500 bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
@@ -84,15 +84,18 @@ const InfoView: React.FC<{ theme: Theme }> = ({ theme }) => {
                 code({ node, inline, className, children, ...props }: any) {
                   const match = /language-(\w+)/.exec(className || '');
                   return !inline && match ? (
-                    <SyntaxHighlighter
-                      style={syntaxTheme}
-                      language={match[1]}
-                      PreTag="div"
-                    >
-                      {String(children).replace(/\n$/, '')}
-                    </SyntaxHighlighter>
+                    <div className="not-prose bg-[--code-bg] rounded-md my-2 border border-[--border-primary]">
+                      <SyntaxHighlighter
+                        style={syntaxTheme}
+                        language={match[1]}
+                        PreTag="div"
+                        customStyle={{ background: 'transparent', margin: 0 }}
+                      >
+                        {String(children).replace(/\n$/, '')}
+                      </SyntaxHighlighter>
+                    </div>
                   ) : (
-                    <code className={className} {...props}>
+                    <code className="not-prose bg-blue-500/10 text-blue-600 dark:text-blue-400 px-1 py-0.5 rounded-sm" {...props}>
                       {children}
                     </code>
                   );

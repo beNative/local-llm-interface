@@ -114,40 +114,40 @@ const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, on
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Save Code to Project</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[--bg-backdrop] backdrop-blur-sm" onClick={onClose}>
+            <div className="bg-[--bg-secondary] rounded-lg shadow-xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
+                <h2 className="text-xl font-bold text-[--text-primary] mb-4">Save Code to Project</h2>
                 <div className="space-y-4">
                      <div>
-                        <label htmlFor="project-select" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Project</label>
+                        <label htmlFor="project-select" className="block text-sm font-medium text-[--text-muted] mb-1">Project</label>
                         <select
                             id="project-select"
                             value={selectedProjectId}
                             onChange={e => setSelectedProjectId(e.target.value)}
-                            className="w-full px-3 py-2 text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
                         >
                             <option value="" disabled>-- Select a project --</option>
                             {relevantProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                     </div>
                      <div>
-                        <label htmlFor="filename-input" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Filename</label>
+                        <label htmlFor="filename-input" className="block text-sm font-medium text-[--text-muted] mb-1">Filename</label>
                         <input
                             id="filename-input"
                             type="text"
                             value={filename}
                             onChange={e => setFilename(e.target.value)}
-                            className="w-full px-3 py-2 text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
                             placeholder="Enter new filename or select existing"
                         />
                     </div>
                      {selectedProjectId && !isLoadingFiles && existingFiles.length > 0 && (
                          <div>
-                            <label htmlFor="file-select" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Or overwrite existing file</label>
+                            <label htmlFor="file-select" className="block text-sm font-medium text-[--text-muted] mb-1">Or overwrite existing file</label>
                              <select
                                 id="file-select"
                                 onChange={handleFileSelect}
-                                className="w-full px-3 py-2 text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
                             >
                                 <option value="">-- Choose a file to overwrite --</option>
                                 {existingFiles.map(f => <option key={f.path} value={f.name}>{f.name}</option>)}
@@ -156,8 +156,8 @@ const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, on
                      )}
                 </div>
                 <div className="flex justify-end gap-3 mt-6">
-                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">Cancel</button>
-                    <button onClick={handleSave} disabled={isSaving || !selectedProjectId || !filename.trim()} className="flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-blue-400 dark:disabled:bg-blue-800">
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-md hover:bg-[--bg-hover]">Cancel</button>
+                    <button onClick={handleSave} disabled={isSaving || !selectedProjectId || !filename.trim()} className="flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-green-400">
                         {isSaving ? <SpinnerIcon className="w-5 h-5"/> : 'Save File'}
                     </button>
                 </div>
@@ -247,9 +247,9 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
   const canRunCode = isPython || (isNode && isElectron);
 
   return !inline && match ? (
-    <div className="not-prose relative bg-gray-100 dark:bg-gray-800 my-2 rounded-md border border-gray-200 dark:border-gray-700">
-      <div className="flex items-center justify-between px-4 py-1 bg-gray-200/50 dark:bg-gray-700/50 rounded-t-md text-xs">
-        <span className="font-sans text-gray-500 dark:text-gray-400">{match[1]}</span>
+    <div className="not-prose relative bg-[--code-bg] my-2 rounded-md border border-[--border-primary]">
+      <div className="flex items-center justify-between px-4 py-1 bg-black/5 dark:bg-white/5 rounded-t-md text-xs">
+        <span className="font-sans text-[--text-muted]">{match[1]}</span>
         <div className="flex items-center gap-2">
             {(canRunCode || canRunOrSaveNative) && (
               <div className="flex items-center divide-x divide-gray-300 dark:divide-gray-600">
@@ -258,7 +258,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
                         <select 
                             value={selectedProjectId} 
                             onChange={e => setSelectedProjectId(e.target.value)}
-                            className="text-xs bg-gray-200 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:border-blue-500"
+                            className="text-xs bg-transparent border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:border-blue-500"
                             disabled={runState.isLoading}
                         >
                             <option value="standalone">Standalone</option>
@@ -269,7 +269,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
                         <button
                             onClick={handleRun}
                             disabled={runState.isLoading}
-                            className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded disabled:cursor-not-allowed disabled:text-gray-400 dark:disabled:text-gray-500"
+                            className="flex items-center gap-1.5 text-[--text-muted] hover:text-[--text-primary] px-2 py-1 rounded disabled:cursor-not-allowed disabled:opacity-50"
                             title="Run code"
                         >
                             <RunIcon className="w-3 h-3"/>
@@ -279,14 +279,14 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
                 </div>
                 <div className="pl-2 flex items-center gap-2">
                     {canRunOrSaveNative && relevantProjects.length > 0 && (
-                         <button onClick={() => onSaveRequest(codeText, lang)} className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded" title="Save to Project">
+                         <button onClick={() => onSaveRequest(codeText, lang)} className="flex items-center gap-1.5 text-[--text-muted] hover:text-[--text-primary] px-2 py-1 rounded" title="Save to Project">
                             <FilePlusIcon className="w-3.5 h-3.5" />
                             Save
                         </button>
                     )}
                     <button 
                       onClick={handleCopy}
-                      className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded"
+                      className="text-[--text-muted] hover:text-[--text-primary] px-2 py-1 rounded"
                     >
                       {isCopied ? 'Copied!' : 'Copy code'}
                     </button>
@@ -296,7 +296,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
             {!(canRunCode || canRunOrSaveNative) && (
                 <button 
                   onClick={handleCopy}
-                  className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded"
+                  className="text-[--text-muted] hover:text-[--text-primary] px-2 py-1 rounded"
                 >
                   {isCopied ? 'Copied!' : 'Copy code'}
                 </button>
@@ -312,19 +312,19 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
         {codeText}
       </SyntaxHighlighter>
       {(runState.output || runState.error) && (
-        <div className="border-t border-gray-200 dark:border-gray-700 p-4 font-mono text-xs bg-gray-100 dark:bg-gray-900 rounded-b-md">
-           <h4 className="text-gray-500 dark:text-gray-400 font-sans font-semibold text-sm mb-2">Output</h4>
+        <div className="border-t border-[--border-primary] p-4 font-mono text-xs bg-[--code-output-bg] rounded-b-md">
+           <h4 className="text-[--text-muted] font-sans font-semibold text-sm mb-2">Output</h4>
            {runState.output && (
-             <pre className="whitespace-pre-wrap text-gray-700 dark:text-gray-300">{runState.output}</pre>
+             <pre className="whitespace-pre-wrap text-[--text-secondary]">{runState.output}</pre>
            )}
            {runState.error && (
-             <pre className="whitespace-pre-wrap text-red-600 dark:text-red-400">{runState.error}</pre>
+             <pre className="whitespace-pre-wrap text-red-500">{runState.error}</pre>
            )}
         </div>
       )}
     </div>
   ) : (
-    <code className="not-prose px-1.5 py-1 bg-blue-100 dark:bg-gray-700 text-blue-800 dark:text-blue-300 rounded-md text-sm font-mono">
+    <code className="not-prose px-1.5 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-md text-sm font-mono">
       {children}
     </code>
   );
@@ -382,7 +382,7 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
   };
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-900">
+    <div className="flex flex-col h-full bg-[--bg-primary]">
      {saveModalState && isElectron && (
         <SaveToProjectModal 
             {...saveModalState}
@@ -390,14 +390,14 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
             onClose={() => setSaveModalState(null)}
         />
      )}
-      <header className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+      <header className="flex items-center justify-between p-4 bg-[--bg-secondary] border-b border-[--border-primary]">
          <div className="flex items-center gap-3">
             <ModelIcon className="w-6 h-6 text-blue-500 dark:text-blue-400"/>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{modelId}</h2>
+            <h2 className="text-lg font-semibold text-[--text-primary]">{modelId}</h2>
          </div>
         <button
           onClick={onBack}
-          className="px-3 py-1 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 focus:outline-none"
+          className="px-3 py-1 text-sm font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-md hover:bg-[--bg-hover] focus:outline-none"
         >
           &larr; Change Model
         </button>
@@ -405,12 +405,12 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
       <main className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.map((msg, index) => (
           <div key={index} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-            {msg.role === 'assistant' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center"><ModelIcon className="w-5 h-5 text-blue-500 dark:text-blue-400" /></div>}
+            {msg.role === 'assistant' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center"><ModelIcon className="w-5 h-5 text-blue-500 dark:text-blue-400" /></div>}
             <div
               className={`max-w-2xl p-4 rounded-xl ${
                 msg.role === 'user'
                   ? 'bg-blue-600 text-white rounded-br-none'
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-bl-none'
+                  : 'bg-[--bg-secondary] text-[--text-primary] rounded-bl-none'
               }`}
             >
               {msg.role === 'assistant' && msg.content === '' && isResponding
@@ -432,12 +432,12 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
                   </div>
               }
             </div>
-             {msg.role === 'user' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center font-bold text-gray-900 dark:text-gray-200">U</div>}
+             {msg.role === 'user' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center font-bold text-[--text-primary]">U</div>}
           </div>
         ))}
         <div ref={messagesEndRef} />
       </main>
-      <footer className="p-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+      <footer className="p-4 bg-[--bg-secondary] border-t border-[--border-primary]">
         <div className="relative">
           <textarea
             value={input}
@@ -446,12 +446,12 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
             placeholder="Type your message..."
             rows={1}
             disabled={isResponding}
-            className="w-full pl-4 pr-12 py-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed"
+            className="w-full pl-4 pr-12 py-3 bg-[--bg-tertiary] text-[--text-primary] rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[--border-focus] disabled:cursor-not-allowed"
           />
           <button
             onClick={handleSend}
             disabled={isResponding || !input.trim()}
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-[--bg-accent] text-[--text-on-accent] hover:bg-[--bg-accent-hover] disabled:bg-[--bg-accent-disabled] disabled:cursor-not-allowed transition-colors"
           >
             <SendIcon className="w-5 h-5" />
           </button>

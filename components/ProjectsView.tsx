@@ -56,11 +56,11 @@ const EditorModal: React.FC<EditorModalProps> = ({ file, onClose, onAddToChat })
     };
 
     return (
-         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
-                <header className="p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-between items-center">
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-white font-mono">{file.name}</h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-mono hidden sm:block">{file.path}</p>
+         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[--bg-backdrop] backdrop-blur-sm" onClick={onClose}>
+            <div className="bg-[--bg-secondary] rounded-lg shadow-xl w-full max-w-4xl h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                <header className="p-4 border-b border-[--border-primary] flex-shrink-0 flex justify-between items-center">
+                    <h2 className="text-lg font-bold text-[--text-primary] font-mono">{file.name}</h2>
+                    <p className="text-xs text-[--text-muted] font-mono hidden sm:block">{file.path}</p>
                 </header>
                 <main className="flex-1 overflow-hidden p-2">
                     {isLoading ? (
@@ -71,13 +71,13 @@ const EditorModal: React.FC<EditorModalProps> = ({ file, onClose, onAddToChat })
                         <textarea
                             value={content}
                             onChange={(e) => setContent(e.target.value)}
-                            className="w-full h-full p-2 font-mono text-sm bg-gray-100 dark:bg-gray-900 rounded-md resize-none focus:outline-none"
+                            className="w-full h-full p-2 font-mono text-sm bg-[--bg-primary] text-[--text-primary] rounded-md resize-none focus:outline-none"
                             spellCheck="false"
                         />
                     )}
                 </main>
-                 <footer className="flex justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
-                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">Cancel</button>
+                 <footer className="flex justify-end gap-3 p-4 border-t border-[--border-primary] flex-shrink-0">
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-md hover:bg-[--bg-hover]">Cancel</button>
                     <button 
                         onClick={() => onAddToChat(file.name, content)} 
                         disabled={isLoading}
@@ -85,7 +85,7 @@ const EditorModal: React.FC<EditorModalProps> = ({ file, onClose, onAddToChat })
                         <MessagePlusIcon className="w-5 h-5"/>
                         Add to Chat Context
                     </button>
-                    <button onClick={handleSave} disabled={isSaving || isLoading} className="flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-blue-400 dark:disabled:bg-blue-800">
+                    <button onClick={handleSave} disabled={isSaving || isLoading} className="flex items-center justify-center px-4 py-2 text-sm font-medium text-[--text-on-accent] bg-[--bg-accent] rounded-md hover:bg-[--bg-accent-hover] disabled:bg-[--bg-accent-disabled]">
                         {isSaving ? <SpinnerIcon className="w-5 h-5"/> : 'Save Changes'}
                     </button>
                 </footer>
@@ -112,19 +112,19 @@ const ProjectCard: React.FC<{
                     : 'text-purple-500';
     
     return (
-        <div className="bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex flex-col">
+        <div className="bg-[--bg-secondary] rounded-lg border border-[--border-primary] flex flex-col">
             <div className="p-4">
                 <div 
                     className="flex items-center gap-3 mb-2 cursor-pointer"
                     onClick={onToggleExpand}
                 >
                     <CodeIcon className={`w-6 h-6 ${typeColor}`} />
-                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white truncate">{project.name}</h4>
-                    <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                    <h4 className="text-lg font-semibold text-[--text-primary] truncate">{project.name}</h4>
+                    <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-[--bg-tertiary] text-[--text-secondary]">
                         {project.type}
                     </span>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 font-mono break-all">{project.path}</p>
+                <p className="text-xs text-[--text-muted] font-mono break-all">{project.path}</p>
             
                 <div className="flex items-center gap-2 mt-4">
                     {project.type === 'webapp' ? (
@@ -138,7 +138,7 @@ const ProjectCard: React.FC<{
                         </button>
                     )}
                    
-                    <button onClick={onOpen} disabled={isBusy} className="p-2 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50" title="Open folder">
+                    <button onClick={onOpen} disabled={isBusy} className="p-2 rounded-md bg-[--bg-tertiary] text-[--text-secondary] hover:bg-[--bg-hover] disabled:opacity-50" title="Open folder">
                         <FolderOpenIcon className="w-4 h-4"/>
                     </button>
                     <button onClick={onDelete} disabled={isBusy} className="p-2 rounded-md bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900 disabled:opacity-50" title="Delete project">
@@ -147,7 +147,7 @@ const ProjectCard: React.FC<{
                 </div>
             </div>
             {isExpanded && (
-                <div className="border-t border-gray-200 dark:border-gray-700 max-h-80 overflow-y-auto">
+                <div className="border-t border-[--border-primary] max-h-80 overflow-y-auto">
                    <FileTree projectPath={project.path} onFileClick={onFileClick} />
                 </div>
             )}
@@ -180,7 +180,7 @@ const NewProjectForm: React.FC<{
                 value={name}
                 onChange={e => setName(e.target.value)}
                 placeholder="New project name..."
-                className="flex-grow px-3 py-2 text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-grow px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
                 disabled={isBusy}
             />
             <button type="submit" disabled={!name.trim() || isBusy} className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed">
@@ -204,7 +204,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
     
     if (!isElectron) {
         return (
-            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+            <div className="p-8 text-center text-[--text-muted]">
                 <h2 className="text-xl font-bold">Feature Not Available</h2>
                 <p>Project management is only available in the desktop application.</p>
             </div>
@@ -309,11 +309,11 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
         const projects = config.projects?.filter(p => p.type === type) || [];
         
         return (
-             <div>
-                <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4 border-b border-gray-200 dark:border-gray-700 pb-3">{title}</h3>
+             <div className="bg-[--bg-secondary]/50 p-6 rounded-lg border border-[--border-primary]">
+                <h3 className="text-lg font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">{title}</h3>
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                        <label className="block text-sm font-medium text-[--text-muted] mb-1">
                         Projects Base Directory
                         </label>
                         <div className="flex gap-2">
@@ -321,9 +321,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
                                 type="text"
                                 readOnly
                                 value={path || 'Not set'}
-                                className="w-full px-3 py-2 text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md"
+                                className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md"
                             />
-                            <button onClick={() => handleSetPath(type)} className="px-4 py-2 text-sm font-medium text-white bg-gray-600 rounded-md hover:bg-gray-700">
+                            <button onClick={() => handleSetPath(type)} className="px-4 py-2 text-sm font-medium text-[--text-on-accent] bg-[--bg-accent] hover:bg-[--bg-accent-hover] rounded-md">
                                 Choose...
                             </button>
                         </div>
@@ -346,7 +346,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
                             />
                        ))}
                     </div>
-                    {path && projects.length === 0 && <p className="text-sm text-center py-4 text-gray-500 dark:text-gray-400">No {type} projects yet. Create one above.</p>}
+                    {path && projects.length === 0 && <p className="text-sm text-center py-4 text-[--text-muted]">No {type} projects yet. Create one above.</p>}
                 </div>
             </div>
         );
@@ -355,22 +355,16 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
   return (
     <>
     {editingFile && <EditorModal file={editingFile} onClose={() => setEditingFile(null)} onAddToChat={onInjectContentForChat} />}
-    <div className="p-4 sm:p-6 h-full overflow-y-auto bg-white dark:bg-gray-900">
+    <div className="p-4 sm:p-6 h-full overflow-y-auto bg-[--bg-primary]">
       <div className="max-w-4xl mx-auto">
-        <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900 dark:text-white mb-8">
+        <h1 className="flex items-center gap-3 text-3xl font-bold text-[--text-primary] mb-8">
           <CodeIcon className="w-8 h-8"/>
           Projects
         </h1>
         
-        <div className="space-y-8 bg-gray-50 dark:bg-gray-800/50 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="space-y-8">
             {renderProjectSection('python')}
-        </div>
-        
-        <div className="mt-8 space-y-8 bg-gray-50 dark:bg-gray-800/50 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
             {renderProjectSection('nodejs')}
-        </div>
-
-        <div className="mt-8 space-y-8 bg-gray-50 dark:bg-gray-800/50 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
             {renderProjectSection('webapp')}
         </div>
       </div>

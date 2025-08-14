@@ -54,7 +54,7 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({ entry, onFileClick, level }
       <div
         onClick={handleClick}
         style={{ paddingLeft: `${level * 1.25}rem` }}
-        className="flex items-center gap-2 py-1 px-2 rounded-md cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 text-sm"
+        className="flex items-center gap-2 py-1 px-2 rounded-md cursor-pointer hover:bg-[--bg-hover] text-sm"
       >
         {entry.isDirectory ? (
             isLoading ? <SpinnerIcon className="w-4 h-4 flex-shrink-0" /> : <ExpanderIcon className="w-4 h-4 flex-shrink-0" />
@@ -62,7 +62,7 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({ entry, onFileClick, level }
           <div className="w-4 h-4 flex-shrink-0" /> 
         )}
         <Icon className="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
-        <span className="truncate">{entry.name}</span>
+        <span className="truncate text-[--text-secondary]">{entry.name}</span>
       </div>
       {isExpanded && children.length > 0 && (
         <div>
@@ -105,7 +105,7 @@ const FileTree: React.FC<FileTreeProps> = ({ projectPath, onFileClick }) => {
   }, [projectPath]);
 
   if (isLoading) {
-    return <div className="p-4 text-center text-sm text-gray-500">Loading files...</div>;
+    return <div className="p-4 text-center text-sm text-[--text-muted]">Loading files...</div>;
   }
 
   if (error) {
@@ -113,7 +113,7 @@ const FileTree: React.FC<FileTreeProps> = ({ projectPath, onFileClick }) => {
   }
   
   if (rootEntries.length === 0) {
-    return <div className="p-4 text-center text-sm text-gray-500">This project is empty.</div>;
+    return <div className="p-4 text-center text-sm text-[--text-muted]">This project is empty.</div>;
   }
 
   return (

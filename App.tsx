@@ -31,8 +31,8 @@ const NavButton: React.FC<{
     aria-label={ariaLabel}
     className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
     active 
-      ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white' 
-      : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-gray-700/50'
+      ? 'bg-black/10 dark:bg-white/10 text-[--text-primary]' 
+      : 'text-[--text-muted] hover:bg-black/5 dark:hover:bg-white/5'
   }`}>
     {children}
   </button>
@@ -255,7 +255,7 @@ const App: React.FC = () => {
   const renderContent = () => {
     if (!config) {
         // Initial loading state before config is loaded from storage
-        return <div className="flex items-center justify-center h-full">Loading settings...</div>;
+        return <div className="flex items-center justify-center h-full text-[--text-muted]">Loading settings...</div>;
     }
 
     switch(view) {
@@ -304,7 +304,7 @@ const App: React.FC = () => {
                 );
              }
              return (
-                <div className="h-full overflow-y-auto bg-white dark:bg-gray-900">
+                <div className="h-full overflow-y-auto bg-[--bg-primary]">
                     <ModelSelector
                         models={models}
                         onSelectModel={handleSelectModel}
@@ -318,10 +318,10 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen font-sans">
-      <header className="flex items-center justify-between p-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/50 backdrop-blur-sm sticky top-0 z-10">
+      <header className="flex items-center justify-between p-2 border-b border-[--border-primary] bg-[--bg-secondary]/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="flex items-center gap-4">
             <h1 className="text-xl font-bold px-2">{APP_NAME}</h1>
-            <nav className="flex items-center gap-1 bg-gray-200/50 dark:bg-gray-700/50 p-1 rounded-lg">
+            <nav className="flex items-center gap-1 bg-black/5 dark:bg-white/5 p-1 rounded-lg">
               <NavButton active={view === 'chat'} onClick={() => setView('chat')} ariaLabel="Chat View">
                 <MessageSquareIcon className="w-4 h-4" />
                 <span>Chat</span>
@@ -348,7 +348,7 @@ const App: React.FC = () => {
         <div className="flex items-center gap-2 pr-2">
            <button
             onClick={() => setIsLogPanelVisible(!isLogPanelVisible)}
-            className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-blue-500"
+            className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-primary] focus:ring-[--border-focus]"
             aria-label="Toggle logs panel"
             >
              <FileTextIcon className="w-5 h-5" />
