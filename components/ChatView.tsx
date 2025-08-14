@@ -1,5 +1,9 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import remarkGfm from 'remark-gfm';
 import type { ChatMessage } from '../types';
 import SendIcon from './icons/SendIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
@@ -12,6 +16,45 @@ interface ChatViewProps {
   isResponding: boolean;
   onBack: () => void;
 }
+
+const CodeBlock = ({ node, inline, className, children }: any) => {
+  const [isCopied, setIsCopied] = useState(false);
+  const match = /language-(\w+)/.exec(className || '');
+  const codeText = String(children).replace(/\n$/, '');
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(codeText);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+  
+  return !inline && match ? (
+    <div className="relative bg-gray-800 my-2 rounded-md border border-gray-700">
+      <div className="flex items-center justify-between px-4 py-1 bg-gray-700/50 rounded-t-md">
+        <span className="text-xs font-sans text-gray-400">{match[1]}</span>
+        <button 
+          onClick={handleCopy}
+          className="text-xs text-gray-400 hover:text-white px-2 py-1 rounded"
+        >
+          {isCopied ? 'Copied!' : 'Copy code'}
+        </button>
+      </div>
+      <SyntaxHighlighter
+        style={atomDark}
+        language={match[1]}
+        PreTag="div"
+        customStyle={{ margin: 0, padding: '1rem', background: 'transparent' }}
+      >
+        {codeText}
+      </SyntaxHighlighter>
+    </div>
+  ) : (
+    <code className="px-1.5 py-1 bg-gray-600/50 text-blue-300 rounded-md text-sm font-mono">
+      {children}
+    </code>
+  );
+};
+
 
 const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, isResponding, onBack }) => {
   const [input, setInput] = useState('');
@@ -58,7 +101,7 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
           <div key={index} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
             {msg.role === 'assistant' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-gray-700 flex items-center justify-center"><ModelIcon className="w-5 h-5 text-blue-400" /></div>}
             <div
-              className={`max-w-xl p-4 rounded-xl whitespace-pre-wrap ${
+              className={`max-w-2xl p-4 rounded-xl ${
                 msg.role === 'user'
                   ? 'bg-blue-600 text-white rounded-br-none'
                   : 'bg-gray-700 text-gray-200 rounded-bl-none'
@@ -66,7 +109,13 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
             >
               {msg.role === 'assistant' && msg.content === '' && isResponding
                 ? <SpinnerIcon className="w-5 h-5 text-gray-400"/>
-                : msg.content
+                : <ReactMarkdown
+                    className="prose prose-invert prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2"
+                    remarkPlugins={[remarkGfm]}
+                    components={{ code: CodeBlock }}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
               }
             </div>
              {msg.role === 'user' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-gray-700 flex items-center justify-center font-bold">U</div>}
