@@ -1,50 +1,37 @@
-
-import React, { useState } from 'react';
-import { GoogleGenAI, Type } from "@google/genai";
+import React, { useState, useEffect } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import type { ApiRequest, ApiResponse, ApiHttpMethod, Theme } from '../types';
+import type { ApiRequest, ApiResponse, ApiHttpMethod, Theme, Config, Model, ChatMessage } from '../types';
+import { generateTextCompletion } from '../services/llmService';
 import { logger } from '../services/logger';
 import ServerIcon from './icons/ServerIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
 import SendIcon from './icons/SendIcon';
 import TrashIcon from './icons/TrashIcon';
 
-const API_REQUEST_SCHEMA = {
-  type: Type.OBJECT,
-  properties: {
-    method: { type: Type.STRING, enum: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'], description: 'The HTTP method for the request.' },
-    url: { type: Type.STRING, description: 'The full URL to send the request to, including protocol and any query parameters.' },
-    headers: {
-      type: Type.ARRAY,
-      description: 'An array of header objects, each with a key and value.',
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          key: { type: Type.STRING, description: 'The header name.' },
-          value: { type: Type.STRING, description: 'The header value.' }
-        },
-        required: ['key', 'value'],
-      }
-    },
-    body: { type: Type.STRING, description: 'The request body as a string. If the body is JSON, it should be a valid, stringified JSON. For GET requests, this should be an empty string.' }
-  },
-  required: ['method', 'url']
-};
-
 interface ApiViewProps {
     isElectron: boolean;
     theme: Theme;
+    config: Config | null;
+    models: Model[];
 }
 
-const ApiView: React.FC<ApiViewProps> = ({ isElectron, theme }) => {
+const ApiView: React.FC<ApiViewProps> = ({ isElectron, theme, config, models }) => {
     const [prompt, setPrompt] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [apiRequest, setApiRequest] = useState<ApiRequest | null>(null);
     const [apiResponse, setApiResponse] = useState<ApiResponse | null>(null);
+    const [selectedModelId, setSelectedModelId] = useState<string>('');
     
     const syntaxTheme = theme === 'dark' ? atomDark : coy;
+
+    useEffect(() => {
+        // Pre-select the first model if available and none is selected
+        if (models.length > 0 && !selectedModelId) {
+            setSelectedModelId(models[0].id);
+        }
+    }, [models, selectedModelId]);
 
     if (!isElectron) {
         return (
@@ -56,26 +43,41 @@ const ApiView: React.FC<ApiViewProps> = ({ isElectron, theme }) => {
     }
     
     const handleGenerateRequest = async () => {
-        if (!prompt) return;
+        if (!prompt || !selectedModelId || !config) {
+            setError("Cannot generate request. Check prompt, model selection, and app configuration.");
+            return;
+        }
         setIsLoading(true);
         setError(null);
         setApiRequest(null);
         setApiResponse(null);
         
-        const fullPrompt = `Based on the following user description, generate the components for an HTTP API request. Ensure the URL is complete and valid. If the user mentions JSON, format the body as a minified JSON string.\n\nDescription: "${prompt}"`;
+        const systemPrompt = `You are an expert API assistant. Your task is to generate a valid JSON object representing an HTTP request based on a user's description. The JSON object must conform to the following structure:
+{
+  "method": "string (one of GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS)",
+  "url": "string (a full, valid URL)",
+  "headers": [{"key": "string", "value": "string"}],
+  "body": "string (this should be a minified JSON string if the content-type is JSON, otherwise it's a raw string. For GET requests, this should be an empty string.)"
+}
+Only output the raw JSON object. Do not include any other text, explanations, or markdown code fences. Just the JSON.`;
+        
+        const userPrompt = `Based on the following user description, generate the components for an HTTP API request.
+Description: "${prompt}"`;
+
+        const messages: ChatMessage[] = [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+        ];
         
         try {
-            const ai = new GoogleGenAI({apiKey: process.env.API_KEY!});
-            const response = await ai.models.generateContent({
-                model: "gemini-2.5-flash",
-                contents: fullPrompt,
-                config: {
-                    responseMimeType: "application/json",
-                    responseSchema: API_REQUEST_SCHEMA,
-                },
-            });
+            const responseText = await generateTextCompletion(config.baseUrl, selectedModelId, messages);
+            
+            // The model might still wrap the JSON in markdown, so we need to extract it.
+            const jsonMatch = responseText.match(/```(json)?\s*([\s\S]*?)\s*```/);
+            const jsonText = jsonMatch ? jsonMatch[2] : responseText;
 
-            const jsonResponse = JSON.parse(response.text);
+            const jsonResponse = JSON.parse(jsonText);
+            
             const headersObject = (jsonResponse.headers || []).reduce((acc: Record<string, string>, h: {key: string, value: string}) => {
                 if (h.key) acc[h.key] = h.value;
                 return acc;
@@ -87,13 +89,18 @@ const ApiView: React.FC<ApiViewProps> = ({ isElectron, theme }) => {
                 headers: headersObject,
                 body: jsonResponse.body || null,
             };
+
+            if (!newRequest.url || !['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].includes(newRequest.method)) {
+                throw new Error("The model returned an invalid request structure. Please try rephrasing your prompt.");
+            }
+
             setApiRequest(newRequest);
-            logger.info('Successfully generated API request from prompt.');
+            logger.info('Successfully generated API request from prompt using local LLM.');
 
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             logger.error(`Failed to generate API request: ${msg}`);
-            setError(`Failed to generate request: ${msg}`);
+            setError(`Failed to generate request. The model may have returned an invalid format. Details: ${msg}`);
         } finally {
             setIsLoading(false);
         }
@@ -180,8 +187,24 @@ const ApiView: React.FC<ApiViewProps> = ({ isElectron, theme }) => {
                     className="w-full px-3 py-2 text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     rows={3}
                 />
-                <div className="flex justify-end">
-                    <button onClick={handleGenerateRequest} disabled={!prompt || isLoading} className="flex items-center justify-center px-6 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-blue-500 disabled:bg-blue-400 disabled:cursor-not-allowed">
+                <div className="flex justify-between items-center">
+                    <div className="flex-grow">
+                        <label htmlFor="api-model-select" className="sr-only">Model</label>
+                        <select
+                            id="api-model-select"
+                            value={selectedModelId}
+                            onChange={e => setSelectedModelId(e.target.value)}
+                            className="w-full max-w-xs px-3 py-2 text-sm text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            disabled={isLoading || models.length === 0}
+                        >
+                            {models.length > 0 ? (
+                                models.map(m => <option key={m.id} value={m.id}>{m.id}</option>)
+                            ) : (
+                                <option>No models available</option>
+                            )}
+                        </select>
+                    </div>
+                    <button onClick={handleGenerateRequest} disabled={!prompt || !selectedModelId || isLoading} className="flex items-center justify-center px-6 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-blue-500 disabled:bg-blue-400 disabled:cursor-not-allowed">
                         {isLoading ? <SpinnerIcon className="w-5 h-5"/> : 'Generate Request'}
                     </button>
                 </div>

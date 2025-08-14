@@ -1,4 +1,3 @@
-
 import type { Model, ChatMessage } from '../types';
 import { logger } from './logger';
 
@@ -40,6 +39,57 @@ export const fetchModels = async (baseUrl: string): Promise<Model[]> => {
         message += ' When running in a browser, this could also be a Cross-Origin (CORS) issue. Using the desktop app is recommended.';
     }
     throw new LLMServiceError(message);
+  }
+};
+
+export const generateTextCompletion = async (
+  baseUrl: string,
+  modelId: string,
+  messages: ChatMessage[]
+): Promise<string> => {
+  try {
+    logger.info(`Requesting non-streaming text completion from model ${modelId}`);
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: modelId,
+        messages: messages,
+        stream: false,
+        // Ask for a JSON response if the model supports it
+        response_format: { type: 'json_object' }
+      }),
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        const errorMsg = `API error: ${response.status} ${response.statusText}. ${errorText}`;
+        logger.error(errorMsg);
+        throw new LLMServiceError(errorMsg);
+    }
+    
+    const data = await response.json();
+    logger.debug(`Received text completion data: ${JSON.stringify(data)}`);
+    
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) {
+        logger.error('API response did not contain message content.');
+        throw new LLMServiceError('API response did not contain message content.');
+    }
+    
+    return content;
+
+  } catch (error) {
+     if (error instanceof LLMServiceError) throw error;
+     if (error instanceof Error) {
+        logger.error(error);
+        throw error; // re-throw
+     }
+     const unknownError = new LLMServiceError('An unknown error occurred during text completion.');
+     logger.error(unknownError);
+     throw unknownError;
   }
 };
 

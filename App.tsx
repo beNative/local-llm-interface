@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Config, Model, ChatMessage, Theme, CodeProject } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT } from './constants';
@@ -184,8 +183,8 @@ const App: React.FC = () => {
   }, [config?.baseUrl]);
 
   useEffect(() => {
-    // Load models if config is ready, we are on chat tab, and no model is selected.
-    if (config?.baseUrl && view === 'chat' && !currentChatModelId) {
+    // Load models if config is ready and we are on a view that needs them
+    if (config?.baseUrl && (view === 'chat' || view === 'api') && !currentChatModelId) {
       loadModels();
     }
   }, [view, currentChatModelId, config?.baseUrl, loadModels]);
@@ -280,7 +279,12 @@ const App: React.FC = () => {
                 onInjectContentForChat={handleInjectContentForChat}
               />;
         case 'api':
-            return <ApiView isElectron={isElectron} theme={config.theme || 'dark'} />;
+            return <ApiView
+                isElectron={isElectron}
+                theme={config.theme || 'dark'}
+                config={config}
+                models={models}
+              />;
         case 'chat':
         default:
              if (currentChatModelId) {
