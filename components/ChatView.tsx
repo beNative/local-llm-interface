@@ -2,9 +2,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
-import type { ChatMessage } from '../types';
+import type { ChatMessage, Theme } from '../types';
 import SendIcon from './icons/SendIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
 import ModelIcon from './icons/ModelIcon';
@@ -15,12 +15,14 @@ interface ChatViewProps {
   messages: ChatMessage[];
   isResponding: boolean;
   onBack: () => void;
+  theme: Theme;
 }
 
-const CodeBlock = ({ node, inline, className, children }: any) => {
+const CodeBlock = ({ node, inline, className, children, theme }: any) => {
   const [isCopied, setIsCopied] = useState(false);
   const match = /language-(\w+)/.exec(className || '');
   const codeText = String(children).replace(/\n$/, '');
+  const syntaxTheme = theme === 'dark' ? atomDark : coy;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(codeText);
@@ -29,18 +31,18 @@ const CodeBlock = ({ node, inline, className, children }: any) => {
   };
   
   return !inline && match ? (
-    <div className="relative bg-gray-800 my-2 rounded-md border border-gray-700">
-      <div className="flex items-center justify-between px-4 py-1 bg-gray-700/50 rounded-t-md">
-        <span className="text-xs font-sans text-gray-400">{match[1]}</span>
+    <div className="relative bg-gray-100 dark:bg-gray-800 my-2 rounded-md border border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-between px-4 py-1 bg-gray-200/50 dark:bg-gray-700/50 rounded-t-md">
+        <span className="text-xs font-sans text-gray-500 dark:text-gray-400">{match[1]}</span>
         <button 
           onClick={handleCopy}
-          className="text-xs text-gray-400 hover:text-white px-2 py-1 rounded"
+          className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded"
         >
           {isCopied ? 'Copied!' : 'Copy code'}
         </button>
       </div>
       <SyntaxHighlighter
-        style={atomDark}
+        style={syntaxTheme}
         language={match[1]}
         PreTag="div"
         customStyle={{ margin: 0, padding: '1rem', background: 'transparent' }}
@@ -49,14 +51,14 @@ const CodeBlock = ({ node, inline, className, children }: any) => {
       </SyntaxHighlighter>
     </div>
   ) : (
-    <code className="px-1.5 py-1 bg-gray-600/50 text-blue-300 rounded-md text-sm font-mono">
+    <code className="px-1.5 py-1 bg-blue-100 dark:bg-gray-600/50 text-blue-800 dark:text-blue-300 rounded-md text-sm font-mono">
       {children}
     </code>
   );
 };
 
 
-const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, isResponding, onBack }) => {
+const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, isResponding, onBack, theme }) => {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -83,15 +85,15 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-900">
-      <header className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
+    <div className="flex flex-col h-full bg-white dark:bg-gray-900">
+      <header className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
          <div className="flex items-center gap-3">
-            <ModelIcon className="w-6 h-6 text-blue-400"/>
-            <h2 className="text-lg font-semibold text-white">{modelId}</h2>
+            <ModelIcon className="w-6 h-6 text-blue-500 dark:text-blue-400"/>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{modelId}</h2>
          </div>
         <button
           onClick={onBack}
-          className="px-3 py-1 text-sm font-medium text-gray-300 bg-gray-700 rounded-md hover:bg-gray-600 focus:outline-none"
+          className="px-3 py-1 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 focus:outline-none"
         >
           &larr; Change Model
         </button>
@@ -99,31 +101,32 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
       <main className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.map((msg, index) => (
           <div key={index} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-            {msg.role === 'assistant' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-gray-700 flex items-center justify-center"><ModelIcon className="w-5 h-5 text-blue-400" /></div>}
+            {msg.role === 'assistant' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center"><ModelIcon className="w-5 h-5 text-blue-500 dark:text-blue-400" /></div>}
             <div
               className={`max-w-2xl p-4 rounded-xl ${
                 msg.role === 'user'
                   ? 'bg-blue-600 text-white rounded-br-none'
-                  : 'bg-gray-700 text-gray-200 rounded-bl-none'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-bl-none'
               }`}
             >
               {msg.role === 'assistant' && msg.content === '' && isResponding
                 ? <SpinnerIcon className="w-5 h-5 text-gray-400"/>
-                : <ReactMarkdown
-                    className="prose prose-invert prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2"
-                    remarkPlugins={[remarkGfm]}
-                    components={{ code: CodeBlock }}
-                  >
-                    {msg.content}
-                  </ReactMarkdown>
+                : <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{ code: (props) => <CodeBlock {...props} theme={theme} /> }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
+                  </div>
               }
             </div>
-             {msg.role === 'user' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-gray-700 flex items-center justify-center font-bold">U</div>}
+             {msg.role === 'user' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center font-bold text-gray-900 dark:text-gray-200">U</div>}
           </div>
         ))}
         <div ref={messagesEndRef} />
       </main>
-      <footer className="p-4 bg-gray-800 border-t border-gray-700">
+      <footer className="p-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
         <div className="relative">
           <textarea
             value={input}
@@ -132,12 +135,12 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
             placeholder="Type your message..."
             rows={1}
             disabled={isResponding}
-            className="w-full pl-4 pr-12 py-3 bg-gray-700 text-white rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed"
+            className="w-full pl-4 pr-12 py-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed"
           />
           <button
             onClick={handleSend}
             disabled={isResponding || !input.trim()}
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-500 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
           >
             <SendIcon className="w-5 h-5" />
           </button>

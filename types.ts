@@ -1,9 +1,12 @@
 
+export type Theme = 'light' | 'dark';
+
 export type LLMProvider = 'Ollama' | 'LMStudio' | 'Custom';
 
 export interface Config {
   provider: LLMProvider;
   baseUrl: string;
+  theme?: Theme;
 }
 
 export interface Model {

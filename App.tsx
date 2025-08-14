@@ -1,14 +1,19 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import type { Config, Model, ChatMessage } from './types';
+import type { Config, Model, ChatMessage, Theme } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT } from './constants';
 import { fetchModels, streamChatCompletion, LLMServiceError } from './services/llmService';
 import SettingsPanel from './components/SettingsPanel';
 import ModelSelector from './components/ModelSelector';
 import ChatView from './components/ChatView';
+import ThemeSwitcher from './components/ThemeSwitcher';
 
 const App: React.FC = () => {
-  const [config, setConfig] = useState<Config>({ provider: 'Ollama', baseUrl: PROVIDER_CONFIGS.Ollama.baseUrl });
+  const [config, setConfig] = useState<Config>({ 
+    provider: 'Ollama', 
+    baseUrl: PROVIDER_CONFIGS.Ollama.baseUrl,
+    theme: 'dark' 
+  });
   const [models, setModels] = useState<Model[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,26 +23,42 @@ const App: React.FC = () => {
   const [isResponding, setIsResponding] = useState<boolean>(false);
 
   useEffect(() => {
+    if (config.theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [config.theme]);
+
+  useEffect(() => {
     const loadSettings = async () => {
-      const defaultConfig = { provider: 'Ollama', baseUrl: PROVIDER_CONFIGS.Ollama.baseUrl } as Config;
-      let loadedConfig: Config | null = null;
+      const defaultConfig: Config = { 
+        provider: 'Ollama', 
+        baseUrl: PROVIDER_CONFIGS.Ollama.baseUrl,
+        theme: 'dark' 
+      };
       
-      if (window.electronAPI) {
-        loadedConfig = await window.electronAPI.getSettings().catch(e => {
-            console.error("Error loading settings from Electron:", e);
-            return null;
-        });
-      } else {
-        const localSettings = localStorage.getItem('llm_config');
-        if (localSettings) {
-            try {
-                loadedConfig = JSON.parse(localSettings);
-            } catch (e) {
-                console.error("Error parsing settings from localStorage:", e);
-            }
+      let finalConfig = defaultConfig;
+
+      try {
+        let loadedSettings: Partial<Config> | null = null;
+        if (window.electronAPI) {
+          loadedSettings = await window.electronAPI.getSettings();
+        } else {
+          const localSettings = localStorage.getItem('llm_config');
+          if (localSettings) {
+            loadedSettings = JSON.parse(localSettings);
+          }
         }
+
+        if (loadedSettings) {
+            finalConfig = { ...defaultConfig, ...loadedSettings };
+        }
+      } catch (e) {
+        console.error("Failed to load or parse settings, using defaults.", e);
       }
-      setConfig(loadedConfig || defaultConfig);
+      
+      setConfig(finalConfig);
     };
     loadSettings();
   }, []);
@@ -49,12 +70,20 @@ const App: React.FC = () => {
     } else {
       localStorage.setItem('llm_config', JSON.stringify(newConfig));
     }
-    setCurrentChatModelId(null); // Reset chat when config changes
-    setMessages([]);
+    // Only reset chat if provider or URL changes, not for theme changes
+    if (newConfig.baseUrl !== config.baseUrl || newConfig.provider !== config.provider) {
+      setCurrentChatModelId(null); 
+      setMessages([]);
+    }
+  };
+
+  const handleThemeToggle = () => {
+      const newTheme = config.theme === 'light' ? 'dark' : 'light';
+      const newConfig: Config = { ...config, theme: newTheme };
+      handleConfigChange(newConfig);
   };
 
   const loadModels = useCallback(async () => {
-    // Prevent fetching if base url is not set
     if (!config.baseUrl) {
         setError("The Base URL is not configured. Please check your settings.");
         setModels([]);
@@ -129,14 +158,17 @@ const App: React.FC = () => {
   };
   
   return (
-    <div className="flex flex-col h-screen font-sans bg-gray-900 text-white">
-      <header className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800/50 backdrop-blur-sm">
+    <div className="flex flex-col h-screen font-sans">
+      <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/50 backdrop-blur-sm sticky top-0 z-10">
         <h1 className="text-xl font-bold">{APP_NAME}</h1>
-        <SettingsPanel 
-          config={config} 
-          onConfigChange={handleConfigChange} 
-          isConnecting={isLoadingModels}
-        />
+        <div className="flex items-center gap-4">
+          <SettingsPanel 
+            config={config} 
+            onConfigChange={handleConfigChange} 
+            isConnecting={isLoadingModels}
+          />
+          <ThemeSwitcher theme={config.theme || 'dark'} onToggle={handleThemeToggle} />
+        </div>
       </header>
       <main className="flex-1 overflow-hidden">
         {currentChatModelId ? (
@@ -146,6 +178,7 @@ const App: React.FC = () => {
             onSendMessage={handleSendMessage}
             isResponding={isResponding}
             onBack={handleBackToSelection}
+            theme={config.theme || 'dark'}
           />
         ) : (
           <div className="h-full overflow-y-auto">

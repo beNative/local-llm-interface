@@ -22,10 +22,12 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
 
   const handleProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const provider = e.target.value as LLMProvider;
-    setLocalConfig({
+    // Preserve other settings like theme when provider changes
+    setLocalConfig(current => ({
+      ...current,
       provider,
       baseUrl: PROVIDER_CONFIGS[provider]?.baseUrl || '',
-    });
+    }));
   };
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,36 +62,36 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
       onClick={() => setIsOpen(false)}
     >
       <div 
-        className="w-full max-w-md p-6 bg-gray-800 border border-gray-700 rounded-lg shadow-xl"
+        className="w-full max-w-md p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="flex items-center gap-3 text-2xl font-bold text-white mb-6">
+        <h2 className="flex items-center gap-3 text-2xl font-bold text-gray-900 dark:text-white mb-6">
           <SettingsIcon className="w-8 h-8"/>
           Connection Settings
         </h2>
         
         <div className="space-y-4">
           <div>
-            <label htmlFor="provider" className="block text-sm font-medium text-gray-400 mb-1">
+            <label htmlFor="provider" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
               LLM Provider
             </label>
             <select
               id="provider"
               value={localConfig.provider}
               onChange={handleProviderChange}
-              className="w-full px-3 py-2 text-white bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="Ollama">Ollama</option>
               <option value="LMStudio">LMStudio</option>
               <option value="Custom">Custom</option>
             </select>
-            <p className="text-xs text-gray-400 mt-2 px-1">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 px-1">
               {providerDescriptions[localConfig.provider]}
             </p>
           </div>
 
           <div>
-            <label htmlFor="baseUrl" className="block text-sm font-medium text-gray-400 mb-1">
+            <label htmlFor="baseUrl" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
               Base URL (v1 compatible)
             </label>
             <input
@@ -97,7 +99,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
               id="baseUrl"
               value={localConfig.baseUrl}
               onChange={handleUrlChange}
-              className="w-full px-3 py-2 text-white bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="e.g., http://localhost:11434/v1"
             />
           </div>
@@ -106,14 +108,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
         <div className="flex justify-end gap-3 mt-8">
            <button
             onClick={() => setIsOpen(false)}
-            className="px-4 py-2 text-sm font-medium text-gray-300 bg-gray-600 rounded-md hover:bg-gray-500 focus:outline-none"
+            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 focus:outline-none"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={isConnecting}
-            className="flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed"
+            className="flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-blue-500 disabled:bg-blue-400 dark:disabled:bg-blue-800 disabled:cursor-not-allowed"
           >
             {isConnecting ? 'Connecting...' : 'Save & Refresh'}
           </button>
@@ -126,7 +128,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-300 bg-gray-700 rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500"
+        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200/50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-300/80 dark:hover:bg-gray-600/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-blue-500"
         aria-haspopup="dialog"
         aria-expanded={isOpen}
       >
