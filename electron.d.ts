@@ -1,5 +1,5 @@
 
-import type { Config, LogEntry, CodeProject, ProjectType, FileSystemEntry } from './types';
+import type { Config, LogEntry, CodeProject, ProjectType, FileSystemEntry, ApiRequest, ApiResponse } from './types';
 
 export interface IElectronAPI {
   getSettings: () => Promise<Config | null>;
@@ -8,6 +8,7 @@ export interface IElectronAPI {
   runPython: (code: string) => Promise<{ stdout: string; stderr: string }>;
   runNodejs: (code: string) => Promise<{ stdout: string; stderr: string }>;
   writeLog: (entry: LogEntry) => Promise<void>;
+  makeApiRequest: (request: ApiRequest) => Promise<ApiResponse>;
 
   // Project Management APIs
   selectDirectory: () => Promise<string | null>;

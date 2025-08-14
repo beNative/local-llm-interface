@@ -6,6 +6,10 @@ import { readdir, stat, readFile, writeFile, mkdir } from 'fs/promises';
 import * as os from 'os';
 import { spawn } from 'child_process';
 import * as crypto from 'crypto';
+import { request as httpRequest } from 'http';
+import { request as httpsRequest } from 'https';
+import type { IncomingHttpHeaders } from 'http';
+import type { ApiRequest, ApiResponse } from '../src/types';
 
 
 // The path where user settings will be stored.
@@ -199,6 +203,55 @@ app.whenReady().then(() => {
                 fs.unlinkSync(tempFilePath);
             }
         }
+    });
+    
+    ipcMain.handle('api:make-request', async (_, req: ApiRequest): Promise<ApiResponse> => {
+        console.log('Making API request:', req);
+        const { url, method, headers, body } = req;
+        const requestModule = url.startsWith('https') ? httpsRequest : httpRequest;
+
+        return new Promise((resolve) => {
+            try {
+                const request = requestModule(url, { method, headers }, (res) => {
+                    let responseBody = '';
+                    res.setEncoding('utf8');
+                    res.on('data', (chunk) => {
+                        responseBody += chunk;
+                    });
+                    res.on('end', () => {
+                        resolve({
+                            status: res.statusCode || 500,
+                            statusText: res.statusMessage || 'Unknown Status',
+                            headers: res.headers,
+                            body: responseBody,
+                        });
+                    });
+                });
+
+                request.on('error', (e) => {
+                     resolve({
+                        status: 500,
+                        statusText: 'Request Error',
+                        headers: {},
+                        body: e.message,
+                    });
+                });
+                
+                if (body) {
+                    request.write(body);
+                }
+                
+                request.end();
+
+            } catch (e) {
+                 resolve({
+                    status: 500,
+                    statusText: 'Client Error',
+                    headers: {},
+                    body: e instanceof Error ? e.message : String(e),
+                });
+            }
+        });
     });
 
     // Project Management Handlers

@@ -6,15 +6,17 @@ import FolderOpenIcon from './icons/FolderOpenIcon';
 import TrashIcon from './icons/TrashIcon';
 import GlobeIcon from './icons/GlobeIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
+import MessagePlusIcon from './icons/MessagePlusIcon';
 import FileTree from './FileTree';
 import { logger } from '../services/logger';
 
 interface EditorModalProps {
   file: { path: string, name: string };
   onClose: () => void;
+  onAddToChat: (filename: string, content: string) => void;
 }
 
-const EditorModal: React.FC<EditorModalProps> = ({ file, onClose }) => {
+const EditorModal: React.FC<EditorModalProps> = ({ file, onClose, onAddToChat }) => {
     const [content, setContent] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -76,6 +78,13 @@ const EditorModal: React.FC<EditorModalProps> = ({ file, onClose }) => {
                 </main>
                  <footer className="flex justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
                     <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">Cancel</button>
+                    <button 
+                        onClick={() => onAddToChat(file.name, content)} 
+                        disabled={isLoading}
+                        className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-green-400">
+                        <MessagePlusIcon className="w-5 h-5"/>
+                        Add to Chat Context
+                    </button>
                     <button onClick={handleSave} disabled={isSaving || isLoading} className="flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-blue-400 dark:disabled:bg-blue-800">
                         {isSaving ? <SpinnerIcon className="w-5 h-5"/> : 'Save Changes'}
                     </button>
@@ -185,9 +194,10 @@ interface ProjectsViewProps {
   config: Config;
   onConfigChange: (newConfig: Config) => void;
   isElectron: boolean;
+  onInjectContentForChat: (filename: string, content: string) => void;
 }
 
-const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isElectron }) => {
+const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isElectron, onInjectContentForChat }) => {
     const [busyProjects, setBusyProjects] = useState<Set<string>>(new Set());
     const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
     const [editingFile, setEditingFile] = useState<{ path: string, name: string } | null>(null);
@@ -344,7 +354,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
 
   return (
     <>
-    {editingFile && <EditorModal file={editingFile} onClose={() => setEditingFile(null)} />}
+    {editingFile && <EditorModal file={editingFile} onClose={() => setEditingFile(null)} onAddToChat={onInjectContentForChat} />}
     <div className="p-4 sm:p-6 h-full overflow-y-auto bg-white dark:bg-gray-900">
       <div className="max-w-4xl mx-auto">
         <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900 dark:text-white mb-8">

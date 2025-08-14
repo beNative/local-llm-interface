@@ -339,9 +339,11 @@ interface ChatViewProps {
   theme: Theme;
   isElectron: boolean;
   projects: CodeProject[];
+  prefilledInput: string;
+  onPrefillConsumed: () => void;
 }
 
-const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, isResponding, onBack, theme, isElectron, projects }) => {
+const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, isResponding, onBack, theme, isElectron, projects, prefilledInput, onPrefillConsumed }) => {
   const [input, setInput] = useState('');
   const [saveModalState, setSaveModalState] = useState<{ code: string; lang: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -353,6 +355,13 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+  
+  useEffect(() => {
+    if (prefilledInput) {
+      setInput(prefilledInput);
+      onPrefillConsumed();
+    }
+  }, [prefilledInput, onPrefillConsumed]);
 
   const handleSend = () => {
     if (input.trim() && !isResponding) {

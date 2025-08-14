@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Local LLM Interface</title>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; img-src 'self' data:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://cdn.tailwindcss.com https://esm.sh; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http: https:; worker-src 'self' blob:; img-src 'self' data:;">
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
 <script type="importmap">
 {
@@ -25,7 +25,10 @@
     "crypto": "https://esm.sh/crypto@^1.0.1",
     "child_process": "https://esm.sh/child_process@^1.0.2",
     "pyodide/": "https://esm.sh/pyodide@^0.28.1/",
-    "fs/": "https://esm.sh/fs@^0.0.1-security/"
+    "fs/": "https://esm.sh/fs@^0.0.1-security/",
+    "@google/genai": "https://esm.sh/@google/genai@0.17.0",
+    "http": "https://esm.sh/http@^0.0.1-security",
+    "https": "https://esm.sh/https@^1.0.0"
   }
 }
 </script>

@@ -45,6 +45,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @returns {Promise<void>} A promise that resolves when the log is written.
    */
   writeLog: (entry: object) => ipcRenderer.invoke('log:write', entry),
+  
+  /**
+   * Invokes the 'api:make-request' channel to execute an HTTP request from the main process.
+   * @param {ApiRequest} request - The API request object.
+   * @returns {Promise<ApiResponse>} A promise that resolves with the API response.
+   */
+  makeApiRequest: (request: any) => ipcRenderer.invoke('api:make-request', request),
 
   // Project Management APIs
   selectDirectory: () => ipcRenderer.invoke('dialog:select-directory'),

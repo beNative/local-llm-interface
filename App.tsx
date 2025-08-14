@@ -11,13 +11,15 @@ import ThemeSwitcher from './components/ThemeSwitcher';
 import LoggingPanel from './components/LoggingPanel';
 import InfoView from './components/InfoView';
 import ProjectsView from './components/ProjectsView';
+import ApiView from './components/ApiView';
 import FileTextIcon from './components/icons/FileTextIcon';
 import SettingsIcon from './components/icons/SettingsIcon';
 import InfoIcon from './components/icons/InfoIcon';
 import MessageSquareIcon from './components/icons/MessageSquareIcon';
 import CodeIcon from './components/icons/CodeIcon';
+import ServerIcon from './components/icons/ServerIcon';
 
-type View = 'chat' | 'settings' | 'info' | 'projects';
+type View = 'chat' | 'settings' | 'info' | 'projects' | 'api';
 
 const NavButton: React.FC<{
   active: boolean;
@@ -50,6 +52,7 @@ const App: React.FC = () => {
   const [isResponding, setIsResponding] = useState<boolean>(false);
   const [isElectron, setIsElectron] = useState(false);
   const [isLogPanelVisible, setIsLogPanelVisible] = useState(false);
+  const [prefilledInput, setPrefilledInput] = useState('');
 
   // Effect for one-time app initialization and loading settings
   useEffect(() => {
@@ -238,6 +241,17 @@ const App: React.FC = () => {
       }
     );
   };
+
+  const handleInjectContentForChat = (filename: string, content: string) => {
+    const formattedContent = `Here is the content of \`${filename}\` for context:\n\n\`\`\`\n${content}\n\`\`\`\n\nI have a question about this file.`;
+    setPrefilledInput(formattedContent);
+    setView('chat');
+    logger.info(`Injected content of ${filename} into chat input.`);
+  };
+
+  const onPrefillConsumed = () => {
+    setPrefilledInput('');
+  };
   
   const renderContent = () => {
     if (!config) {
@@ -263,7 +277,10 @@ const App: React.FC = () => {
                 config={config}
                 onConfigChange={handleConfigChange}
                 isElectron={isElectron}
+                onInjectContentForChat={handleInjectContentForChat}
               />;
+        case 'api':
+            return <ApiView isElectron={isElectron} />;
         case 'chat':
         default:
              if (currentChatModelId) {
@@ -277,6 +294,8 @@ const App: React.FC = () => {
                         theme={config.theme || 'dark'}
                         isElectron={isElectron}
                         projects={config.projects || []}
+                        prefilledInput={prefilledInput}
+                        onPrefillConsumed={onPrefillConsumed}
                     />
                 );
              }
@@ -306,6 +325,10 @@ const App: React.FC = () => {
               <NavButton active={view === 'projects'} onClick={() => setView('projects')} ariaLabel="Projects View">
                 <CodeIcon className="w-4 h-4" />
                 <span>Projects</span>
+              </NavButton>
+               <NavButton active={view === 'api'} onClick={() => setView('api')} ariaLabel="API Client View">
+                <ServerIcon className="w-4 h-4" />
+                <span>API Client</span>
               </NavButton>
               <NavButton active={view === 'settings'} onClick={() => setView('settings')} ariaLabel="Settings View">
                  <SettingsIcon className="w-4 h-4" />

@@ -50,3 +50,19 @@ export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
 }
+
+export type ApiHttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
+
+export interface ApiRequest {
+  method: ApiHttpMethod;
+  url: string;
+  headers: Record<string, string>;
+  body: string | null;
+}
+
+export interface ApiResponse {
+  status: number;
+  statusText: string;
+  headers: Record<string, string | string[] | undefined>;
+  body: string;
+}
