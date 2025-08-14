@@ -59,7 +59,7 @@ const App: React.FC = () => {
   const [isElectron, setIsElectron] = useState(false);
   const [isLogPanelVisible, setIsLogPanelVisible] = useState(false);
 
-  // This effect runs once on mount to load settings and set initial state.
+  // Effect for app initialization and loading settings
   useEffect(() => {
     logger.info('App initialized.');
     const loadInitialData = async () => {
@@ -110,7 +110,7 @@ const App: React.FC = () => {
     loadInitialData();
   }, []);
   
-  // This effect runs whenever the theme property in the config changes.
+  // Effect to apply the theme class to the document whenever it changes.
   useEffect(() => {
     if (config.theme === 'dark') {
       document.documentElement.classList.add('dark');
