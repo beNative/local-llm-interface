@@ -1,5 +1,6 @@
 
 
+
 export type Theme = 'light' | 'dark';
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
 
@@ -155,4 +156,12 @@ export interface ApiResponse {
   statusText: string;
   headers: Record<string, string | string[] | undefined>;
   body: string;
+}
+
+export interface SystemStats {
+  cpu: number;
+  memory: {
+    used: number;
+    total: number;
+  };
 }

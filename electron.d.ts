@@ -1,5 +1,13 @@
 import type { Config, LogEntry, CodeProject, ProjectType, FileSystemEntry, ApiRequest, ApiResponse, ToolchainStatus } from './types';
 
+export interface SystemStats {
+  cpu: number;
+  memory: {
+    used: number;
+    total: number;
+  };
+}
+
 export interface IElectronAPI {
   getSettings: () => Promise<Config | null>;
   saveSettings: (settings: Config) => Promise<void>;
@@ -28,6 +36,10 @@ export interface IElectronAPI {
   projectGetFileTree: (projectPath: string) => Promise<string>;
   projectGetAllFiles: (projectPath: string) => Promise<{name: string, path: string}[]>;
   projectAddFileFromPath: (args: {sourcePath: string, targetDir: string}) => Promise<void>;
+
+  // System Stats
+  onSystemStatsUpdate: (callback: (stats: SystemStats) => void) => void;
+  removeAllSystemStatsUpdateListeners: () => void;
 }
 
 declare global {

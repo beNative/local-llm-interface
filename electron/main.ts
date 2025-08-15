@@ -247,6 +247,50 @@ const createWindow = () => {
     autoHideMenuBar: true,
   });
 
+  // System Stats Monitoring
+  let startCpuMeasure = os.cpus();
+  const statsInterval = setInterval(() => {
+    if (mainWindow.isDestroyed()) {
+        clearInterval(statsInterval);
+        return;
+    }
+
+    const endCpuMeasure = os.cpus();
+    let totalIdle = 0;
+    let totalTick = 0;
+
+    startCpuMeasure.forEach((cpu, i) => {
+        const endCpu = endCpuMeasure[i];
+        const startTimes = cpu.times;
+        const endTimes = endCpu.times;
+
+        const idle = endTimes.idle - startTimes.idle;
+        const total = (endTimes.user - startTimes.user) + 
+                      (endTimes.nice - startTimes.nice) + 
+                      (endTimes.sys - startTimes.sys) + 
+                      (endTimes.irq - startTimes.irq) + 
+                      (endTimes.idle - startTimes.idle);
+        
+        totalIdle += idle;
+        totalTick += total;
+    });
+
+    const usage = totalTick > 0 ? 100 * (1 - totalIdle / totalTick) : 0;
+    startCpuMeasure = endCpuMeasure;
+
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const usedMem = totalMem - freeMem;
+
+    mainWindow.webContents.send('system-stats-update', {
+        cpu: usage,
+        memory: {
+            used: usedMem,
+            total: totalMem
+        }
+    });
+  }, 2000); // Send stats every 2 seconds
+
   // Load the app's index.html file.
   const indexPath = path.join(__dirname, 'index.html');
   mainWindow.loadFile(indexPath);

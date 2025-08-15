@@ -4,8 +4,10 @@
 
 
 
+
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, FileSystemEntry } from './types';
+import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, FileSystemEntry, SystemStats } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
 import { fetchModels, streamChatCompletion, LLMServiceError, generateTextCompletion } from './services/llmService';
 import { logger } from './services/logger';
@@ -25,6 +27,7 @@ import CodeIcon from './components/icons/CodeIcon';
 import ServerIcon from './components/icons/ServerIcon';
 import SessionSidebar from './components/SessionSidebar';
 import CommandPalette from './components/CommandPalette';
+import StatusBar from './components/StatusBar';
 
 type View = 'chat' | 'projects' | 'api' | 'settings' | 'info';
 
@@ -103,6 +106,7 @@ const App: React.FC = () => {
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [editingFile, setEditingFile] = useState<{ path: string; name: string } | null>(null);
+  const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(256);
   const isResizingRef = useRef(false);
@@ -234,6 +238,20 @@ const App: React.FC = () => {
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
+    
+    // Effect for system stats monitoring
+    useEffect(() => {
+        if (isElectron && window.electronAPI?.onSystemStatsUpdate) {
+            const statsHandler = (stats: SystemStats) => setSystemStats(stats);
+            window.electronAPI.onSystemStatsUpdate(statsHandler);
+
+            return () => {
+                if (window.electronAPI?.removeAllSystemStatsUpdateListeners) {
+                    window.electronAPI.removeAllSystemStatsUpdateListeners();
+                }
+            };
+        }
+    }, [isElectron]);
 
 
   const handleConfigChange = useCallback((newConfig: Config) => {
@@ -760,31 +778,34 @@ const App: React.FC = () => {
           <ThemeSwitcher theme={config?.theme || 'dark'} onToggle={handleThemeToggle} />
         </div>
       </header>
-      <main className="flex-1 flex overflow-hidden">
-        {view === 'chat' && activeSession && (
-          <>
-            <div style={{ width: `${sidebarWidth}px` }} className="flex-shrink-0 h-full">
-              <SessionSidebar
-                sessions={sessions}
-                activeSessionId={activeSessionId || null}
-                onNewChat={handleNewChat}
-                onSelectSession={handleSelectSession}
-                onDeleteSession={handleDeleteSession}
-                onGenerateSessionName={handleManualGenerateSessionName}
-              />
-            </div>
-            <div
-              onMouseDown={handleResizeMouseDown}
-              className="w-1.5 flex-shrink-0 cursor-col-resize bg-[--bg-tertiary] hover:bg-[--border-focus] transition-colors duration-200"
-              aria-label="Resize sidebar"
-              role="separator"
-            ></div>
-          </>
-        )}
-        <div className="flex-1 overflow-hidden">
-            {renderContent()}
-        </div>
-      </main>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <main className="flex-1 flex overflow-hidden">
+          {view === 'chat' && activeSession && (
+            <>
+              <div style={{ width: `${sidebarWidth}px` }} className="flex-shrink-0 h-full">
+                <SessionSidebar
+                  sessions={sessions}
+                  activeSessionId={activeSessionId || null}
+                  onNewChat={handleNewChat}
+                  onSelectSession={handleSelectSession}
+                  onDeleteSession={handleDeleteSession}
+                  onGenerateSessionName={handleManualGenerateSessionName}
+                />
+              </div>
+              <div
+                onMouseDown={handleResizeMouseDown}
+                className="w-1.5 flex-shrink-0 cursor-col-resize bg-[--bg-tertiary] hover:bg-[--border-focus] transition-colors duration-200"
+                aria-label="Resize sidebar"
+                role="separator"
+              ></div>
+            </>
+          )}
+          <div className="flex-1 overflow-hidden">
+              {renderContent()}
+          </div>
+        </main>
+        {isElectron && <StatusBar stats={systemStats} />}
+      </div>
       {isLogPanelVisible && <LoggingPanel onClose={() => setIsLogPanelVisible(false)} />}
     </div>
   );

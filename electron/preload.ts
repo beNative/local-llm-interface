@@ -89,4 +89,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   projectGetFileTree: (projectPath: string) => ipcRenderer.invoke('project:get-file-tree', projectPath),
   projectGetAllFiles: (projectPath: string) => ipcRenderer.invoke('project:get-all-files', projectPath),
   projectAddFileFromPath: (args: {sourcePath: string, targetDir: string}) => ipcRenderer.invoke('project:add-file-from-path', args),
+
+  // System Stats
+  onSystemStatsUpdate: (callback) => ipcRenderer.on('system-stats-update', (_event, value) => callback(value)),
+  removeAllSystemStatsUpdateListeners: () => ipcRenderer.removeAllListeners('system-stats-update'),
 });
