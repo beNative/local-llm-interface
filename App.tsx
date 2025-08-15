@@ -124,6 +124,7 @@ const App: React.FC = () => {
         nodejsProjectsPath: '',
         webAppsPath: '',
         javaProjectsPath: '',
+        delphiProjectsPath: '',
         projects: [],
         pythonCommand: 'python',
         apiRecentPrompts: [],

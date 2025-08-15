@@ -111,6 +111,7 @@ const ProjectCard: React.FC<{
     const typeColor = project.type === 'python' ? 'text-blue-500' 
                     : project.type === 'nodejs' ? 'text-green-500'
                     : project.type === 'java' ? 'text-red-500'
+                    : project.type === 'delphi' ? 'text-orange-500'
                     : 'text-purple-500';
 
     const RunIcon = project.type === 'webapp' ? GlobeIcon : PlayIcon;
@@ -137,7 +138,7 @@ const ProjectCard: React.FC<{
                         {isBusy ? 'Working...' : runText}
                     </button>
 
-                    {project.type !== 'webapp' && (
+                    {project.type !== 'webapp' && project.type !== 'delphi' && (
                          <button onClick={onInstall} disabled={isBusy} className="text-xs px-3 py-1.5 rounded-lg bg-[--bg-tertiary] text-[--text-secondary] hover:bg-[--bg-hover] disabled:opacity-50">
                             Install Deps
                         </button>
@@ -148,7 +149,7 @@ const ProjectCard: React.FC<{
                         <span>Folder</span>
                     </button>
 
-                    <button onClick={onDelete} disabled={isBusy} className={`col-span-2 ${project.type !== 'webapp' ? '' : 'col-start-2'} mt-1 text-xs px-3 py-1 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900 disabled:opacity-50 flex items-center justify-center gap-1.5`} title="Delete project">
+                    <button onClick={onDelete} disabled={isBusy} className={`col-span-2 ${project.type !== 'webapp' && project.type !== 'delphi' ? '' : 'col-start-2'} mt-1 text-xs px-3 py-1 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900 disabled:opacity-50 flex items-center justify-center gap-1.5`} title="Delete project">
                         <TrashIcon className="w-4 h-4" />
                         <span>Delete</span>
                     </button>
@@ -210,6 +211,7 @@ const projectTypes: { key: ProjectType; name: string }[] = [
     { key: 'python', name: 'Python' },
     { key: 'nodejs', name: 'Node.js' },
     { key: 'java', name: 'Java' },
+    { key: 'delphi', name: 'Delphi' },
     { key: 'webapp', name: 'Web App' },
 ];
 
@@ -243,6 +245,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
             const key = type === 'python' ? 'pythonProjectsPath' 
                       : type === 'nodejs' ? 'nodejsProjectsPath'
                       : type === 'java' ? 'javaProjectsPath'
+                      : type === 'delphi' ? 'delphiProjectsPath'
                       : 'webAppsPath';
             onConfigChange({...config, [key]: path});
         }
@@ -252,6 +255,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
         const basePath = projectType === 'python' ? config.pythonProjectsPath 
                        : projectType === 'nodejs' ? config.nodejsProjectsPath
                        : projectType === 'java' ? config.javaProjectsPath
+                       : projectType === 'delphi' ? config.delphiProjectsPath
                        : config.webAppsPath;
         if (!basePath) return;
 
@@ -324,10 +328,12 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
         const title = type === 'python' ? 'Python Projects' 
                     : type === 'nodejs' ? 'Node.js Projects' 
                     : type === 'java' ? 'Java Projects'
+                    : type === 'delphi' ? 'Delphi Projects'
                     : 'Web App Projects';
         const path = type === 'python' ? config.pythonProjectsPath 
                    : type === 'nodejs' ? config.nodejsProjectsPath 
                    : type === 'java' ? config.javaProjectsPath
+                   : type === 'delphi' ? config.delphiProjectsPath
                    : config.webAppsPath;
         const projects = config.projects?.filter(p => p.type === type) || [];
         

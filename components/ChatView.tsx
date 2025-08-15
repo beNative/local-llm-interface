@@ -26,6 +26,7 @@ const getProjectTypeForLang = (lang: string): ProjectType | null => {
     if (['javascript', 'js', 'nodejs'].includes(lang)) return 'nodejs';
     if (['html', 'html5'].includes(lang)) return 'webapp';
     if (lang === 'java') return 'java';
+    if (['pascal', 'objectpascal', 'delphi'].includes(lang)) return 'delphi';
     return null;
 }
 

@@ -385,6 +385,24 @@ public class Main {
 }`;
                 fs.writeFileSync(path.join(srcPath, 'Main.java'), mainJavaContent);
 
+            } else if (projectType === 'delphi') {
+                const dprContent = `program ${name};
+
+{$APPTYPE CONSOLE}
+
+uses
+  System.SysUtils;
+
+begin
+  try
+    WriteLn('Hello from ${name}!');
+  except
+    on E: Exception do
+      WriteLn(E.ClassName, ': ', E.Message);
+  end;
+end.
+`;
+                fs.writeFileSync(path.join(projectPath, `${name}.dpr`), dprContent);
             } else if (projectType === 'webapp') {
                  fs.writeFileSync(path.join(projectPath, 'index.html'), `<!DOCTYPE html>
 <html lang="en">
@@ -431,7 +449,8 @@ public class Main {
             settings.pythonProjectsPath, 
             settings.nodejsProjectsPath, 
             settings.webAppsPath,
-            settings.javaProjectsPath
+            settings.javaProjectsPath,
+            settings.delphiProjectsPath
         ].filter(Boolean);
         // Normalize paths to handle different OS path separators
         const normalizedFilePath = path.normalize(filePath);
@@ -462,7 +481,7 @@ public class Main {
         } else if (project.type === 'java') {
             return await runCommand('mvn', ['install'], project.path);
         }
-        return { stdout: '', stderr: 'Unknown project type' };
+        return { stdout: '', stderr: `Dependency installation is not applicable for project type: ${project.type}` };
     });
     
     ipcMain.handle('project:run', async (_, project: CodeProject): Promise<{ stdout: string; stderr: string }> => {
@@ -554,6 +573,11 @@ public class Main {
         if (project.type === 'java') {
             // Note: This requires Maven to be installed on the user's system and in their PATH.
             return runCommand('mvn', ['compile', 'exec:java'], project.path);
+        }
+        
+        if (project.type === 'delphi') {
+            shell.openPath(project.path);
+            return { stdout: `Successfully opened project folder for "${project.name}".`, stderr: 'Direct execution for Delphi projects is not supported. Please use your Delphi IDE to compile and run the project.' };
         }
 
         return { stdout: '', stderr: `Project type "${project.type}" cannot be run.` };
