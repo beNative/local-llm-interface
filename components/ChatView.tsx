@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
-import type { ChatMessage, Theme, CodeProject, ProjectType, FileSystemEntry, ChatSession, Model, ChatMessageContentPart, PredefinedPrompt } from '../types';
+import type { ChatMessage, Theme, CodeProject, ProjectType, FileSystemEntry, ChatSession, Model, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata } from '../types';
 import SendIcon from './icons/SendIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
 import ModelIcon from './icons/ModelIcon';
@@ -20,6 +20,29 @@ import StopIcon from './icons/StopIcon';
 import PaperclipIcon from './icons/PaperclipIcon';
 import XIcon from './icons/XIcon';
 import BookmarkIcon from './icons/BookmarkIcon';
+
+const MessageMetadata: React.FC<{ metadata: ChatMessageMetadata }> = ({ metadata }) => {
+    const { usage, speed } = metadata;
+
+    const stats: string[] = [];
+    if (usage?.prompt_tokens !== undefined) {
+        stats.push(`Input: ${usage.prompt_tokens} tokens`);
+    }
+    if (usage?.completion_tokens !== undefined) {
+        stats.push(`Output: ${usage.completion_tokens} tokens`);
+    }
+    if (speed !== undefined) {
+        stats.push(`Speed: ${speed.toFixed(1)} t/s`);
+    }
+
+    if (stats.length === 0) return null;
+
+    return (
+        <div className="mt-3 pt-2 border-t border-[--assistant-message-text-color]/10 text-xs font-mono opacity-70">
+            {stats.join('  •  ')}
+        </div>
+    );
+};
 
 const getProjectTypeForLang = (lang: string): ProjectType | null => {
     if (lang === 'python') return 'python';
@@ -641,19 +664,22 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
                 msg.content === '' && isResponding ? (
                   <SpinnerIcon className="w-5 h-5 text-gray-400"/>
                 ) : (
-                  <div className="prose prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                          code: (props) => (
-                              <CodeBlock {...props} theme={theme} isElectron={isElectron} projects={projects} onSaveRequest={handleSaveRequest} />
-                          ),
-                          pre: ({ children }) => <>{children}</>,
-                      }}
-                    >
-                      {msg.content as string}
-                    </ReactMarkdown>
-                  </div>
+                  <>
+                    <div className="prose prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                            code: (props) => (
+                                <CodeBlock {...props} theme={theme} isElectron={isElectron} projects={projects} onSaveRequest={handleSaveRequest} />
+                            ),
+                            pre: ({ children }) => <>{children}</>,
+                        }}
+                      >
+                        {msg.content as string}
+                      </ReactMarkdown>
+                    </div>
+                    {msg.metadata && <MessageMetadata metadata={msg.metadata} />}
+                  </>
                 )
               ) : ( // User message
                 <div className="space-y-2">

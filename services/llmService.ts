@@ -1,4 +1,4 @@
-import type { Model, ChatMessage } from '../types';
+import type { Model, ChatMessage, ChatMessageMetadata, ChatMessageUsage } from '../types';
 import { logger } from './logger';
 
 export class LLMServiceError extends Error {
@@ -105,8 +105,11 @@ export const streamChatCompletion = async (
   signal: AbortSignal,
   onChunk: (text: string) => void,
   onError: (error: Error) => void,
-  onDone: () => void
+  onDone: (metadata: ChatMessageMetadata) => void
 ) => {
+  const startTime = Date.now();
+  let usage: ChatMessageUsage | undefined = undefined;
+  
   try {
     logger.info(`Starting chat completion stream with model ${modelId}`);
     const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -137,40 +140,61 @@ export const streamChatCompletion = async (
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        logger.info('Chat stream finished.');
-        onDone();
-        break;
-      }
-      const textChunk = decoder.decode(value, { stream: true });
-      logger.debug(`Stream chunk received: ${textChunk}`);
-      const lines = textChunk.split('\n').filter((line) => line.trim() !== '');
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.substring(6);
-          if (data.trim() === '[DONE]') {
-            logger.info('Chat stream sent [DONE] message.');
-            onDone();
-            return;
+    const processStream = async () => {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          const endTime = Date.now();
+          const durationInSeconds = (endTime - startTime) / 1000;
+          let speed: number | undefined = undefined;
+          if (usage?.completion_tokens && durationInSeconds > 0) {
+            speed = usage.completion_tokens / durationInSeconds;
           }
-          try {
-            const json = JSON.parse(data);
-            const content = json.choices[0]?.delta?.content || '';
-            if (content) {
-              onChunk(content);
+          logger.info('Chat stream finished.');
+          onDone({ usage, speed });
+          break;
+        }
+        const textChunk = decoder.decode(value, { stream: true });
+        logger.debug(`Stream chunk received: ${textChunk}`);
+        const lines = textChunk.split('\n').filter((line) => line.trim() !== '');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.substring(6);
+            if (data.trim() === '[DONE]') {
+              const endTime = Date.now();
+              const durationInSeconds = (endTime - startTime) / 1000;
+              let speed: number | undefined = undefined;
+              if (usage?.completion_tokens && durationInSeconds > 0) {
+                speed = usage.completion_tokens / durationInSeconds;
+              }
+              logger.info('Chat stream sent [DONE] message.');
+              onDone({ usage, speed });
+              return;
             }
-          } catch (e) {
-             logger.warn(`Could not parse stream data chunk: ${e}, Data: "${data}"`);
+            try {
+              const json = JSON.parse(data);
+              const content = json.choices[0]?.delta?.content || '';
+              if (content) {
+                onChunk(content);
+              }
+              // Capture usage stats, which usually arrive in the last chunk
+              if (json.usage) {
+                  usage = json.usage;
+              }
+            } catch (e) {
+               logger.warn(`Could not parse stream data chunk: ${e}, Data: "${data}"`);
+            }
           }
         }
       }
     }
+    
+    await processStream();
+
   } catch (error) {
      if (error instanceof Error && error.name === 'AbortError') {
         logger.info('Chat stream aborted by user.');
-        onDone(); // Call onDone to clean up state
+        onDone({}); // Call onDone to clean up state
         return;
      }
      if (error instanceof Error) {

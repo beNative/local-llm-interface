@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt } from './types';
+import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
 import { fetchModels, streamChatCompletion, LLMServiceError, generateTextCompletion } from './services/llmService';
 import { logger } from './services/logger';
@@ -444,10 +444,26 @@ const App: React.FC = () => {
         setIsResponding(false);
         abortControllerRef.current = null;
       },
-      () => {
+      (metadata: ChatMessageMetadata) => {
         setIsResponding(false);
         abortControllerRef.current = null;
         logger.info('Message stream completed.');
+        
+        // Attach the final metadata to the assistant's message
+        setConfig(c => {
+            if (!c) return c;
+            const targetSession = c.sessions?.find(s => s.id === activeSessionId);
+            if (!targetSession) return c;
+            const lastMsg = targetSession.messages[targetSession.messages.length - 1];
+            if (lastMsg && lastMsg.role === 'assistant') {
+                const updatedMsg: ChatMessage = { ...lastMsg, metadata };
+                const updatedMessages = [...targetSession.messages.slice(0, -1), updatedMsg];
+                const updatedS: ChatSession = { ...targetSession, messages: updatedMessages };
+                return { ...c, sessions: c.sessions!.map(s => s.id === activeSessionId ? updatedS : s) };
+            }
+            return c;
+        });
+
         if (isFirstUserMessage && activeSessionId) {
             // Use setConfig's callback to ensure we get the final, updated state
             setConfig(currentConfig => {

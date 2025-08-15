@@ -99,9 +99,21 @@ export type ChatMessageContentPart =
   | { type: 'text'; text: string }
   | { type: 'image_url'; image_url: { url: string } };
 
+export interface ChatMessageUsage {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+}
+
+export interface ChatMessageMetadata {
+  usage?: ChatMessageUsage;
+  speed?: number; // tokens per second
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string | ChatMessageContentPart[];
+  metadata?: ChatMessageMetadata;
 }
 
 export type ApiHttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
