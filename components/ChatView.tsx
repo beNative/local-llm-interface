@@ -1,9 +1,10 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
-import type { ChatMessage, Theme, CodeProject, ProjectType, FileSystemEntry, ChatSession, Model, ChatMessageContentPart } from '../types';
+import type { ChatMessage, Theme, CodeProject, ProjectType, FileSystemEntry, ChatSession, Model, ChatMessageContentPart, PredefinedPrompt } from '../types';
 import SendIcon from './icons/SendIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
 import ModelIcon from './icons/ModelIcon';
@@ -18,6 +19,7 @@ import { logger } from '../services/logger';
 import StopIcon from './icons/StopIcon';
 import PaperclipIcon from './icons/PaperclipIcon';
 import XIcon from './icons/XIcon';
+import BookmarkIcon from './icons/BookmarkIcon';
 
 const getProjectTypeForLang = (lang: string): ProjectType | null => {
     if (lang === 'python') return 'python';
@@ -370,26 +372,30 @@ interface ChatViewProps {
   theme: Theme;
   isElectron: boolean;
   projects: CodeProject[];
-  prefilledInput: string;
+  predefinedInput: string;
   onPrefillConsumed: () => void;
   activeProjectId: string | null;
   onSetActiveProject: (projectId: string | null) => void;
   models: Model[];
   onSelectModel: (modelId: string) => void;
+  predefinedPrompts: PredefinedPrompt[];
 }
 
-const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isResponding, onStopGeneration, onRenameSession, theme, isElectron, projects, prefilledInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel }) => {
+const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isResponding, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel, predefinedPrompts }) => {
   const [input, setInput] = useState('');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [saveModalState, setSaveModalState] = useState<{ code: string; lang: string } | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(session.name);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
+  const [isPromptsOpen, setIsPromptsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const modelSelectorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const promptsPopoverRef = useRef<HTMLDivElement>(null);
+  const promptsButtonRef = useRef<HTMLButtonElement>(null);
 
   const { messages, name: sessionName } = session;
 
@@ -416,6 +422,23 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
     };
   }, [modelSelectorRef]);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+        if (
+            promptsPopoverRef.current && 
+            !promptsPopoverRef.current.contains(event.target as Node) &&
+            promptsButtonRef.current &&
+            !promptsButtonRef.current.contains(event.target as Node)
+        ) {
+            setIsPromptsOpen(false);
+        }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -425,17 +448,17 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
   }, [messages]);
   
   useEffect(() => {
-    if (prefilledInput) {
-      setInput(prefilledInput);
+    if (predefinedInput) {
+      setInput(predefinedInput);
       onPrefillConsumed();
     }
-  }, [prefilledInput, onPrefillConsumed]);
+  }, [predefinedInput, onPrefillConsumed]);
 
   useEffect(() => {
     if (!isResponding) {
       textareaRef.current?.focus();
     }
-  }, [isResponding, prefilledInput]);
+  }, [isResponding, predefinedInput]);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -494,6 +517,12 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
   
   const handleSaveRequest = (code: string, lang: string) => {
     setSaveModalState({ code, lang });
+  };
+
+  const handleSelectPrompt = (promptContent: string) => {
+    setInput(promptContent);
+    setIsPromptsOpen(false);
+    textareaRef.current?.focus();
   };
 
   return (
@@ -673,7 +702,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
             placeholder="Type your message, or attach an image..."
             rows={1}
             disabled={isResponding}
-            className="w-full pl-12 pr-14 py-3 bg-[--bg-tertiary] text-[--text-primary] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[--border-focus] disabled:cursor-not-allowed max-h-48 overflow-y-auto"
+            className="w-full pl-24 pr-14 py-3 bg-[--bg-tertiary] text-[--text-primary] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[--border-focus] disabled:cursor-not-allowed max-h-48 overflow-y-auto"
             autoFocus
           />
           <button
@@ -684,6 +713,36 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
           >
               <PaperclipIcon className="w-5 h-5" />
           </button>
+          <div className="absolute left-12 top-1/2 -translate-y-1/2">
+            <button
+                ref={promptsButtonRef}
+                onClick={() => setIsPromptsOpen(prev => !prev)}
+                disabled={isResponding || predefinedPrompts.length === 0}
+                className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] hover:text-[--text-primary] disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Use a predefined prompt"
+            >
+                <BookmarkIcon className="w-5 h-5" />
+            </button>
+            {isPromptsOpen && predefinedPrompts.length > 0 && (
+              <div 
+                ref={promptsPopoverRef}
+                className="absolute bottom-full mb-2 w-72 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto"
+              >
+                <div className="p-2 text-xs font-semibold text-[--text-muted] border-b border-[--border-primary]">Select a prompt</div>
+                {predefinedPrompts.map(prompt => (
+                  <button 
+                    key={prompt.id}
+                    onClick={() => handleSelectPrompt(prompt.content)}
+                    className="w-full text-left block px-3 py-2 text-sm text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
+                    title={prompt.content}
+                  >
+                    <p className="font-semibold truncate">{prompt.title}</p>
+                    <p className="text-xs text-[--text-muted] truncate mt-0.5">{prompt.content}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {isResponding ? (
             <button
               onClick={onStopGeneration}

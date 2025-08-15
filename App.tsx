@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart } from './types';
+import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
 import { fetchModels, streamChatCompletion, LLMServiceError, generateTextCompletion } from './services/llmService';
 import { logger } from './services/logger';
@@ -124,6 +124,7 @@ const App: React.FC = () => {
         pythonCommand: 'python',
         apiRecentPrompts: [],
         sessions: [],
+        predefinedPrompts: [],
       };
       
       let loadedConfig = defaultConfig;
@@ -584,12 +585,13 @@ const App: React.FC = () => {
                         theme={config.theme || 'dark'}
                         isElectron={isElectron}
                         projects={config.projects || []}
-                        prefilledInput={prefilledInput}
+                        predefinedInput={prefilledInput}
                         onPrefillConsumed={onPrefillConsumed}
                         activeProjectId={activeProjectId}
                         onSetActiveProject={setActiveProjectId}
                         models={models}
                         onSelectModel={handleSelectModel}
+                        predefinedPrompts={config.predefinedPrompts || []}
                     />
                 );
              }

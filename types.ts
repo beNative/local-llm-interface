@@ -43,6 +43,12 @@ export interface ChatSession {
   messages: ChatMessage[];
 }
 
+export interface PredefinedPrompt {
+  id: string;
+  title: string;
+  content: string;
+}
+
 export interface Config {
   provider: LLMProvider;
   baseUrl: string;
@@ -58,6 +64,7 @@ export interface Config {
   apiRecentPrompts?: string[];
   sessions?: ChatSession[];
   activeSessionId?: string;
+  predefinedPrompts?: PredefinedPrompt[];
 }
 
 export interface Model {

@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Config, LLMProvider, Theme, ThemeOverrides } from '../types';
+import type { Config, LLMProvider, Theme, ThemeOverrides, PredefinedPrompt } from '../types';
 import { PROVIDER_CONFIGS } from '../constants';
 import SettingsIcon from './icons/SettingsIcon';
+import TrashIcon from './icons/TrashIcon';
 
 interface SettingsPanelProps {
   config: Config;
@@ -51,6 +52,57 @@ const PreviewBox: React.FC<{ label: string; bgColor: string; textColor: string;}
         </div>
     </div>
 );
+
+const NewPromptForm: React.FC<{ onAdd: (title: string, content: string) => void }> = ({ onAdd }) => {
+    const [title, setTitle] = useState('');
+    const [content, setContent] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      onAdd(title, content);
+      setTitle('');
+      setContent('');
+    };
+
+    return (
+      <form onSubmit={handleSubmit} className="pt-4 border-t border-[--border-primary] space-y-3">
+        <h4 className="text-md font-semibold text-[--text-secondary]">Add New Prompt</h4>
+        <div>
+          <label htmlFor="prompt-title" className="block text-sm font-medium text-[--text-muted] mb-1">Title</label>
+          <input
+            id="prompt-title"
+            type="text"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
+            placeholder="e.g., Refactor Python Code"
+            required
+          />
+        </div>
+        <div>
+          <label htmlFor="prompt-content" className="block text-sm font-medium text-[--text-muted] mb-1">Content</label>
+          <textarea
+            id="prompt-content"
+            value={content}
+            onChange={e => setContent(e.target.value)}
+            className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
+            placeholder="e.g., Please refactor the following Python code to be more idiomatic and efficient."
+            rows={3}
+            required
+          />
+        </div>
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-green-400"
+            disabled={!title.trim() || !content.trim()}
+          >
+            Add Prompt
+          </button>
+        </div>
+      </form>
+    );
+};
 
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, isConnecting, isElectron, theme }) => {
@@ -115,6 +167,26 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
     }));
   };
 
+  const handleAddPrompt = (title: string, content: string) => {
+    if (!title.trim() || !content.trim()) return;
+    const newPrompt: PredefinedPrompt = {
+      id: `prompt_${Date.now()}`,
+      title: title.trim(),
+      content: content.trim(),
+    };
+    setLocalConfig(current => ({
+      ...current,
+      predefinedPrompts: [...(current.predefinedPrompts || []), newPrompt],
+    }));
+  };
+
+  const handleDeletePrompt = (promptId: string) => {
+    setLocalConfig(current => ({
+      ...current,
+      predefinedPrompts: (current.predefinedPrompts || []).filter(p => p.id !== promptId),
+    }));
+  };
+
   const handleSave = () => {
     onConfigChange(localConfig);
   };
@@ -168,6 +240,35 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                       placeholder="e.g., http://localhost:11434/v1"
                       />
                   </div>
+              </div>
+            </div>
+
+            <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
+              <h3 className="text-lg font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">Predefined Prompts</h3>
+              <div className="space-y-4">
+                {(localConfig.predefinedPrompts || []).length > 0 ? (
+                  <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                    {(localConfig.predefinedPrompts || []).map(prompt => (
+                      <div key={prompt.id} className="flex items-start justify-between gap-4 p-3 bg-[--bg-secondary] rounded-lg border border-[--border-secondary]">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-[--text-primary] truncate">{prompt.title}</p>
+                          <p className="text-sm text-[--text-muted] mt-1 whitespace-pre-wrap font-mono break-words">{prompt.content}</p>
+                        </div>
+                        <button
+                          onClick={() => handleDeletePrompt(prompt.id)}
+                          className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full flex-shrink-0"
+                          aria-label="Delete prompt"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-center text-[--text-muted] py-4">You have no saved prompts yet.</p>
+                )}
+
+                <NewPromptForm onAdd={handleAddPrompt} />
               </div>
             </div>
             
