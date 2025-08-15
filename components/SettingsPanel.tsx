@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { Config, LLMProvider, Theme, ThemeOverrides, PredefinedPrompt, ColorOverrides, SystemPrompt, ToolchainStatus, Toolchain } from '../types';
 import { PROVIDER_CONFIGS } from '../constants';
@@ -7,6 +6,11 @@ import SettingsIcon from './icons/SettingsIcon';
 import TrashIcon from './icons/TrashIcon';
 import IdentityIcon from './icons/IdentityIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
+import SlidersIcon from './icons/SlidersIcon';
+import PaletteIcon from './icons/PaletteIcon';
+import BookmarkIcon from './icons/BookmarkIcon';
+import CpuIcon from './icons/CpuIcon';
+
 
 interface SettingsPanelProps {
   config: Config;
@@ -14,6 +18,8 @@ interface SettingsPanelProps {
   isElectron: boolean;
   theme: Theme;
 }
+
+type SettingsSection = 'general' | 'personalization' | 'content' | 'advanced';
 
 const PREDEFINED_COLORS = [
   // Grayscale
@@ -153,12 +159,33 @@ const ToolchainSelector: React.FC<{
   );
 };
 
+interface NavButtonProps {
+    icon: React.ReactNode;
+    label: string;
+    isActive: boolean;
+    onClick: () => void;
+}
+const NavButton: React.FC<NavButtonProps> = ({ icon, label, isActive, onClick }) => (
+    <button
+        onClick={onClick}
+        className={`w-full flex items-center gap-3 text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+            isActive
+                ? 'bg-[--accent-settings]/10 dark:bg-[--accent-settings]/20 text-[--accent-settings]'
+                : 'text-[--text-secondary] hover:bg-[--bg-hover]'
+        }`}
+    >
+        {icon}
+        <span>{label}</span>
+    </button>
+);
+
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, isElectron, theme }) => {
   const [localConfig, setLocalConfig] = useState<Config>(config);
   const [activeAppearanceTab, setActiveAppearanceTab] = useState<Theme>(theme);
   const [toolchains, setToolchains] = useState<ToolchainStatus | null>(null);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
+  const [activeSection, setActiveSection] = useState<SettingsSection>('general');
   const isUpdatingFromProps = useRef(true);
   
   useEffect(() => {
@@ -310,294 +337,183 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
     Custom: 'For any other OpenAI-compatible API endpoint.'
   };
 
+  const navItems: { id: SettingsSection; label: string; icon: React.ReactNode; isVisible: boolean }[] = [
+      { id: 'general', label: 'General', icon: <SlidersIcon className="w-5 h-5"/>, isVisible: true },
+      { id: 'personalization', label: 'Personalization', icon: <PaletteIcon className="w-5 h-5"/>, isVisible: true },
+      { id: 'content', label: 'Content', icon: <BookmarkIcon className="w-5 h-5"/>, isVisible: true },
+      { id: 'advanced', label: 'Advanced', icon: <CpuIcon className="w-5 h-5"/>, isVisible: isElectron },
+  ];
+
+  const renderContent = () => {
+      switch (activeSection) {
+          case 'general':
+              return (
+                <div className="space-y-8">
+                  <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
+                    <h3 className="text-xl font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">Connection</h3>
+                    <div className="space-y-4">
+                        <div>
+                            <label htmlFor="provider" className="block text-sm font-medium text-[--text-muted] mb-1">LLM Provider</label>
+                            <select id="provider" value={localConfig.provider} onChange={handleProviderChange} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]">
+                                <option value="Ollama">Ollama</option>
+                                <option value="LMStudio">LMStudio</option>
+                                <option value="Custom">Custom</option>
+                            </select>
+                            <p className="text-xs text-[--text-muted] mt-2 px-1">{providerDescriptions[localConfig.provider]}</p>
+                        </div>
+                        <div>
+                            <label htmlFor="baseUrl" className="block text-sm font-medium text-[--text-muted] mb-1">Base URL (v1 compatible)</label>
+                            <input type="text" id="baseUrl" value={localConfig.baseUrl} onChange={handleUrlChange} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]" placeholder="e.g., http://localhost:11434/v1" />
+                        </div>
+                    </div>
+                  </div>
+                  {isElectron && (
+                     <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
+                        <h3 className="text-xl font-semibold text-[--text-secondary] mb-4">Logging</h3>
+                        <label className="flex items-center gap-3 cursor-pointer mt-2">
+                            <input type="checkbox" checked={!!localConfig.logToFile} onChange={handleLogToFileChange} className="w-4 h-4 rounded text-indigo-600 bg-[--bg-tertiary] border-[--border-secondary] focus:ring-indigo-500" />
+                            <span className="text-sm font-medium text-[--text-muted]">Automatically save logs to file</span>
+                        </label>
+                        <p className="text-xs text-[--text-muted] mt-1 px-1">Saves logs to a file in the app directory. Useful for debugging.</p>
+                      </div>
+                  )}
+                </div>
+              );
+          case 'personalization':
+              return (
+                 <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
+                    <div className="flex justify-between items-center mb-4 border-b border-[--border-primary] pb-3">
+                        <h3 className="text-xl font-semibold text-[--text-secondary]">Appearance</h3>
+                        <button onClick={handleResetThemeOverrides} className="px-3 py-1 text-xs font-medium text-red-600 bg-red-100 dark:bg-red-900/50 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-800">
+                            Reset {activeAppearanceTab === 'light' ? 'Light' : 'Dark'} Theme Colors
+                        </button>
+                    </div>
+                    <div className="border-b border-[--border-primary]">
+                        <nav className="-mb-px flex space-x-4" aria-label="Tabs">
+                            <button onClick={() => setActiveAppearanceTab('light')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${activeAppearanceTab === 'light' ? 'border-[--border-focus] text-[--text-primary]' : 'border-transparent text-[--text-muted] hover:border-gray-400'}`}>Light Theme</button>
+                            <button onClick={() => setActiveAppearanceTab('dark')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${activeAppearanceTab === 'dark' ? 'border-[--border-focus] text-[--text-primary]' : 'border-transparent text-[--text-muted] hover:border-gray-400'}`}>Dark Theme</button>
+                        </nav>
+                    </div>
+                    <div className="space-y-6 pt-6">
+                        <div>
+                          <ColorSelector label="Chat Background" value={activeColorOverrides.chatBg || activeThemeDefaults.chatBg} onChange={v => handleColorOverrideChange('chatBg', v)} />
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div className="space-y-4 p-4 rounded-lg border border-[--border-secondary] bg-[--bg-secondary]">
+                                <PreviewBox label="User Message Preview" bgColor={activeColorOverrides.userMessageBg || activeThemeDefaults.userMessageBg} textColor={activeColorOverrides.userMessageColor || activeThemeDefaults.userMessageColor} />
+                                <ColorSelector label="Background Color" value={activeColorOverrides.userMessageBg || activeThemeDefaults.userMessageBg} onChange={v => handleColorOverrideChange('userMessageBg', v)} />
+                                <ColorSelector label="Text Color" value={activeColorOverrides.userMessageColor || activeThemeDefaults.userMessageColor} onChange={v => handleColorOverrideChange('userMessageColor', v)} />
+                            </div>
+                            <div className="space-y-4 p-4 rounded-lg border border-[--border-secondary] bg-[--bg-secondary]">
+                                <PreviewBox label="Assistant Message Preview" bgColor={activeColorOverrides.assistantMessageBg || activeThemeDefaults.assistantMessageBg} textColor={activeColorOverrides.assistantMessageColor || activeThemeDefaults.assistantMessageColor} />
+                                <ColorSelector label="Background Color" value={activeColorOverrides.assistantMessageBg || activeThemeDefaults.assistantMessageBg} onChange={v => handleColorOverrideChange('assistantMessageBg', v)} />
+                                <ColorSelector label="Text Color" value={activeColorOverrides.assistantMessageColor || activeThemeDefaults.assistantMessageColor} onChange={v => handleColorOverrideChange('assistantMessageColor', v)} />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="border-t border-[--border-primary] mt-6 pt-6">
+                        <h4 className="text-md font-semibold text-[--text-secondary] mb-4">Font Settings (Global)</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                                <label htmlFor="font-family" className="block text-sm font-medium text-[--text-muted] mb-1">Font Family</label>
+                                <select id="font-family" value={themeOverrides.fontFamily || 'sans-serif'} onChange={e => handleFontOverrideChange('fontFamily', e.target.value)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]">
+                                    <option value="sans-serif">Sans-serif</option>
+                                    <option value="serif">Serif</option>
+                                    <option value="monospace">Monospace</option>
+                                </select>
+                          </div>
+                          <div>
+                                <label htmlFor="font-size" className="block text-sm font-medium text-[--text-muted] mb-1">Font Size (px)</label>
+                                <input type="number" id="font-size" value={themeOverrides.fontSize || 16} onChange={e => handleFontOverrideChange('fontSize', e.target.valueAsNumber)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]" placeholder="16"/>
+                          </div>
+                        </div>
+                    </div>
+                 </div>
+              );
+          case 'content':
+              return (
+                 <div className="space-y-8">
+                    <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
+                        <h3 className="text-xl font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">Predefined Prompts</h3>
+                        <div className="space-y-4">
+                            {(localConfig.predefinedPrompts || []).length > 0 ? (
+                                <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                                    {(localConfig.predefinedPrompts || []).map(prompt => (
+                                        <div key={prompt.id} className="flex items-start justify-between gap-4 p-3 bg-[--bg-secondary] rounded-lg border border-[--border-secondary]">
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-semibold text-[--text-primary] truncate">{prompt.title}</p>
+                                                <p className="text-sm text-[--text-muted] mt-1 whitespace-pre-wrap font-mono break-words">{prompt.content}</p>
+                                            </div>
+                                            <button onClick={() => handleDeletePrompt(prompt.id)} className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full flex-shrink-0" aria-label="Delete prompt"><TrashIcon className="w-4 h-4" /></button>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : ( <p className="text-sm text-center text-[--text-muted] py-4">You have no saved prompts yet.</p> )}
+                            <NewPromptForm onAdd={handleAddPrompt} heading="Add New Prompt" titlePlaceholder="e.g., Refactor Python Code" contentPlaceholder="e.g., Please refactor the following Python code to be more idiomatic and efficient." idPrefix="predefined-prompt" buttonText="Add Prompt" />
+                        </div>
+                    </div>
+                    <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
+                        <h3 className="flex items-center gap-2 text-xl font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3"><IdentityIcon className="w-5 h-5" /> System Prompts (Personas)</h3>
+                        <div className="space-y-4">
+                            {(localConfig.systemPrompts || []).length > 0 ? (
+                                <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                                    {(localConfig.systemPrompts || []).map(prompt => (
+                                        <div key={prompt.id} className="flex items-start justify-between gap-4 p-3 bg-[--bg-secondary] rounded-lg border border-[--border-secondary]">
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-semibold text-[--text-primary] truncate">{prompt.title}</p>
+                                                <p className="text-sm text-[--text-muted] mt-1 whitespace-pre-wrap font-mono break-words">{prompt.content}</p>
+                                            </div>
+                                            <button onClick={() => handleDeleteSystemPrompt(prompt.id)} className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full flex-shrink-0" aria-label="Delete system prompt"><TrashIcon className="w-4 h-4" /></button>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : ( <p className="text-sm text-center text-[--text-muted] py-4">You have no saved system prompts yet.</p> )}
+                            <NewPromptForm onAdd={handleAddSystemPrompt} heading="Add New System Prompt" titlePlaceholder="e.g., Senior DevOps Engineer" contentPlaceholder="e.g., You are a senior DevOps engineer with 20 years of experience..." idPrefix="system-prompt" buttonText="Add System Prompt"/>
+                        </div>
+                    </div>
+                 </div>
+              );
+          case 'advanced':
+              return (
+                  <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
+                      <h3 className="text-xl font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">Toolchains</h3>
+                      <div className="space-y-6">
+                        <p className="text-sm text-[--text-muted] -mt-2">Configure the specific compilers and interpreters to use for creating and running projects.</p>
+                        <ToolchainSelector label="Python Interpreter" isLoading={isLoadingTools} toolchains={toolchains?.python || []} selectedValue={localConfig.selectedPythonPath} onChange={(v) => handleToolchainChange('selectedPythonPath', v)} />
+                        <ToolchainSelector label="Java Development Kit (JDK)" isLoading={isLoadingTools} toolchains={toolchains?.java || []} selectedValue={localConfig.selectedJavaPath} onChange={(v) => handleToolchainChange('selectedJavaPath', v)} />
+                        <ToolchainSelector label="Node.js Executable" isLoading={isLoadingTools} toolchains={toolchains?.nodejs || []} selectedValue={localConfig.selectedNodePath} onChange={(v) => handleToolchainChange('selectedNodePath', v)} />
+                        <ToolchainSelector label="Delphi/RAD Studio Compiler" isLoading={isLoadingTools} toolchains={toolchains?.delphi || []} selectedValue={localConfig.selectedDelphiPath} onChange={(v) => handleToolchainChange('selectedDelphiPath', v)} />
+                      </div>
+                  </div>
+              );
+      }
+  }
+
   return (
-    <div className="p-4 sm:p-6 h-full overflow-y-auto bg-[--bg-secondary]">
-      <div className="max-w-2xl mx-auto">
-        <h1 className="flex items-center gap-3 text-3xl font-bold mb-8" style={{ color: 'var(--accent-settings)'}}>
-          <SettingsIcon className="w-8 h-8"/>
+    <div className="flex h-full overflow-hidden bg-[--bg-secondary]">
+      <aside className="w-60 p-4 border-r border-[--border-primary] overflow-y-auto flex-shrink-0 bg-[--bg-primary]">
+        <h1 className="flex items-center gap-3 text-2xl font-bold mb-8 px-2" style={{ color: 'var(--accent-settings)'}}>
+          <SettingsIcon className="w-7 h-7"/>
           Settings
         </h1>
-        
-        <div className="space-y-8 pb-8">
-            <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
-              <h3 className="text-lg font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">Connection</h3>
-              <div className="space-y-4">
-                  <div>
-                      <label htmlFor="provider" className="block text-sm font-medium text-[--text-muted] mb-1">
-                      LLM Provider
-                      </label>
-                      <select
-                      id="provider"
-                      value={localConfig.provider}
-                      onChange={handleProviderChange}
-                      className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
-                      >
-                      <option value="Ollama">Ollama</option>
-                      <option value="LMStudio">LMStudio</option>
-                      <option value="Custom">Custom</option>
-                      </select>
-                      <p className="text-xs text-[--text-muted] mt-2 px-1">
-                      {providerDescriptions[localConfig.provider]}
-                      </p>
-                  </div>
-                  <div>
-                      <label htmlFor="baseUrl" className="block text-sm font-medium text-[--text-muted] mb-1">
-                      Base URL (v1 compatible)
-                      </label>
-                      <input
-                      type="text"
-                      id="baseUrl"
-                      value={localConfig.baseUrl}
-                      onChange={handleUrlChange}
-                      className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
-                      placeholder="e.g., http://localhost:11434/v1"
-                      />
-                  </div>
-              </div>
-            </div>
-
-            <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
-              <h3 className="text-lg font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">Predefined Prompts</h3>
-              <div className="space-y-4">
-                {(localConfig.predefinedPrompts || []).length > 0 ? (
-                  <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-                    {(localConfig.predefinedPrompts || []).map(prompt => (
-                      <div key={prompt.id} className="flex items-start justify-between gap-4 p-3 bg-[--bg-secondary] rounded-lg border border-[--border-secondary]">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-[--text-primary] truncate">{prompt.title}</p>
-                          <p className="text-sm text-[--text-muted] mt-1 whitespace-pre-wrap font-mono break-words">{prompt.content}</p>
-                        </div>
-                        <button
-                          onClick={() => handleDeletePrompt(prompt.id)}
-                          className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full flex-shrink-0"
-                          aria-label="Delete prompt"
-                        >
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-center text-[--text-muted] py-4">You have no saved prompts yet.</p>
-                )}
-
-                <NewPromptForm 
-                    onAdd={handleAddPrompt}
-                    heading="Add New Prompt"
-                    titlePlaceholder="e.g., Refactor Python Code"
-                    contentPlaceholder="e.g., Please refactor the following Python code to be more idiomatic and efficient."
-                    idPrefix="predefined-prompt"
-                    buttonText="Add Prompt"
+        <nav className="space-y-1">
+            {navItems.filter(item => item.isVisible).map(item => (
+                <NavButton 
+                    key={item.id}
+                    icon={item.icon}
+                    label={item.label}
+                    isActive={activeSection === item.id}
+                    onClick={() => setActiveSection(item.id)}
                 />
-              </div>
-            </div>
+            ))}
+        </nav>
+      </aside>
 
-            <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">
-                <IdentityIcon className="w-5 h-5" />
-                System Prompts (Personas)
-              </h3>
-              <div className="space-y-4">
-                {(localConfig.systemPrompts || []).length > 0 ? (
-                  <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-                    {(localConfig.systemPrompts || []).map(prompt => (
-                      <div key={prompt.id} className="flex items-start justify-between gap-4 p-3 bg-[--bg-secondary] rounded-lg border border-[--border-secondary]">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-[--text-primary] truncate">{prompt.title}</p>
-                          <p className="text-sm text-[--text-muted] mt-1 whitespace-pre-wrap font-mono break-words">{prompt.content}</p>
-                        </div>
-                        <button
-                          onClick={() => handleDeleteSystemPrompt(prompt.id)}
-                          className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full flex-shrink-0"
-                          aria-label="Delete system prompt"
-                        >
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-center text-[--text-muted] py-4">You have no saved system prompts yet.</p>
-                )}
-
-                 <NewPromptForm 
-                    onAdd={handleAddSystemPrompt}
-                    heading="Add New System Prompt"
-                    titlePlaceholder="e.g., Senior DevOps Engineer"
-                    contentPlaceholder="e.g., You are a senior DevOps engineer with 20 years of experience..."
-                    idPrefix="system-prompt"
-                    buttonText="Add System Prompt"
-                />
-              </div>
-            </div>
-            
-            <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
-              <div className="flex justify-between items-center mb-4 border-b border-[--border-primary] pb-3">
-                <h3 className="text-lg font-semibold text-[--text-secondary]">Appearance</h3>
-                <button
-                    onClick={handleResetThemeOverrides}
-                    className="px-3 py-1 text-xs font-medium text-red-600 bg-red-100 dark:bg-red-900/50 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-800"
-                >
-                    Reset {activeAppearanceTab === 'light' ? 'Light' : 'Dark'} Theme Colors
-                </button>
-              </div>
-
-              <div className="border-b border-[--border-primary]">
-                  <nav className="-mb-px flex space-x-4" aria-label="Tabs">
-                      <button
-                          onClick={() => setActiveAppearanceTab('light')}
-                          className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${activeAppearanceTab === 'light' ? 'border-[--border-focus] text-[--text-primary]' : 'border-transparent text-[--text-muted] hover:border-gray-400'}`}
-                      >
-                          Light Theme
-                      </button>
-                      <button
-                          onClick={() => setActiveAppearanceTab('dark')}
-                          className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${activeAppearanceTab === 'dark' ? 'border-[--border-focus] text-[--text-primary]' : 'border-transparent text-[--text-muted] hover:border-gray-400'}`}
-                      >
-                          Dark Theme
-                      </button>
-                  </nav>
-              </div>
-
-              <div className="space-y-6 pt-6">
-                <div>
-                   <ColorSelector 
-                      label="Chat Background" 
-                      value={activeColorOverrides.chatBg || activeThemeDefaults.chatBg}
-                      onChange={v => handleColorOverrideChange('chatBg', v)} 
-                    />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="space-y-4 p-4 rounded-lg border border-[--border-secondary] bg-[--bg-secondary]">
-                    <PreviewBox 
-                      label="User Message Preview"
-                      bgColor={activeColorOverrides.userMessageBg || activeThemeDefaults.userMessageBg}
-                      textColor={activeColorOverrides.userMessageColor || activeThemeDefaults.userMessageColor}
-                    />
-                    <ColorSelector 
-                      label="Background Color" 
-                      value={activeColorOverrides.userMessageBg || activeThemeDefaults.userMessageBg}
-                      onChange={v => handleColorOverrideChange('userMessageBg', v)} />
-                    <ColorSelector 
-                      label="Text Color" 
-                      value={activeColorOverrides.userMessageColor || activeThemeDefaults.userMessageColor}
-                      onChange={v => handleColorOverrideChange('userMessageColor', v)} />
-                  </div>
-
-                  <div className="space-y-4 p-4 rounded-lg border border-[--border-secondary] bg-[--bg-secondary]">
-                    <PreviewBox 
-                      label="Assistant Message Preview"
-                      bgColor={activeColorOverrides.assistantMessageBg || activeThemeDefaults.assistantMessageBg}
-                      textColor={activeColorOverrides.assistantMessageColor || activeThemeDefaults.assistantMessageColor}
-                    />
-                    <ColorSelector 
-                      label="Background Color" 
-                      value={activeColorOverrides.assistantMessageBg || activeThemeDefaults.assistantMessageBg}
-                      onChange={v => handleColorOverrideChange('assistantMessageBg', v)} />
-                    <ColorSelector 
-                      label="Text Color" 
-                      value={activeColorOverrides.assistantMessageColor || activeThemeDefaults.assistantMessageColor}
-                      onChange={v => handleColorOverrideChange('assistantMessageColor', v)} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t border-[--border-primary] mt-6 pt-6">
-                <h4 className="text-md font-semibold text-[--text-secondary] mb-4">Font Settings (Global)</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                   <div>
-                        <label htmlFor="font-family" className="block text-sm font-medium text-[--text-muted] mb-1">
-                            Font Family
-                        </label>
-                        <select
-                            id="font-family"
-                            value={themeOverrides.fontFamily || 'sans-serif'}
-                            onChange={e => handleFontOverrideChange('fontFamily', e.target.value)}
-                            className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
-                        >
-                            <option value="sans-serif">Sans-serif</option>
-                            <option value="serif">Serif</option>
-                            <option value="monospace">Monospace</option>
-                        </select>
-                   </div>
-                   <div>
-                         <label htmlFor="font-size" className="block text-sm font-medium text-[--text-muted] mb-1">
-                            Font Size (px)
-                        </label>
-                        <input
-                            type="number"
-                            id="font-size"
-                            value={themeOverrides.fontSize || 16}
-                            onChange={e => handleFontOverrideChange('fontSize', e.target.valueAsNumber)}
-                            className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
-                            placeholder="16"
-                        />
-                   </div>
-                </div>
-              </div>
-            </div>
-              
-            {isElectron && (
-              <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
-                   <h3 className="text-lg font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">Advanced</h3>
-                  <div className="space-y-4">
-                      <div className="space-y-4">
-                        <h4 className="text-md font-semibold text-[--text-secondary]">Toolchains</h4>
-                        <p className="text-xs text-[--text-muted] -mt-2 px-1">
-                          Configure the specific compilers and interpreters to use for creating and running projects.
-                        </p>
-                        <ToolchainSelector
-                          label="Python Interpreter"
-                          isLoading={isLoadingTools}
-                          toolchains={toolchains?.python || []}
-                          selectedValue={localConfig.selectedPythonPath}
-                          onChange={(v) => handleToolchainChange('selectedPythonPath', v)}
-                        />
-                        <ToolchainSelector
-                          label="Java Development Kit (JDK)"
-                          isLoading={isLoadingTools}
-                          toolchains={toolchains?.java || []}
-                          selectedValue={localConfig.selectedJavaPath}
-                          onChange={(v) => handleToolchainChange('selectedJavaPath', v)}
-                        />
-                         <ToolchainSelector
-                          label="Node.js Executable"
-                          isLoading={isLoadingTools}
-                          toolchains={toolchains?.nodejs || []}
-                          selectedValue={localConfig.selectedNodePath}
-                          onChange={(v) => handleToolchainChange('selectedNodePath', v)}
-                        />
-                         <ToolchainSelector
-                          label="Delphi/RAD Studio Compiler"
-                          isLoading={isLoadingTools}
-                          toolchains={toolchains?.delphi || []}
-                          selectedValue={localConfig.selectedDelphiPath}
-                          onChange={(v) => handleToolchainChange('selectedDelphiPath', v)}
-                        />
-                      </div>
-                      <div className="pt-4 border-t border-[--border-primary]">
-                        <h4 className="text-md font-semibold text-[--text-secondary]">Logging</h4>
-                        <label className="flex items-center gap-3 cursor-pointer mt-2">
-                            <input
-                                type="checkbox"
-                                checked={!!localConfig.logToFile}
-                                onChange={handleLogToFileChange}
-                                className="w-4 h-4 rounded text-indigo-600 bg-[--bg-tertiary] border-[--border-secondary] focus:ring-indigo-500"
-                            />
-                            <span className="text-sm font-medium text-[--text-muted]">
-                                Automatically save logs to file
-                            </span>
-                        </label>
-                        <p className="text-xs text-[--text-muted] mt-1 px-1">
-                            Saves logs to a file in the app directory. Useful for debugging.
-                        </p>
-                      </div>
-                  </div>
-              </div>
-            )}
+      <main className="flex-1 overflow-y-auto p-6 md:p-8">
+        <div className="max-w-3xl mx-auto">
+            {renderContent()}
         </div>
-      </div>
+      </main>
     </div>
   );
 };
