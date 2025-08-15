@@ -456,9 +456,14 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
 
   useEffect(() => {
     if (!isResponding) {
-      textareaRef.current?.focus();
+      // Use a timeout to ensure focus is set after any other state updates,
+      // which can be necessary when navigating between complex views.
+      const timer = setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 0);
+      return () => clearTimeout(timer);
     }
-  }, [isResponding, predefinedInput]);
+  }, [isResponding]);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -703,7 +708,6 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
             rows={1}
             disabled={isResponding}
             className="w-full pl-24 pr-14 py-3 bg-[--bg-tertiary] text-[--text-primary] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[--border-focus] disabled:cursor-not-allowed max-h-48 overflow-y-auto"
-            autoFocus
           />
           <button
               onClick={() => fileInputRef.current?.click()}
