@@ -457,6 +457,7 @@ const App: React.FC = () => {
                 }} 
                 isConnecting={isLoadingModels}
                 isElectron={isElectron}
+                theme={config.theme || 'dark'}
               />;
         case 'info':
             return <InfoView theme={config.theme || 'dark'} />;

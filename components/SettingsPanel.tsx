@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import type { Config, LLMProvider, ThemeOverrides } from '../types';
+import type { Config, LLMProvider, Theme, ThemeOverrides } from '../types';
 import { PROVIDER_CONFIGS } from '../constants';
 import SettingsIcon from './icons/SettingsIcon';
 
@@ -9,14 +9,67 @@ interface SettingsPanelProps {
   onConfigChange: (newConfig: Config) => void;
   isConnecting: boolean;
   isElectron: boolean;
+  theme: Theme;
 }
 
-const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, isConnecting, isElectron }) => {
+const PREDEFINED_COLORS = [
+  // Grayscale
+  '#ffffff', '#f8fafc', '#f1f5f9', '#e2e8f0', '#94a3b8', '#64748b', '#475569', '#334155', '#1e293b', '#0f172a',
+  // Accent Colors
+  '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899',
+];
+
+const ColorSelector: React.FC<{ label: string; value: string; onChange: (value: string) => void;}> = ({ label, value, onChange }) => (
+    <div>
+        <label className="block text-sm font-medium text-[--text-muted] mb-2">{label}</label>
+        <div className="flex flex-wrap gap-2">
+            {PREDEFINED_COLORS.map(color => (
+                <button
+                    key={color}
+                    type="button"
+                    onClick={() => onChange(color)}
+                    className={`w-7 h-7 rounded-full border-2 transition-all ${value.toLowerCase() === color.toLowerCase() ? 'ring-2 ring-offset-2 ring-offset-[--bg-secondary] ring-[--border-focus] border-[--border-focus]' : 'border-transparent hover:border-[--border-secondary]'}`}
+                    style={{ backgroundColor: color }}
+                    aria-label={color}
+                    title={color}
+                />
+            ))}
+        </div>
+    </div>
+);
+
+
+const PreviewBox: React.FC<{ label: string; bgColor: string; textColor: string;}> = ({ label, bgColor, textColor }) => (
+    <div>
+        <h4 className="text-sm font-medium text-[--text-muted] mb-2">{label}</h4>
+        <div
+            style={{ backgroundColor: bgColor, color: textColor }}
+            className="p-3 rounded-lg border border-[--border-secondary] transition-colors"
+        >
+            <p className="font-semibold">Aa Bb Cc</p>
+            <p className="text-xs opacity-90">This is a preview of the message style.</p>
+        </div>
+    </div>
+);
+
+
+const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, isConnecting, isElectron, theme }) => {
   const [localConfig, setLocalConfig] = useState<Config>(config);
 
   useEffect(() => {
     setLocalConfig(config);
   }, [config]);
+  
+  const getDefaults = (theme: Theme) => ({
+      chatBg: theme === 'dark' ? '#0f172a' : '#ffffff',
+      userMessageBg: theme === 'dark' ? '#3b82f6' : '#2563eb',
+      userMessageColor: '#ffffff',
+      assistantMessageBg: theme === 'dark' ? '#1e293b' : '#f8fafc',
+      assistantMessageColor: theme === 'dark' ? '#f8fafc' : '#0f172a',
+  });
+
+  const defaults = getDefaults(theme);
+  const themeOverrides = localConfig.themeOverrides || {};
 
   const handleProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const provider = e.target.value as LLMProvider;
@@ -65,8 +118,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
     LMStudio: 'Connect to the local server in LM Studio. Find the URL in the Server tab.',
     Custom: 'For any other OpenAI-compatible API endpoint.'
   };
-  
-  const themeOverrides = localConfig.themeOverrides || {};
 
   return (
     <div className="p-4 sm:p-6 h-full overflow-y-auto bg-[--bg-primary]">
@@ -124,45 +175,80 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                     Reset Appearance
                 </button>
               </div>
-               <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <ColorInput label="Chat Background" value={themeOverrides.chatBg || ''} onChange={v => handleThemeOverrideChange('chatBg', v)} />
-                      <ColorInput label="User Message BG" value={themeOverrides.userMessageBg || ''} onChange={v => handleThemeOverrideChange('userMessageBg', v)} />
-                      <ColorInput label="User Message Text" value={themeOverrides.userMessageColor || ''} onChange={v => handleThemeOverrideChange('userMessageColor', v)} />
-                      <ColorInput label="Assistant Message BG" value={themeOverrides.assistantMessageBg || ''} onChange={v => handleThemeOverrideChange('assistantMessageBg', v)} />
-                      <ColorInput label="Assistant Message Text" value={themeOverrides.assistantMessageColor || ''} onChange={v => handleThemeOverrideChange('assistantMessageColor', v)} />
+              <div className="space-y-6">
+                <div>
+                   <ColorSelector 
+                      label="Chat Background" 
+                      value={themeOverrides.chatBg || defaults.chatBg}
+                      onChange={v => handleThemeOverrideChange('chatBg', v)} 
+                    />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-4 p-4 rounded-lg border border-[--border-secondary] bg-[--bg-primary]">
+                    <PreviewBox 
+                      label="User Message Preview"
+                      bgColor={themeOverrides.userMessageBg || defaults.userMessageBg}
+                      textColor={themeOverrides.userMessageColor || defaults.userMessageColor}
+                    />
+                    <ColorSelector 
+                      label="Background Color" 
+                      value={themeOverrides.userMessageBg || defaults.userMessageBg}
+                      onChange={v => handleThemeOverrideChange('userMessageBg', v)} />
+                    <ColorSelector 
+                      label="Text Color" 
+                      value={themeOverrides.userMessageColor || defaults.userMessageColor}
+                      onChange={v => handleThemeOverrideChange('userMessageColor', v)} />
                   </div>
-                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                       <div>
-                            <label htmlFor="font-family" className="block text-sm font-medium text-[--text-muted] mb-1">
-                                Font Family
-                            </label>
-                            <select
-                                id="font-family"
-                                value={themeOverrides.fontFamily || 'sans-serif'}
-                                onChange={e => handleThemeOverrideChange('fontFamily', e.target.value)}
-                                className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
-                            >
-                                <option value="sans-serif">Sans-serif</option>
-                                <option value="serif">Serif</option>
-                                <option value="monospace">Monospace</option>
-                            </select>
-                       </div>
-                       <div>
-                             <label htmlFor="font-size" className="block text-sm font-medium text-[--text-muted] mb-1">
-                                Font Size (px)
-                            </label>
-                            <input
-                                type="number"
-                                id="font-size"
-                                value={themeOverrides.fontSize || 16}
-                                onChange={e => handleThemeOverrideChange('fontSize', e.target.valueAsNumber)}
-                                className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
-                                placeholder="16"
-                            />
-                       </div>
+
+                  <div className="space-y-4 p-4 rounded-lg border border-[--border-secondary] bg-[--bg-primary]">
+                    <PreviewBox 
+                      label="Assistant Message Preview"
+                      bgColor={themeOverrides.assistantMessageBg || defaults.assistantMessageBg}
+                      textColor={themeOverrides.assistantMessageColor || defaults.assistantMessageColor}
+                    />
+                    <ColorSelector 
+                      label="Background Color" 
+                      value={themeOverrides.assistantMessageBg || defaults.assistantMessageBg}
+                      onChange={v => handleThemeOverrideChange('assistantMessageBg', v)} />
+                    <ColorSelector 
+                      label="Text Color" 
+                      value={themeOverrides.assistantMessageColor || defaults.assistantMessageColor}
+                      onChange={v => handleThemeOverrideChange('assistantMessageColor', v)} />
+                  </div>
+                </div>
+                  
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                   <div>
+                        <label htmlFor="font-family" className="block text-sm font-medium text-[--text-muted] mb-1">
+                            Font Family
+                        </label>
+                        <select
+                            id="font-family"
+                            value={themeOverrides.fontFamily || 'sans-serif'}
+                            onChange={e => handleThemeOverrideChange('fontFamily', e.target.value)}
+                            className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
+                        >
+                            <option value="sans-serif">Sans-serif</option>
+                            <option value="serif">Serif</option>
+                            <option value="monospace">Monospace</option>
+                        </select>
                    </div>
-               </div>
+                   <div>
+                         <label htmlFor="font-size" className="block text-sm font-medium text-[--text-muted] mb-1">
+                            Font Size (px)
+                        </label>
+                        <input
+                            type="number"
+                            id="font-size"
+                            value={themeOverrides.fontSize || 16}
+                            onChange={e => handleThemeOverrideChange('fontSize', e.target.valueAsNumber)}
+                            className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
+                            placeholder="16"
+                        />
+                   </div>
+                </div>
+              </div>
             </div>
               
             {isElectron && (
@@ -218,28 +304,5 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
     </div>
   );
 };
-
-
-const ColorInput: React.FC<{ label: string; value: string; onChange: (value: string) => void;}> = ({ label, value, onChange }) => (
-    <div>
-        <label className="block text-sm font-medium text-[--text-muted] mb-1">{label}</label>
-        <div className="flex items-center gap-2 px-2 border border-[--border-secondary] rounded-md bg-[--bg-tertiary] focus-within:ring-2 focus-within:ring-[--border-focus]">
-            <input
-                type="color"
-                value={value || '#000000'}
-                onChange={e => onChange(e.target.value)}
-                className="w-6 h-6 p-0 bg-transparent border-none cursor-pointer"
-            />
-            <input
-                type="text"
-                value={value}
-                onChange={e => onChange(e.target.value)}
-                className="w-full py-2 bg-transparent text-[--text-primary] focus:outline-none"
-                placeholder="e.g., #ffffff"
-            />
-        </div>
-    </div>
-);
-
 
 export default SettingsPanel;
