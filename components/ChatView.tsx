@@ -442,9 +442,9 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
           <div key={index} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
             {msg.role === 'assistant' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center"><ModelIcon className="w-5 h-5 text-blue-500 dark:text-blue-400" /></div>}
             <div
-              className={`max-w-2xl p-4 rounded-xl ${
+              className={`max-w-4xl p-4 rounded-xl ${
                 msg.role === 'user'
-                  ? 'bg-blue-600 text-white rounded-br-none'
+                  ? 'bg-[--bg-accent] text-[--text-on-accent] rounded-br-none'
                   : 'bg-[--bg-secondary] text-[--text-primary] rounded-bl-none'
               }`}
             >
