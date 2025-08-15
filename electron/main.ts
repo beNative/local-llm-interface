@@ -80,10 +80,12 @@ const runInExternalConsole = (commandWithArgs: string, cwd: string): Promise<{ s
     }
 
     return new Promise((resolve) => {
-        // The 'start' command in cmd.exe opens a new window.
-        // '/k' keeps the window open after the command finishes.
-        const spawnArgs = ['/c', 'start', 'cmd.exe', '/k', commandWithArgs];
-        const child = spawn('cmd.exe', spawnArgs, { cwd });
+        // We use `shell: true` so that the command string is interpreted by cmd.exe,
+        // which correctly handles operators like `&&` and internal commands like `start`.
+        // A title "..." is provided to `start` to prevent it from misinterpreting a
+        // quoted path in the command as the window title.
+        const command = `start "Python Runner" cmd.exe /k ${commandWithArgs}`;
+        const child = spawn(command, { cwd, shell: true });
 
         let stderr = '';
         // We can't capture stdout/stderr from the new window, but we can see errors from spawn itself.
