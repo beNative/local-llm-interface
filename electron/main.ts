@@ -469,7 +469,9 @@ app.whenReady().then(() => {
                 const { stderr } = await runCommand(pythonCommand, ['-m', 'venv', venvPath], projectPath);
                 if (stderr) throw new Error(stderr);
             } else if (projectType === 'nodejs') {
-                const { stderr } = await runCommand('npm', ['init', '-y'], projectPath);
+                const settings: any = readSettings();
+                const npmCommand = settings.selectedNodePath ? path.join(path.dirname(settings.selectedNodePath), 'npm') : 'npm';
+                const { stderr } = await runCommand(npmCommand, ['init', '-y'], projectPath);
                 if (stderr) throw new Error(stderr);
             } else if (projectType === 'java') {
                  // Create Maven structure and files
