@@ -711,8 +711,21 @@ end.
         }
         
         if (project.type === 'delphi') {
-            shell.openPath(project.path);
-            return { stdout: `Successfully opened project folder for "${project.name}".`, stderr: 'Direct execution for Delphi projects is not supported. Please use your Delphi IDE to compile and run the project.' };
+            if (!settings?.selectedDelphiPath) {
+                return { stdout: '', stderr: 'Delphi compiler path not set. Please configure it in Settings > Advanced > Toolchains.' };
+            }
+            const compilerPath = path.join(settings.selectedDelphiPath, 'bin', 'dcc32.exe');
+            if (!fs.existsSync(compilerPath)) {
+                return { stdout: '', stderr: `Delphi compiler not found at expected path: ${compilerPath}` };
+            }
+            const dprFile = `${project.name}.dpr`;
+            const dprPath = path.join(project.path, dprFile);
+            if (!fs.existsSync(dprPath)) {
+                return { stdout: '', stderr: `Project file not found: ${dprPath}` };
+            }
+            
+            console.log(`Compiling Delphi project: ${dprFile} with compiler ${compilerPath}`);
+            return runCommand(compilerPath, ['-B', '-Q', dprFile], project.path);
         }
 
         return { stdout: '', stderr: `Project type "${project.type}" cannot be run.` };

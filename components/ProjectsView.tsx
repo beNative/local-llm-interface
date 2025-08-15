@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import type { Config, CodeProject, ProjectType, FileSystemEntry } from '../types';
 import CodeIcon from './icons/CodeIcon';
@@ -115,7 +116,9 @@ const ProjectCard: React.FC<{
                     : 'text-purple-500';
 
     const RunIcon = project.type === 'webapp' ? GlobeIcon : PlayIcon;
-    const runText = project.type === 'webapp' ? 'Run in Browser' : 'Run Project';
+    const runText = project.type === 'webapp' ? 'Run in Browser' 
+                  : project.type === 'delphi' ? 'Build Project' 
+                  : 'Run Project';
     
     return (
         <div className="bg-[--bg-primary] rounded-xl border border-[--border-primary] flex flex-col transition-shadow hover:shadow-md">
