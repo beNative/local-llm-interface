@@ -73,12 +73,25 @@ export interface Config {
   predefinedPrompts?: PredefinedPrompt[];
 }
 
+export interface ModelDetails {
+  format: string;
+  family: string;
+  families: string[] | null;
+  parameter_size: string;
+  quantization_level: string;
+}
+
 export interface Model {
   id: string;
   name: string; // Ollama uses 'name', OpenAI-compat uses 'id'
   object: string;
   created: number;
   owned_by: string;
+  // Ollama specific fields
+  modified_at?: string;
+  size?: number;
+  digest?: string;
+  details?: ModelDetails;
 }
 
 export type ChatMessageContentPart =

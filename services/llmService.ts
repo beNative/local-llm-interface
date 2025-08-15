@@ -23,7 +23,14 @@ export const fetchModels = async (baseUrl: string): Promise<Model[]> => {
     // Ollama has a slightly different format than standard OpenAI-compatible endpoints
     if (data.models) {
         logger.info(`Found ${data.models.length} models (Ollama format).`);
-        return data.models.map((m: any) => ({ ...m, id: m.name }));
+        return data.models.map((m: any) => ({
+             ...m,
+             id: m.name,
+             // Normalize timestamp for UI consistency
+             created: m.modified_at ? Math.floor(new Date(m.modified_at).getTime() / 1000) : 0,
+             owned_by: 'ollama',
+             object: 'model',
+        }));
     }
     if (data.data) {
         logger.info(`Found ${data.data.length} models (OpenAI-compatible format).`);
