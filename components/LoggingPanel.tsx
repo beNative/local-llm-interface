@@ -98,7 +98,7 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
     >
       <div 
         onMouseDown={startResizing}
-        className="absolute top-0 left-0 w-full h-1.5 bg-[--bg-tertiary] hover:bg-blue-500 cursor-ns-resize transition-colors duration-200"
+        className="absolute top-0 left-0 w-full h-1.5 bg-[--bg-tertiary] hover:bg-[--border-focus] cursor-ns-resize transition-colors duration-200"
         aria-label="Resize panel"
       />
       <header className="flex items-center justify-between p-2 pt-3 border-b border-[--border-primary] flex-shrink-0">

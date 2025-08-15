@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { Config, CodeProject, ProjectType, FileSystemEntry } from '../types';
 import CodeIcon from './icons/CodeIcon';
@@ -205,10 +206,18 @@ interface ProjectsViewProps {
   onRunProject: (project: CodeProject) => void;
 }
 
+const projectTypes: { key: ProjectType; name: string }[] = [
+    { key: 'python', name: 'Python' },
+    { key: 'nodejs', name: 'Node.js' },
+    { key: 'java', name: 'Java' },
+    { key: 'webapp', name: 'Web App' },
+];
+
 const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isElectron, onInjectContentForChat, onRunProject }) => {
     const [busyProjects, setBusyProjects] = useState<Set<string>>(new Set());
     const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
     const [editingFile, setEditingFile] = useState<{ path: string, name: string } | null>(null);
+    const [activeTab, setActiveTab] = useState<ProjectType>('python');
     
     if (!isElectron) {
         return (
@@ -376,11 +385,26 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
           Projects
         </h1>
         
-        <div className="space-y-8">
-            {renderProjectSection('python')}
-            {renderProjectSection('nodejs')}
-            {renderProjectSection('java')}
-            {renderProjectSection('webapp')}
+        <div className="mb-8 border-b border-[--border-primary]">
+            <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                {projectTypes.map((tab) => (
+                    <button
+                        key={tab.key}
+                        onClick={() => setActiveTab(tab.key)}
+                        className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                            activeTab === tab.key
+                                ? 'border-[--accent-projects] text-[--accent-projects]'
+                                : 'border-transparent text-[--text-muted] hover:text-[--text-primary] hover:border-gray-300 dark:hover:border-gray-700'
+                        }`}
+                    >
+                        {tab.name}
+                    </button>
+                ))}
+            </nav>
+        </div>
+
+        <div>
+            {renderProjectSection(activeTab)}
         </div>
       </div>
     </div>
