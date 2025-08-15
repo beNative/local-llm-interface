@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - YYYY-MM-DD
+
+### Added
+- **AI-Assisted File Modifications**: Empower the AI to propose changes directly to project files. Users can review these changes in an interactive diff view and accept or reject them with a single click.
+- **Smart Context (RAG)**: A new "Smart Context" toggle for project-based chats. When enabled, the AI first identifies the most relevant project files for a query, reads their content, and then generates a highly context-aware response.
+- **API Client View**: A new major feature that allows users to generate, edit, and send HTTP requests using natural language prompts. It's a powerful tool for testing and interacting with APIs.
+- **System Prompts (Personas)**: Users can now create, save, and switch between different system prompts (personas) for the AI, allowing for specialized behavior in each chat session.
+- **Appearance Customization**: Added extensive theme customization options in Settings, including the ability to change chat colors, font family, and font size.
+- **Command Palette**: A powerful `Cmd/Ctrl+K` command palette has been added for fast navigation. Users can search for and jump to any chat session, project, project file, or application view.
+- **Advanced Project Support**: Added full project management support for **Java (Maven)** and **Delphi**, including creation, building, and running.
+- **Toolchain Detection**: The application now automatically detects installed development toolchains (Python, JDK, Node.js, Delphi) and allows users to select a specific version in Settings.
+- **Status Bar**: A new status bar at the bottom of the window displays real-time application CPU and Memory usage (Electron app only).
+
 ## [1.3.0] - YYYY-MM-DD
 
 ### Added

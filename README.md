@@ -7,19 +7,21 @@ A user-friendly desktop application to chat with locally installed LLMs serviced
 - **Multiple Provider Support**: Connect to Ollama, LMStudio, or a custom OpenAI-compatible server.
 - **Model Discovery**: Automatically fetches and displays a list of available models from the connected service.
 - **Intuitive Chat Interface**: A clean, modern chat view for interacting with your chosen model.
+- **AI-Assisted File Modifications**: Ask the AI to refactor or modify project files directly from the chat. Review the proposed changes in an interactive diff view and apply them with a single click.
+- **Smart Context (RAG)**: When a project is selected, the AI can automatically identify and read the most relevant files to answer your query, providing highly accurate, context-aware responses.
+- **API Client**: A dedicated view to generate, edit, and send HTTP requests using natural language prompts, perfect for testing APIs.
+- **Advanced Project Management**: Full support for Python (venv), Node.js (npm), Java (Maven), Delphi, and static Web App projects.
+- **In-App File Editor**: A built-in file viewer and editor to browse and modify your project files without leaving the application.
+- **Code Execution**: Run Python/Node.js code snippets or entire projects directly from the interface.
+- **System Prompts (Personas)**: Create and switch between different AI personas (e.g., "Senior DevOps Engineer") to tailor responses for specific tasks.
+- **Command Palette**: A Spotlight-style interface (`Cmd/Ctrl+K`) to instantly search and navigate to chats, projects, files, and application views.
 - **Multimodal Chat**: Attach images to your prompts for models that support it.
-- **Markdown & Syntax Highlighting**: Renders model responses in Markdown, with beautiful syntax highlighting for code snippets.
-- **Code Execution**: Run Python code directly from the chat interface.
-  - **Native Execution**: Uses your system's Python interpreter for full capability in the Electron app.
-  - **WASM Fallback**: Uses Pyodide (Python in WebAssembly) for safe, in-browser execution as a fallback.
-- **Resizable Interface**: Adjust the width of the session sidebar for a custom layout.
-- **Enhanced Chat Controls**: Includes a "Stop Generation" button and an auto-resizing text input.
-- **Smart Session Management**: Automatically generate session titles based on conversation content, with a manual trigger button.
-- **Advanced Logging**: A dockable logging panel shows all internal application events, with filtering by severity level (DEBUG, INFO, WARNING, ERROR).
-- **File Logging**: Option to automatically save logs to a file for easier debugging.
-- **Persistent Settings**: Remembers your connection settings and theme preference between sessions.
+- **Advanced Customization**: Customize chat colors, font family, and font size in the Settings panel.
+- **Toolchain Detection**: Automatically detects installed development toolchains (Python, Java, Node.js, Delphi) and allows you to select which one to use.
+- **Status Bar**: Displays real-time application CPU and Memory usage for performance monitoring.
+- **Advanced Logging**: A dockable, filterable logging panel shows all internal application events for easy debugging.
+- **Persistent Settings**: Remembers your connection settings, projects, and theme preference between sessions.
 - **Light & Dark Themes**: Switch between themes to suit your preference.
-- **Cross-Platform**: Built with Electron to run on Windows, macOS, and Linux.
 
 ## Tech Stack
 
