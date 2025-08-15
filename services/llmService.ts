@@ -173,13 +173,19 @@ export const streamChatCompletion = async (
             }
             try {
               const json = JSON.parse(data);
-              const content = json.choices[0]?.delta?.content || '';
+              const content = json.choices?.[0]?.delta?.content || '';
               if (content) {
                 onChunk(content);
               }
-              // Capture usage stats, which usually arrive in the last chunk
-              if (json.usage) {
+              // Capture usage stats, which can arrive in different formats
+              if (json.usage) { // Standard OpenAI format
                   usage = json.usage;
+              } else if (json.done === true && json.prompt_eval_count !== undefined) { // Ollama format
+                  usage = {
+                      prompt_tokens: json.prompt_eval_count,
+                      completion_tokens: json.eval_count,
+                      total_tokens: json.prompt_eval_count + (json.eval_count || 0),
+                  };
               }
             } catch (e) {
                logger.warn(`Could not parse stream data chunk: ${e}, Data: "${data}"`);
