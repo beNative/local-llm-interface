@@ -1,6 +1,7 @@
 
 
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
@@ -127,7 +128,6 @@ const App: React.FC = () => {
         javaProjectsPath: '',
         delphiProjectsPath: '',
         projects: [],
-        pythonCommand: 'python',
         apiRecentPrompts: [],
         sessions: [],
         predefinedPrompts: [],

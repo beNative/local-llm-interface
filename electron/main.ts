@@ -12,7 +12,7 @@ import * as crypto from 'crypto';
 import { request as httpRequest } from 'http';
 import { request as httpsRequest } from 'https';
 import type { IncomingHttpHeaders } from 'http';
-import type { ApiRequest, ApiResponse, CodeProject, ProjectType } from '../src/types';
+import type { ApiRequest, ApiResponse, CodeProject, ProjectType, Toolchain, ToolchainStatus } from '../src/types';
 
 
 // The path where user settings will be stored.
@@ -116,6 +116,118 @@ const getPythonExecutable = (venvPath: string): string => {
     return path.join(venvPath, 'bin', 'python');
 };
 
+const execCommand = (cmd: string, args: string[] = []): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const child = spawn(cmd, args, { shell: os.platform() === 'win32' });
+        let stdout = '';
+        let stderr = '';
+        child.stdout.on('data', data => stdout += data.toString());
+        child.stderr.on('data', data => stderr += data.toString());
+        child.on('error', reject);
+        child.on('close', code => {
+            if (code === 0) {
+                resolve(stdout.trim());
+            } else {
+                reject(new Error(stderr.trim()));
+            }
+        });
+    });
+};
+
+async function detectPythonInterpreters(): Promise<Toolchain[]> {
+    const interpreters = new Set<string>();
+    const commands = os.platform() === 'win32' ? ['py -0p', 'where python', 'where python3'] : ['which -a python3', 'which -a python'];
+
+    for (const cmd of commands) {
+        try {
+            const [command, ...args] = cmd.split(' ');
+            const output = await execCommand(command, args);
+            const lines = output.split('\n').filter(Boolean);
+
+            if (cmd === 'py -0p') {
+                lines.forEach(line => {
+                    const match = line.match(/\s+(C:.*\.exe)/i);
+                    if (match) interpreters.add(match[1].trim());
+                });
+            } else {
+                 lines.forEach(line => interpreters.add(line.trim()));
+            }
+        } catch (e) { /* command might not exist, ignore */ }
+    }
+
+    const toolchains: Toolchain[] = [];
+    for (const p of interpreters) {
+        try {
+            const versionOutput = await execCommand(p, ['--version']);
+            const version = versionOutput.split(' ')[1] || versionOutput;
+            toolchains.push({ path: p, version, name: `Python ${version}` });
+        } catch (e) { console.warn(`Could not get version for python at ${p}`); }
+    }
+    return toolchains;
+}
+
+async function detectJavaCompilers(): Promise<Toolchain[]> {
+    const compilers = new Set<string>();
+    const cmd = os.platform() === 'win32' ? 'where javac' : 'which javac';
+
+    try {
+        const [command, ...args] = cmd.split(' ');
+        const output = await execCommand(command, args);
+        output.split('\n').filter(Boolean).forEach(p => compilers.add(p.trim()));
+    } catch (e) { /* ignore */ }
+
+    const toolchains: Toolchain[] = [];
+    for (const p of compilers) {
+        try {
+            const javaPath = p.replace('javac.exe', 'java.exe').replace('/bin/javac', '/bin/java');
+            const versionOutput = await execCommand(javaPath, ['-version']);
+            const versionMatch = versionOutput.match(/"(\d+\.\d+\.\d+)_?\d*"/);
+            const version = versionMatch ? versionMatch[1] : 'Unknown';
+            const jdkPath = path.dirname(path.dirname(p)); // up from /bin
+            toolchains.push({ path: jdkPath, version, name: `JDK ${version}` });
+        } catch (e) { console.warn(`Could not get version for java at ${p}`); }
+    }
+    return toolchains;
+}
+
+async function detectNodeJS(): Promise<Toolchain[]> {
+    const nodes = new Set<string>();
+    const cmd = os.platform() === 'win32' ? 'where node' : 'which node';
+    try {
+        const [command, ...args] = cmd.split(' ');
+        const output = await execCommand(command, args);
+        output.split('\n').filter(Boolean).forEach(p => nodes.add(p.trim()));
+    } catch (e) { /* ignore */ }
+
+    const toolchains: Toolchain[] = [];
+    for (const p of nodes) {
+        try {
+            const versionOutput = await execCommand(p, ['--version']);
+            toolchains.push({ path: p, version: versionOutput, name: `Node.js ${versionOutput}` });
+        } catch (e) { console.warn(`Could not get version for node at ${p}`); }
+    }
+    return toolchains;
+}
+
+async function detectDelphiCompilers(): Promise<Toolchain[]> {
+    if (os.platform() !== 'win32') return [];
+    try {
+        const output = await execCommand('reg', ['query', 'HKCU\\Software\\Embarcadero\\BDS', '/s', '/v', 'RootDir']);
+        const toolchains: Toolchain[] = [];
+        const regex = /HKEY_CURRENT_USER\\Software\\Embarcadero\\BDS\\(\d+\.\d+)\s+RootDir\s+REG_SZ\s+(.*)/g;
+        let match;
+        while ((match = regex.exec(output)) !== null) {
+            const version = match[1];
+            const path = match[2].trim();
+            toolchains.push({ path, version, name: `RAD Studio ${version}` });
+        }
+        return toolchains;
+    } catch (e) {
+        return [];
+    }
+}
+
+
 const createWindow = () => {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -153,6 +265,18 @@ app.whenReady().then(() => {
         return app.isPackaged;
     });
 
+    ipcMain.handle('detect:toolchains', async (): Promise<ToolchainStatus> => {
+        console.log("Detecting toolchains...");
+        const [python, java, nodejs, delphi] = await Promise.all([
+            detectPythonInterpreters(),
+            detectJavaCompilers(),
+            detectNodeJS(),
+            detectDelphiCompilers(),
+        ]);
+        console.log(`Detected: ${python.length} Python, ${java.length} Java, ${nodejs.length} Node, ${delphi.length} Delphi`);
+        return { python, java, nodejs, delphi };
+    });
+
     ipcMain.handle('log:write', (_, entry: { timestamp: string, level: string, message: string }) => {
         try {
             const logDir = app.isPackaged ? path.dirname(app.getPath('exe')) : app.getAppPath();
@@ -170,7 +294,7 @@ app.whenReady().then(() => {
 
     ipcMain.handle('python:run', async (_, code: string): Promise<{ stdout: string; stderr: string }> => {
         const settings: any = readSettings();
-        const pythonCommand = settings?.pythonCommand || 'python';
+        const pythonCommand = settings?.selectedPythonPath || 'python';
 
         const tempDir = os.tmpdir();
         const tempFileName = `pyscript_${crypto.randomBytes(6).toString('hex')}.py`;
@@ -211,6 +335,8 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('nodejs:run', async (_, code: string): Promise<{ stdout: string; stderr: string }> => {
+        const settings: any = readSettings();
+        const nodeCommand = settings?.selectedNodePath || 'node';
         const tempDir = os.tmpdir();
         const tempFileName = `nodescript_${crypto.randomBytes(6).toString('hex')}.js`;
         const tempFilePath = path.join(tempDir, tempFileName);
@@ -219,7 +345,7 @@ app.whenReady().then(() => {
 
         try {
             return await new Promise((resolve, reject) => {
-                const child = spawn('node', [tempFilePath], { shell: os.platform() === 'win32' });
+                const child = spawn(nodeCommand, [tempFilePath], { shell: os.platform() === 'win32' });
                 let stdout = '';
                 let stderr = '';
 
@@ -338,7 +464,7 @@ app.whenReady().then(() => {
         try {
             if (projectType === 'python') {
                 const settings: any = readSettings();
-                const pythonCommand = settings?.pythonCommand || 'python';
+                const pythonCommand = settings?.selectedPythonPath || 'python';
                 const venvPath = path.join(projectPath, 'venv');
                 const { stderr } = await runCommand(pythonCommand, ['-m', 'venv', venvPath], projectPath);
                 if (stderr) throw new Error(stderr);
@@ -467,6 +593,7 @@ end.
     });
 
     ipcMain.handle('project:install-deps', async (_, project: CodeProject) => {
+        const settings: any = readSettings();
         if (project.type === 'python') {
             const reqFile = path.join(project.path, 'requirements.txt');
             if (!fs.existsSync(reqFile)) {
@@ -477,14 +604,17 @@ end.
             const pythonExec = getPythonExecutable(venvPath);
             return await runCommand(pythonExec, ['-m', 'pip', 'install', '-r', 'requirements.txt'], project.path);
         } else if (project.type === 'nodejs') {
-            return await runCommand('npm', ['install'], project.path);
+            const npmCommand = settings.selectedNodePath ? path.join(path.dirname(settings.selectedNodePath), 'npm') : 'npm';
+            return await runCommand(npmCommand, ['install'], project.path);
         } else if (project.type === 'java') {
-            return await runCommand('mvn', ['install'], project.path);
+            const mvnCommand = 'mvn'; // Assuming mvn is in PATH. A specific path from settings could be used here.
+            return await runCommand(mvnCommand, ['install'], project.path);
         }
         return { stdout: '', stderr: `Dependency installation is not applicable for project type: ${project.type}` };
     });
     
     ipcMain.handle('project:run', async (_, project: CodeProject): Promise<{ stdout: string; stderr: string }> => {
+        const settings: any = readSettings();
         if (!isPathInAllowedBase(project.path)) {
             return { stdout: '', stderr: 'Execution denied: project path is not in an allowed base directory.' };
         }
@@ -517,6 +647,8 @@ end.
         
         if (project.type === 'nodejs') {
             const packageJsonPath = path.join(project.path, 'package.json');
+            const nodeCommand = settings.selectedNodePath || 'node';
+            const npmCommand = settings.selectedNodePath ? path.join(path.dirname(settings.selectedNodePath), 'npm') : 'npm';
             
             // 1. Try `npm run start` first, as it's the standard.
             if (fs.existsSync(packageJsonPath)) {
@@ -524,7 +656,7 @@ end.
                     const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
                     if (pkg.scripts && pkg.scripts.start) {
                         console.log(`Found 'start' script in package.json. Running 'npm start' for ${project.name}`);
-                        return runCommand('npm', ['start'], project.path);
+                        return runCommand(npmCommand, ['start'], project.path);
                     }
                 } catch (e) {
                     return { stdout: '', stderr: `Error reading package.json: ${e instanceof Error ? e.message : String(e)}` };
@@ -551,10 +683,11 @@ end.
             if (entryFile) {
                 if (entryFile.endsWith('.ts')) {
                     console.log(`Found TypeScript entry file: ${entryFile}. Running with 'npx ts-node'.`);
-                    return runCommand('npx', ['ts-node', entryFile], project.path);
+                    const npxCommand = settings.selectedNodePath ? path.join(path.dirname(settings.selectedNodePath), 'npx') : 'npx';
+                    return runCommand(npxCommand, ['ts-node', entryFile], project.path);
                 } else { // .js file
                     console.log(`Found JavaScript entry file: ${entryFile}. Running with 'node'.`);
-                    return runCommand('node', [entryFile], project.path);
+                    return runCommand(nodeCommand, [entryFile], project.path);
                 }
             }
 
@@ -584,6 +717,7 @@ end.
     });
 
     ipcMain.handle('project:run-script', async (_, { project, code }: { project: CodeProject, code: string }) => {
+        const settings: any = readSettings();
         const extension = project.type === 'python' ? 'py' : project.type === 'java' ? 'java' : 'js';
         const tempFileName = `script_${crypto.randomBytes(6).toString('hex')}.${extension}`;
         const tempFilePath = path.join(project.path, tempFileName);
@@ -595,7 +729,8 @@ end.
                 const pythonExec = getPythonExecutable(path.join(project.path, 'venv'));
                 return await runCommand(pythonExec, [tempFilePath], project.path);
             } else if (project.type === 'nodejs') {
-                return await runCommand('node', [tempFilePath], project.path);
+                const nodeCommand = settings.selectedNodePath || 'node';
+                return await runCommand(nodeCommand, [tempFilePath], project.path);
             } else {
                  return { stdout: '', stderr: `Running standalone scripts is not supported for project type: ${project.type}`};
             }

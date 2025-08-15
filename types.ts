@@ -63,6 +63,18 @@ export interface SystemPrompt {
   content: string;
 }
 
+export interface Toolchain {
+  path: string;
+  version?: string;
+  name: string;
+}
+export interface ToolchainStatus {
+    python: Toolchain[];
+    java: Toolchain[];
+    nodejs: Toolchain[];
+    delphi: Toolchain[];
+}
+
 export interface Config {
   provider: LLMProvider;
   baseUrl: string;
@@ -75,12 +87,16 @@ export interface Config {
   javaProjectsPath?: string;
   delphiProjectsPath?: string;
   projects?: CodeProject[];
-  pythonCommand?: string;
   apiRecentPrompts?: string[];
   sessions?: ChatSession[];
   activeSessionId?: string;
   predefinedPrompts?: PredefinedPrompt[];
   systemPrompts?: SystemPrompt[];
+  // Toolchain paths
+  selectedPythonPath?: string;
+  selectedJavaPath?: string;
+  selectedNodePath?: string;
+  selectedDelphiPath?: string;
 }
 
 export interface ModelDetails {

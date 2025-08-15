@@ -1,6 +1,7 @@
 
 
 
+
 const { contextBridge, ipcRenderer } = require('electron');
 import type { CodeProject } from '../src/types';
 
@@ -62,6 +63,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @returns {Promise<ApiResponse>} A promise that resolves with the API response.
    */
   makeApiRequest: (request: any) => ipcRenderer.invoke('api:make-request', request),
+  
+  /**
+   * Scans the system for installed development tools.
+   * @returns {Promise<ToolchainStatus>} A promise that resolves with the detected toolchains.
+   */
+  detectToolchains: () => ipcRenderer.invoke('detect:toolchains'),
 
   // Project Management APIs
   selectDirectory: () => ipcRenderer.invoke('dialog:select-directory'),

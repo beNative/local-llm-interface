@@ -1,11 +1,12 @@
 
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import type { Config, LLMProvider, Theme, ThemeOverrides, PredefinedPrompt, ColorOverrides, SystemPrompt } from '../types';
+import type { Config, LLMProvider, Theme, ThemeOverrides, PredefinedPrompt, ColorOverrides, SystemPrompt, ToolchainStatus, Toolchain } from '../types';
 import { PROVIDER_CONFIGS } from '../constants';
 import SettingsIcon from './icons/SettingsIcon';
 import TrashIcon from './icons/TrashIcon';
 import IdentityIcon from './icons/IdentityIcon';
+import SpinnerIcon from './icons/SpinnerIcon';
 
 interface SettingsPanelProps {
   config: Config;
@@ -115,11 +116,61 @@ const NewPromptForm: React.FC<{
     );
 };
 
+const ToolchainSelector: React.FC<{
+  label: string;
+  toolchains: Toolchain[];
+  selectedValue: string | undefined;
+  onChange: (newValue: string) => void;
+  isLoading: boolean;
+}> = ({ label, toolchains, selectedValue, onChange, isLoading }) => {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-[--text-muted] mb-1">{label}</label>
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-sm text-[--text-muted]">
+          <SpinnerIcon className="w-4 h-4" />
+          <span>Scanning for installations...</span>
+        </div>
+      ) : (
+        <select
+          value={selectedValue || 'default'}
+          onChange={e => onChange(e.target.value)}
+          className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
+        >
+          <option value="default">System Default (from PATH)</option>
+          {toolchains.length > 0 && <option disabled>--- Detected ---</option>}
+          {toolchains.map(tool => (
+            <option key={tool.path} value={tool.path} title={tool.path}>
+              {tool.name} ({tool.path})
+            </option>
+          ))}
+        </select>
+      )}
+      {toolchains.length === 0 && !isLoading && (
+        <p className="text-xs text-[--text-muted] mt-1 px-1">No installations detected automatically. The system default will be used.</p>
+      )}
+    </div>
+  );
+};
+
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, isElectron, theme }) => {
   const [localConfig, setLocalConfig] = useState<Config>(config);
   const [activeAppearanceTab, setActiveAppearanceTab] = useState<Theme>(theme);
+  const [toolchains, setToolchains] = useState<ToolchainStatus | null>(null);
+  const [isLoadingTools, setIsLoadingTools] = useState(false);
   const isUpdatingFromProps = useRef(true);
+  
+  useEffect(() => {
+    if (isElectron) {
+      setIsLoadingTools(true);
+      window.electronAPI!.detectToolchains()
+        .then(setToolchains)
+        .catch(e => console.error("Failed to detect toolchains", e))
+        .finally(() => setIsLoadingTools(false));
+    }
+  }, [isElectron]);
+
 
   useEffect(() => {
     isUpdatingFromProps.current = true;
@@ -127,21 +178,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
   }, [config]);
 
   useEffect(() => {
-    // This effect runs whenever localConfig changes, and will propagate it up.
-    // A flag is used to prevent an update loop when the parent `config` prop changes.
-    // A debounce is used to avoid spamming updates for fast changes (e.g., typing).
     if (isUpdatingFromProps.current) {
         isUpdatingFromProps.current = false;
         return;
     }
-
     const handler = setTimeout(() => {
         onConfigChange(localConfig);
     }, 500);
-
-    return () => {
-        clearTimeout(handler);
-    };
+    return () => clearTimeout(handler);
   }, [localConfig, onConfigChange]);
   
   const defaults = useMemo(() => ({
@@ -181,9 +225,10 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
   const handleLogToFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLocalConfig({ ...localConfig, logToFile: e.target.checked });
   };
-
-  const handlePythonCommandChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setLocalConfig({ ...localConfig, pythonCommand: e.target.value });
+  
+  const handleToolchainChange = (key: keyof Config, value: string) => {
+    const finalValue = value === 'default' ? undefined : value;
+    setLocalConfig(current => ({...current, [key]: finalValue }));
   };
   
   const handleColorOverrideChange = (key: keyof ColorOverrides, value: string) => {
@@ -497,42 +542,61 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
               <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
                    <h3 className="text-lg font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">Advanced</h3>
                   <div className="space-y-4">
-                      <label className="flex items-center gap-3 cursor-pointer">
-                          <input
-                              type="checkbox"
-                              checked={!!localConfig.logToFile}
-                              onChange={handleLogToFileChange}
-                              className="w-4 h-4 rounded text-indigo-600 bg-[--bg-tertiary] border-[--border-secondary] focus:ring-indigo-500"
-                          />
-                          <span className="text-sm font-medium text-[--text-muted]">
-                              Automatically save logs to file
-                          </span>
-                      </label>
-                      <p className="text-xs text-[--text-muted] -mt-2 px-1">
-                          Saves logs to a file in the app directory. Useful for debugging.
-                      </p>
-                      
-                      <div>
-                          <label htmlFor="pythonCommand" className="block text-sm font-medium text-[--text-muted] mb-1">
-                              Python Command
-                          </label>
-                          <input
-                              type="text"
-                              id="pythonCommand"
-                              value={localConfig.pythonCommand || ''}
-                              onChange={handlePythonCommandChange}
-                              className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
-                              placeholder="e.g., python or python3"
-                          />
-                           <p className="text-xs text-[--text-muted] mt-2 px-1">
-                              The command to execute Python scripts (e.g., 'python', 'python3', or a full path).
-                          </p>
+                      <div className="space-y-4">
+                        <h4 className="text-md font-semibold text-[--text-secondary]">Toolchains</h4>
+                        <p className="text-xs text-[--text-muted] -mt-2 px-1">
+                          Configure the specific compilers and interpreters to use for creating and running projects.
+                        </p>
+                        <ToolchainSelector
+                          label="Python Interpreter"
+                          isLoading={isLoadingTools}
+                          toolchains={toolchains?.python || []}
+                          selectedValue={localConfig.selectedPythonPath}
+                          onChange={(v) => handleToolchainChange('selectedPythonPath', v)}
+                        />
+                        <ToolchainSelector
+                          label="Java Development Kit (JDK)"
+                          isLoading={isLoadingTools}
+                          toolchains={toolchains?.java || []}
+                          selectedValue={localConfig.selectedJavaPath}
+                          onChange={(v) => handleToolchainChange('selectedJavaPath', v)}
+                        />
+                         <ToolchainSelector
+                          label="Node.js Executable"
+                          isLoading={isLoadingTools}
+                          toolchains={toolchains?.nodejs || []}
+                          selectedValue={localConfig.selectedNodePath}
+                          onChange={(v) => handleToolchainChange('selectedNodePath', v)}
+                        />
+                         <ToolchainSelector
+                          label="Delphi/RAD Studio Compiler"
+                          isLoading={isLoadingTools}
+                          toolchains={toolchains?.delphi || []}
+                          selectedValue={localConfig.selectedDelphiPath}
+                          onChange={(v) => handleToolchainChange('selectedDelphiPath', v)}
+                        />
+                      </div>
+                      <div className="pt-4 border-t border-[--border-primary]">
+                        <h4 className="text-md font-semibold text-[--text-secondary]">Logging</h4>
+                        <label className="flex items-center gap-3 cursor-pointer mt-2">
+                            <input
+                                type="checkbox"
+                                checked={!!localConfig.logToFile}
+                                onChange={handleLogToFileChange}
+                                className="w-4 h-4 rounded text-indigo-600 bg-[--bg-tertiary] border-[--border-secondary] focus:ring-indigo-500"
+                            />
+                            <span className="text-sm font-medium text-[--text-muted]">
+                                Automatically save logs to file
+                            </span>
+                        </label>
+                        <p className="text-xs text-[--text-muted] mt-1 px-1">
+                            Saves logs to a file in the app directory. Useful for debugging.
+                        </p>
                       </div>
                   </div>
               </div>
             )}
         </div>
-
       </div>
     </div>
   );
