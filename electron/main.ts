@@ -1,6 +1,7 @@
 
 
-import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
+
+const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 import * as path from 'path';
 import * as fs from 'fs';
 import { readdir, stat, readFile, writeFile, mkdir } from 'fs/promises';

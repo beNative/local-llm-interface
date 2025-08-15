@@ -247,11 +247,11 @@ const App: React.FC = () => {
   }, [config?.baseUrl]);
 
   useEffect(() => {
-    // Load models if config is ready and we are on a view that needs them (like model selector)
-    if (config?.baseUrl && (view === 'chat' && !activeSessionId) || view === 'api') {
+    // Load models if config is ready and we are on a view that needs them
+    if (config?.baseUrl && (view === 'chat' || view === 'api')) {
       loadModels();
     }
-  }, [view, activeSessionId, config?.baseUrl, loadModels]);
+  }, [view, config?.baseUrl, loadModels]);
   
   const handleSelectSession = (sessionId: string) => {
     setConfig(c => c ? ({ ...c, activeSessionId: sessionId }) : null);
@@ -299,12 +299,8 @@ const App: React.FC = () => {
     setView('chat');
   };
 
-  const generateSessionName = async (sessionId: string, newMessages: ChatMessage[]) => {
+  const generateSessionName = async (session: ChatSession) => {
       if (!config) return;
-      const session = newMessages ? { messages: newMessages } : sessions.find(s => s.id === sessionId);
-      const modelId = sessions.find(s => s.id === sessionId)?.modelId;
-
-      if (!session || !modelId) return;
 
       const conversation = session.messages
           .filter(m => ['user', 'assistant'].includes(m.role))
@@ -315,12 +311,12 @@ const App: React.FC = () => {
       const prompt = `${SESSION_NAME_PROMPT}\n\n---\n\nConversation:\n${conversation}`;
       
       try {
-          logger.info(`Generating session title for session ${sessionId}`);
-          const title = await generateTextCompletion(config.baseUrl, modelId, [{ role: 'user', content: prompt }]);
+          logger.info(`Generating session title for session ${session.id}`);
+          const title = await generateTextCompletion(config.baseUrl, session.modelId, [{ role: 'user', content: prompt }]);
           const cleanedTitle = title.trim().replace(/^"|"$/g, '');
           if (cleanedTitle) {
-            handleRenameSession(sessionId, cleanedTitle);
-            logger.info(`Session ${sessionId} renamed to: "${cleanedTitle}"`);
+            handleRenameSession(session.id, cleanedTitle);
+            logger.info(`Session ${session.id} renamed to: "${cleanedTitle}"`);
           }
       } catch (e) {
           logger.error(`Failed to generate session name: ${e}`);
@@ -391,9 +387,17 @@ const App: React.FC = () => {
       () => {
         setIsResponding(false);
         logger.info('Message stream completed.');
-        if (isFirstUserMessage) {
-            const finalMessages: ChatMessage[] = [...newMessages, { role: 'assistant', content: '...' }]; // content is not important here
-            generateSessionName(activeSessionId!, finalMessages);
+        if (isFirstUserMessage && activeSessionId) {
+            // Use setConfig's callback to ensure we get the final, updated state
+            setConfig(currentConfig => {
+                if (!currentConfig) return null;
+                const finalSession = currentConfig.sessions?.find(s => s.id === activeSessionId);
+                if (finalSession) {
+                    // Fire-and-forget the async name generation
+                    generateSessionName(finalSession);
+                }
+                return currentConfig; // No actual state change needed here
+            });
         }
       }
     );
@@ -495,6 +499,8 @@ const App: React.FC = () => {
                         onPrefillConsumed={onPrefillConsumed}
                         activeProjectId={activeProjectId}
                         onSetActiveProject={setActiveProjectId}
+                        models={models}
+                        onSelectModel={handleSelectModel}
                     />
                 );
              }

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { Config, LLMProvider, Theme, ThemeOverrides } from '../types';
 import { PROVIDER_CONFIGS } from '../constants';
 import SettingsIcon from './icons/SettingsIcon';
@@ -14,9 +14,9 @@ interface SettingsPanelProps {
 
 const PREDEFINED_COLORS = [
   // Grayscale
-  '#ffffff', '#f8fafc', '#f1f5f9', '#e2e8f0', '#94a3b8', '#64748b', '#475569', '#334155', '#1e293b', '#0f172a',
+  '#f8fafc', '#f1f5f9', '#e2e8f0', '#94a3b8', '#64748b', '#334155', '#1e293b', '#0f172a',
   // Accent Colors
-  '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899',
+  '#ef4444', '#f97316', '#f59e0b', '#10b981', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899',
 ];
 
 const ColorSelector: React.FC<{ label: string; value: string; onChange: (value: string) => void;}> = ({ label, value, onChange }) => (
@@ -60,15 +60,21 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
     setLocalConfig(config);
   }, [config]);
   
-  const getDefaults = (theme: Theme) => ({
-      chatBg: theme === 'dark' ? '#0f172a' : '#ffffff',
-      userMessageBg: theme === 'dark' ? '#3b82f6' : '#2563eb',
-      userMessageColor: '#ffffff',
-      assistantMessageBg: theme === 'dark' ? '#1e293b' : '#f8fafc',
-      assistantMessageColor: theme === 'dark' ? '#f8fafc' : '#0f172a',
-  });
+  const defaults = useMemo(() => {
+      if (typeof window === 'undefined') {
+          return { chatBg: '', userMessageBg: '', userMessageColor: '', assistantMessageBg: '', assistantMessageColor: '' };
+      }
+      const rootStyle = getComputedStyle(document.documentElement);
+      const getCssVar = (name: string) => rootStyle.getPropertyValue(name).trim();
+      return {
+          chatBg: getCssVar('--bg-primary'),
+          userMessageBg: getCssVar('--bg-accent'),
+          userMessageColor: getCssVar('--text-on-accent'),
+          assistantMessageBg: getCssVar('--bg-secondary'),
+          assistantMessageColor: getCssVar('--text-primary'),
+      };
+  }, [theme]);
 
-  const defaults = getDefaults(theme);
   const themeOverrides = localConfig.themeOverrides || {};
 
   const handleProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {

@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
-import type { ChatMessage, Theme, CodeProject, ProjectType, FileSystemEntry, ChatSession } from '../types';
+import type { ChatMessage, Theme, CodeProject, ProjectType, FileSystemEntry, ChatSession, Model } from '../types';
 import SendIcon from './icons/SendIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
 import ModelIcon from './icons/ModelIcon';
@@ -13,6 +13,7 @@ import FilePlusIcon from './icons/FilePlusIcon';
 import TerminalIcon from './icons/TerminalIcon';
 import GlobeIcon from './icons/GlobeIcon';
 import CodeIcon from './icons/CodeIcon';
+import ChevronDownIcon from './icons/ChevronDownIcon';
 import { runPythonCode } from '../services/pyodideService';
 import { logger } from '../services/logger';
 
@@ -370,16 +371,20 @@ interface ChatViewProps {
   onPrefillConsumed: () => void;
   activeProjectId: string | null;
   onSetActiveProject: (projectId: string | null) => void;
+  models: Model[];
+  onSelectModel: (modelId: string) => void;
 }
 
-const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isResponding, onRenameSession, theme, isElectron, projects, prefilledInput, onPrefillConsumed, activeProjectId, onSetActiveProject }) => {
+const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isResponding, onRenameSession, theme, isElectron, projects, prefilledInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel }) => {
   const [input, setInput] = useState('');
   const [saveModalState, setSaveModalState] = useState<{ code: string; lang: string } | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(session.name);
+  const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const modelSelectorRef = useRef<HTMLDivElement>(null);
 
   const { messages, name: sessionName } = session;
 
@@ -393,6 +398,18 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
       titleInputRef.current?.select();
     }
   }, [isEditingTitle]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+        if (modelSelectorRef.current && !modelSelectorRef.current.contains(event.target as Node)) {
+            setIsModelSelectorOpen(false);
+        }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [modelSelectorRef]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -454,24 +471,53 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
       <header className="flex items-center justify-between p-4 bg-[--bg-secondary] border-b border-[--border-primary] gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <ModelIcon className="w-6 h-6 text-blue-500 dark:text-blue-400 flex-shrink-0"/>
-          {isEditingTitle ? (
-            <input
-              ref={titleInputRef}
-              value={editedTitle}
-              onChange={(e) => setEditedTitle(e.target.value)}
-              onBlur={handleTitleRename}
-              onKeyDown={(e) => e.key === 'Enter' && handleTitleRename()}
-              className="text-lg font-semibold bg-transparent border-b border-[--border-focus] focus:outline-none text-[--text-primary] w-full"
-            />
-          ) : (
-            <h2 
-              className="text-lg font-semibold text-[--text-primary] truncate cursor-pointer hover:bg-[--bg-hover] px-2 py-1 rounded-md"
-              title={`Click to rename. Using model: ${session.modelId}`}
-              onClick={() => setIsEditingTitle(true)}
-            >
-              {session.name}
-            </h2>
-          )}
+          <div className="flex flex-col min-w-0">
+            {isEditingTitle ? (
+              <input
+                ref={titleInputRef}
+                value={editedTitle}
+                onChange={(e) => setEditedTitle(e.target.value)}
+                onBlur={handleTitleRename}
+                onKeyDown={(e) => e.key === 'Enter' && handleTitleRename()}
+                className="text-lg font-semibold bg-transparent border-b border-[--border-focus] focus:outline-none text-[--text-primary] w-full"
+              />
+            ) : (
+              <h2 
+                className="text-lg font-semibold text-[--text-primary] truncate cursor-pointer hover:bg-[--bg-hover] px-2 -ml-2 py-1 rounded-md"
+                title="Click to rename"
+                onClick={() => setIsEditingTitle(true)}
+              >
+                {session.name}
+              </h2>
+            )}
+            <div className="relative" ref={modelSelectorRef}>
+                <button 
+                    onClick={() => setIsModelSelectorOpen(prev => !prev)} 
+                    className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] px-2 -ml-2 py-0.5 rounded-md hover:bg-[--bg-hover]"
+                    title="Start new chat with a different model"
+                >
+                    <span className="truncate max-w-xs">Using: {session.modelId}</span>
+                    <ChevronDownIcon className={`w-3 h-3 transition-transform ${isModelSelectorOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isModelSelectorOpen && (
+                    <div className="absolute top-full left-0 mt-1.5 w-64 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
+                        <div className="p-2 text-xs font-semibold text-[--text-muted] border-b border-[--border-primary]">Start new chat with:</div>
+                        {models.map(model => (
+                            <button 
+                                key={model.id}
+                                onClick={() => {
+                                    onSelectModel(model.id);
+                                    setIsModelSelectorOpen(false);
+                                }}
+                                className="w-full text-left block px-3 py-1.5 text-sm text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
+                            >
+                                {model.id}
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+          </div>
         </div>
         {isElectron && projects.length > 0 && (
           <div className="flex items-center gap-2 flex-grow justify-end min-w-0">
@@ -487,7 +533,11 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
               aria-label="Select active project for context"
             >
               <option value="">No Project Context</option>
-              {projects.map(p => <option key={p.id} value={p.id} title={p.name}>{p.name}</option>)}
+              {projects.map(p => {
+                const projectTypeText = p.type.charAt(0).toUpperCase() + p.type.slice(1);
+                const optionText = `${p.name} (${projectTypeText})`;
+                return <option key={p.id} value={p.id} title={optionText}>{optionText}</option>
+              })}
             </select>
           </div>
         )}
