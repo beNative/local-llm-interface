@@ -1,11 +1,4 @@
 
-
-
-
-
-
-
-
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -101,12 +94,20 @@ interface SaveModalProps {
     lang: string;
     projects: CodeProject[];
     onClose: () => void;
+    activeProjectId: string | null;
 }
 
-const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, onClose }) => {
+const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, onClose, activeProjectId }) => {
     const projectType = getProjectTypeForLang(lang);
-    const relevantProjects = projectType ? projects.filter(p => p.type === projectType) : [];
-    const [selectedProjectId, setSelectedProjectId] = useState<string>(relevantProjects[0]?.id || '');
+    const activeProject = activeProjectId ? projects.find(p => p.id === activeProjectId) : null;
+    
+    // If a project context is active, that's the only relevant project.
+    // Otherwise, find projects matching the code's language type.
+    const relevantProjects = activeProject 
+        ? [activeProject] 
+        : projectType ? projects.filter(p => p.type === projectType) : [];
+
+    const [selectedProjectId, setSelectedProjectId] = useState<string>(activeProjectId || relevantProjects[0]?.id || '');
     const [filename, setFilename] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [existingFiles, setExistingFiles] = useState<FileSystemEntry[]>([]);
@@ -200,15 +201,22 @@ const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, on
                 <div className="space-y-4">
                      <div>
                         <label htmlFor="project-select" className="block text-sm font-medium text-[--text-muted] mb-1">Project</label>
-                        <select
-                            id="project-select"
-                            value={selectedProjectId}
-                            onChange={e => setSelectedProjectId(e.target.value)}
-                            className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
-                        >
-                            <option value="" disabled>-- Select a project --</option>
-                            {relevantProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
+                        {activeProject ? (
+                            <div className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg">
+                                {activeProject.name}
+                                <p className="text-xs text-[--text-muted]">Saving to active project context</p>
+                            </div>
+                        ) : (
+                            <select
+                                id="project-select"
+                                value={selectedProjectId}
+                                onChange={e => setSelectedProjectId(e.target.value)}
+                                className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
+                            >
+                                <option value="" disabled>-- Select a project --</option>
+                                {relevantProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            </select>
+                        )}
                     </div>
                      <div>
                         <label htmlFor="filename-input" className="block text-sm font-medium text-[--text-muted] mb-1">Filename</label>
@@ -246,7 +254,7 @@ const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, on
     );
 };
 
-const CodeBlock = ({ node, inline, className, children, theme, isElectron, projects, onSaveRequest }: any) => {
+const CodeBlock = ({ node, inline, className, children, theme, isElectron, projects, onSaveRequest, activeProjectId }: any) => {
   const [isCopied, setIsCopied] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState('standalone');
   const [runState, setRunState] = useState<{
@@ -269,8 +277,11 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
   const syntaxTheme = theme === 'dark' ? atomDark : coy;
   
   const projectType = getProjectTypeForLang(lang);
-  const canRunOrSaveNative = isElectron && projectType;
   const relevantProjects = projectType ? projects.filter((p: CodeProject) => p.type === projectType) : [];
+  
+  // Can save if we are in Electron and either a project context is active or there are relevant projects for this language
+  const canSave = isElectron && (activeProjectId || relevantProjects.length > 0);
+  const canRunCode = isPython || ((isNode || isWebApp) && isElectron);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(codeText);
@@ -342,7 +353,6 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
     }
   };
   
-  const canRunCode = isPython || ((isNode || isWebApp) && isElectron);
   const RunIcon = isWebApp ? GlobeIcon : (isPython || isNode) && isElectron ? TerminalIcon : PlayIcon;
   const runButtonText = runState.isLoading ? 'Running...' : isWebApp ? 'Open in Browser' : 'Run';
 
@@ -351,7 +361,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
       <div className="flex items-center justify-between px-4 py-1.5 bg-black/5 dark:bg-white/5 rounded-t-lg text-xs">
         <span className="font-sans text-[--text-muted]">{match[1]}</span>
         <div className="flex items-center gap-2">
-            {(canRunCode || canRunOrSaveNative) && (
+            {(canRunCode || canSave) && (
               <div className="flex items-center divide-x divide-gray-300 dark:divide-gray-600">
                 <div className="flex items-center gap-1 pr-2">
                     {isElectron && (isPython || isNode) && relevantProjects.length > 0 && (
@@ -361,8 +371,8 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
                             className="text-xs bg-transparent border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:border-blue-500"
                             disabled={runState.isLoading}
                         >
-                            <option value="standalone">Standalone</option>
-                            {relevantProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            <option value="standalone" title="Run this code in an isolated environment, without any project context or dependencies.">Standalone Execution</option>
+                            {relevantProjects.map(p => <option key={p.id} value={p.id} title={`Run this code within the '${p.name}' project environment.`}>{p.name}</option>)}
                         </select>
                     )}
                     {canRunCode && (
@@ -378,7 +388,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
                     )}
                 </div>
                 <div className="pl-2 flex items-center gap-2">
-                    {canRunOrSaveNative && relevantProjects.length > 0 && (
+                    {canSave && (
                          <button onClick={() => onSaveRequest(codeText, lang)} className="flex items-center gap-1.5 text-[--text-muted] hover:text-[--text-primary] px-2 py-1 rounded" title="Save to Project">
                             <FilePlusIcon className="w-3.5 h-3.5" />
                             Save
@@ -393,7 +403,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
                 </div>
               </div>
             )}
-            {!(canRunCode || canRunOrSaveNative) && (
+            {!(canRunCode || canSave) && (
                 <button 
                   onClick={handleCopy}
                   className="text-[--text-muted] hover:text-[--text-primary] px-2 py-1 rounded"
@@ -411,7 +421,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
       >
         {codeText}
       </SyntaxHighlighter>
-      {(runState.output || runState.error) && (
+      {(runState.output !== null || runState.error !== null) && (
         <div className="border-t border-[--border-primary] p-4 font-mono text-xs bg-[--code-output-bg] rounded-b-lg">
            <h4 className="text-[--text-muted] font-sans font-semibold text-sm mb-2">Output</h4>
            {runState.output && (
@@ -419,6 +429,9 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
            )}
            {runState.error && (
              <pre className="whitespace-pre-wrap text-red-500">{runState.error}</pre>
+           )}
+           {runState.output === '' && !runState.error && (
+             <p className="text-[--text-muted] italic font-sans">Command executed successfully with no output.</p>
            )}
         </div>
       )}
@@ -456,7 +469,7 @@ interface ChatViewProps {
 const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isResponding, retrievalStatus, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onAcceptModification, onRejectModification }) => {
   const [input, setInput] = useState('');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
-  const [saveModalState, setSaveModalState] = useState<{ code: string; lang: string } | null>(null);
+  const [saveModalState, setSaveModalState] = useState<{ code: string; lang: string; activeProjectId: string | null } | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(session.name);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
@@ -612,7 +625,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
   };
   
   const handleSaveRequest = (code: string, lang: string) => {
-    setSaveModalState({ code, lang });
+    setSaveModalState({ code, lang, activeProjectId });
   };
 
   const handleSelectPrompt = (promptContent: string) => {
@@ -781,7 +794,10 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
               })}
             </select>
             {activeProjectId && (
-                <label className="flex items-center gap-2 cursor-pointer" title="Enable smart context to automatically read relevant files based on your prompt.">
+                <label 
+                    className="flex items-center gap-2 cursor-pointer" 
+                    title="When enabled, the AI will first analyze your prompt to find the most relevant files in the selected project. It will then read their content to provide a more accurate, context-aware answer."
+                >
                     <BrainCircuitIcon className={`w-5 h-5 ${isSmartContextEnabled ? 'text-[--accent-chat]' : 'text-[--text-muted]'}`} />
                     <span className="text-sm text-[--text-muted] hidden lg:inline">Smart Context</span>
                     <div className="relative inline-flex items-center cursor-pointer">
@@ -865,7 +881,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
                           remarkPlugins={[remarkGfm]}
                           components={{
                               code: (props) => (
-                                  <CodeBlock {...props} theme={theme} isElectron={isElectron} projects={projects} onSaveRequest={handleSaveRequest} />
+                                  <CodeBlock {...props} theme={theme} isElectron={isElectron} projects={projects} onSaveRequest={handleSaveRequest} activeProjectId={activeProjectId} />
                               ),
                               pre: ({ children }) => <>{children}</>,
                           }}
