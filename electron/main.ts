@@ -4,6 +4,7 @@
 
 
 
+
 const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 import * as path from 'path';
 import * as fs from 'fs';
@@ -810,7 +811,7 @@ end.
         return await readFile(filePath, 'utf-8');
     });
 
-    ipcMain.handle('project:write-file', async (_, { filePath, content }: { filePath: string, content: string }) => {
+    ipcMain.handle('project:write-file', async (_, filePath: string, content: string) => {
         const dirPath = path.dirname(filePath);
         if (!isPathInAllowedBase(dirPath)) throw new Error('Access denied to path.');
         

@@ -1,6 +1,8 @@
 
 
 
+
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, FileSystemEntry, SystemStats } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
@@ -347,8 +349,8 @@ const App: React.FC = () => {
           .slice(0, 2) // Base title on first exchange
           .map(m => {
             if (Array.isArray(m.content)) {
-                const textPart = m.content.find(p => p.type === 'text');
-                if (textPart && textPart.type === 'text') {
+                const textPart = m.content.find((p): p is { type: 'text', text: string } => p.type === 'text');
+                if (textPart) {
                   return `${m.role}: ${textPart.text || '[image]'}`;
                 }
                 return `${m.role}: [image]`;

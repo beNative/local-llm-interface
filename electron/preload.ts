@@ -85,7 +85,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // File System APIs for Project Viewer/Editor
   readProjectDir: (dirPath: string) => ipcRenderer.invoke('project:read-dir', dirPath),
   readProjectFile: (filePath: string) => ipcRenderer.invoke('project:read-file', filePath),
-  writeProjectFile: (filePath: string, content: string) => ipcRenderer.invoke('project:write-file', { filePath, content }),
+  writeProjectFile: (filePath: string, content: string) => ipcRenderer.invoke('project:write-file', filePath, content),
   projectGetFileTree: (projectPath: string) => ipcRenderer.invoke('project:get-file-tree', projectPath),
   projectGetAllFiles: (projectPath: string) => ipcRenderer.invoke('project:get-all-files', projectPath),
   projectAddFileFromPath: (args: {sourcePath: string, targetDir: string}) => ipcRenderer.invoke('project:add-file-from-path', args),
