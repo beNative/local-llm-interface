@@ -1,4 +1,3 @@
-
 # Functional Manual
 
 This document provides a detailed guide on how to use the Local LLM Interface application.
@@ -67,16 +66,32 @@ In the "Chat" tab, if no model is selected, you will see a grid of all available
 
 - Each card shows the model's name and creation date.
 - Click the **"Chat with this model"** button on a card to start a conversation.
+- If the application cannot connect to the service or finds no models, it will display an error message with a convenient **"Go to Settings"** button to help you resolve the issue.
 
 ## 5. Chat View
 
-The chat view is where you interact with the selected LLM.
+The chat view is the primary interface for interacting with the LLM. It is composed of a session list on the left and the main conversation area on the right.
+
+### Session Management
+
+- **Resizable Sidebar**: The session list sidebar is resizable. You can click and drag the vertical divider to adjust its width to your liking.
+- **Session List**: All your conversations are listed here. Clicking on one switches to that conversation.
+- **New Chat**: The button at the top of the sidebar starts a new conversation, which will take you back to the Model Selection screen.
+- **Session Actions**: Hovering over a session in the list reveals action buttons:
+  - **Generate Name**: (Sparkles icon) Automatically generates a short, descriptive title for the session based on its first few messages.
+  - **Delete**: (Trash icon) Permanently deletes the conversation.
 
 ### Project Context Selector (Desktop App Only)
 
 - A "Context" dropdown menu appears in the header when you have created projects.
 - **No Project Context**: This is the default. The chat behaves normally.
 - **Select a Project**: When you select one of your projects, the application will automatically include that project's file and folder structure as context for every message you send. The AI will then be aware of your project's layout, allowing you to ask more specific questions about your code without needing to copy and paste file contents.
+
+### Conversation & Controls
+
+- **Message Input**: The text area at the bottom automatically grows in height as you type.
+- **Multimodal Chat**: Use the **paperclip icon** to attach an image to your message. This allows you to ask questions about images with models that support it.
+- **Stop Generation**: While the model is responding, a red "Stop" button will appear in the input bar, allowing you to interrupt the response stream at any time.
 
 ### Code Execution & Management
 

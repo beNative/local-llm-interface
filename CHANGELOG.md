@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - YYYY-MM-DD
+
+### Added
+- **Resizable Sidebar**: The session list sidebar can now be resized by dragging its edge, allowing for more flexible layout customization.
+- **Multimodal Chat**: Added support for attaching images to chat messages for local models that support multimodal inputs (e.g., LLaVA).
+- **"Stop Generation" Button**: A button now appears during model response generation to allow users to interrupt the stream.
+- **Auto-resizing Chat Input**: The text input area for chat messages now automatically grows in height as you type.
+- **Auto-generate Session Name Button**: A new icon button next to each session allows for manually triggering the automatic naming feature.
+
+### Changed
+- **Improved Error States**: The "Model Selection" view now includes a "Go to Settings" button when a connection fails or no models are found, improving user guidance.
+
+### Fixed
+- **Session Renaming**: Fixed an issue where the smart session renaming feature was not working correctly due to an incorrect API call.
+
 ## [1.2.0] - YYYY-MM-DD
 
 ### Added
