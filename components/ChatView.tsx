@@ -1,6 +1,6 @@
 
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -663,6 +663,13 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
           e.dataTransfer.clearData();
       }
   };
+  
+  const markdownComponents = useMemo(() => ({
+    code: (props: any) => (
+        <CodeBlock {...props} theme={theme} isElectron={isElectron} projects={projects} onSaveRequest={handleSaveRequest} activeProjectId={activeProjectId} />
+    ),
+    pre: ({ children }: any) => <>{children}</>,
+  }), [theme, isElectron, projects, handleSaveRequest, activeProjectId]);
 
 
   return (
@@ -878,12 +885,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
                       <div className="prose prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2">
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm]}
-                          components={{
-                              code: (props) => (
-                                  <CodeBlock {...props} theme={theme} isElectron={isElectron} projects={projects} onSaveRequest={handleSaveRequest} activeProjectId={activeProjectId} />
-                              ),
-                              pre: ({ children }) => <>{children}</>,
-                          }}
+                          components={markdownComponents}
                         >
                           {msg.content as string}
                         </ReactMarkdown>
