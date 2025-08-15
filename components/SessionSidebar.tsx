@@ -16,7 +16,7 @@ interface SessionSidebarProps {
 
 const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSessionId, onNewChat, onSelectSession, onDeleteSession, onGenerateSessionName }) => {
   return (
-    <aside className="w-64 bg-[--bg-secondary] border-r border-[--border-primary] flex flex-col">
+    <aside className="h-full bg-[--bg-secondary] border-r border-[--border-primary] flex flex-col">
       <div className="p-2 flex-shrink-0">
         <button
           onClick={onNewChat}

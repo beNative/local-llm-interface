@@ -86,6 +86,9 @@ const App: React.FC = () => {
   const [runOutput, setRunOutput] = useState<{ title: string; stdout: string; stderr: string; } | null>(null);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [sidebarWidth, setSidebarWidth] = useState(256);
+  const isResizingRef = useRef(false);
+
 
   // Derived state from config
   const sessions = config?.sessions || [];
@@ -486,6 +489,41 @@ const App: React.FC = () => {
     setView('settings');
   };
 
+  const handleResizeMouseMove = useCallback((e: MouseEvent) => {
+    if (!isResizingRef.current) return;
+    const newWidth = e.clientX;
+    const minWidth = 200;
+    const maxWidth = 600;
+    if (newWidth >= minWidth && newWidth <= maxWidth) {
+      setSidebarWidth(newWidth);
+    }
+  }, []);
+
+  const handleResizeMouseUp = useCallback(() => {
+    isResizingRef.current = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    window.removeEventListener('mousemove', handleResizeMouseMove);
+    window.removeEventListener('mouseup', handleResizeMouseUp);
+  }, [handleResizeMouseMove]);
+
+  const handleResizeMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizingRef.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', handleResizeMouseMove);
+    window.addEventListener('mouseup', handleResizeMouseUp);
+  };
+  
+  useEffect(() => {
+    return () => {
+      window.removeEventListener('mousemove', handleResizeMouseMove);
+      window.removeEventListener('mouseup', handleResizeMouseUp);
+    };
+  }, [handleResizeMouseMove, handleResizeMouseUp]);
+
+
   const renderContent = () => {
     if (!config) {
         return <div className="flex items-center justify-center h-full text-[--text-muted]">Loading settings...</div>;
@@ -602,14 +640,26 @@ const App: React.FC = () => {
       </header>
       <main className="flex-1 flex overflow-hidden">
         {view === 'chat' && activeSession && (
-          <SessionSidebar
-            sessions={sessions}
-            activeSessionId={activeSessionId || null}
-            onNewChat={handleNewChat}
-            onSelectSession={handleSelectSession}
-            onDeleteSession={handleDeleteSession}
-            onGenerateSessionName={handleManualGenerateSessionName}
-          />
+          <>
+            <div style={{ width: `${sidebarWidth}px` }} className="flex-shrink-0 h-full">
+              <SessionSidebar
+                sessions={sessions}
+                activeSessionId={activeSessionId || null}
+                onNewChat={handleNewChat}
+                onSelectSession={handleSelectSession}
+                onDeleteSession={handleDeleteSession}
+                onGenerateSessionName={handleManualGenerateSessionName}
+              />
+            </div>
+            <div
+              onMouseDown={handleResizeMouseDown}
+              className="w-1.5 flex-shrink-0 cursor-col-resize group"
+              aria-label="Resize sidebar"
+              role="separator"
+            >
+              <div className="w-0.5 h-full bg-[--border-primary] mx-auto group-hover:bg-[--border-focus] transition-colors duration-200"></div>
+            </div>
+          </>
         )}
         <div className="flex-1 overflow-hidden">
             {renderContent()}
