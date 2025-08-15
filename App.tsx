@@ -216,25 +216,29 @@ const App: React.FC = () => {
   }, [config]);
 
 
-  const handleConfigChange = (newConfig: Config) => {
+  const handleConfigChange = useCallback((newConfig: Config) => {
     logger.info('Configuration change requested.');
 
-    const needsModelReload = newConfig.baseUrl !== config?.baseUrl || newConfig.provider !== config?.provider;
+    setConfig(currentConfig => {
+      if (!currentConfig) return newConfig; // Should not happen after init
 
-    if (needsModelReload) {
+      const needsModelReload = newConfig.baseUrl !== currentConfig.baseUrl || newConfig.provider !== currentConfig.provider;
+
+      if (needsModelReload) {
         logger.info('Provider or Base URL changed, resetting sessions and returning to model selection.');
-        setConfig({
-            ...newConfig,
-            sessions: [],
-            activeSessionId: undefined,
-        });
         setView('chat');
-    } else {
-        setConfig(newConfig);
-    }
+        return {
+          ...newConfig,
+          sessions: [],
+          activeSessionId: undefined,
+        };
+      }
+      
+      return { ...currentConfig, ...newConfig };
+    });
 
     logger.setConfig({ logToFile: newConfig.logToFile });
-  };
+  }, []);
 
   const handleThemeToggle = () => {
       setConfig(currentConfig => {
@@ -551,7 +555,6 @@ const App: React.FC = () => {
             return <SettingsPanel 
                 config={config} 
                 onConfigChange={handleConfigChange} 
-                isConnecting={isLoadingModels}
                 isElectron={isElectron}
                 theme={config.theme || 'dark'}
               />;

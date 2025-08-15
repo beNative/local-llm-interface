@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { Config, LLMProvider, Theme, ThemeOverrides, PredefinedPrompt, ColorOverrides } from '../types';
 import { PROVIDER_CONFIGS } from '../constants';
 import SettingsIcon from './icons/SettingsIcon';
@@ -8,7 +8,6 @@ import TrashIcon from './icons/TrashIcon';
 interface SettingsPanelProps {
   config: Config;
   onConfigChange: (newConfig: Config) => void;
-  isConnecting: boolean;
   isElectron: boolean;
   theme: Theme;
 }
@@ -105,13 +104,33 @@ const NewPromptForm: React.FC<{ onAdd: (title: string, content: string) => void 
 };
 
 
-const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, isConnecting, isElectron, theme }) => {
+const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, isElectron, theme }) => {
   const [localConfig, setLocalConfig] = useState<Config>(config);
   const [activeAppearanceTab, setActiveAppearanceTab] = useState<Theme>(theme);
+  const isUpdatingFromProps = useRef(true);
 
   useEffect(() => {
+    isUpdatingFromProps.current = true;
     setLocalConfig(config);
   }, [config]);
+
+  useEffect(() => {
+    // This effect runs whenever localConfig changes, and will propagate it up.
+    // A flag is used to prevent an update loop when the parent `config` prop changes.
+    // A debounce is used to avoid spamming updates for fast changes (e.g., typing).
+    if (isUpdatingFromProps.current) {
+        isUpdatingFromProps.current = false;
+        return;
+    }
+
+    const handler = setTimeout(() => {
+        onConfigChange(localConfig);
+    }, 500);
+
+    return () => {
+        clearTimeout(handler);
+    };
+  }, [localConfig, onConfigChange]);
   
   const defaults = useMemo(() => ({
     light: {
@@ -208,10 +227,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
     }));
   };
 
-  const handleSave = () => {
-    onConfigChange(localConfig);
-  };
-  
   const providerDescriptions: Record<LLMProvider, string> = {
     Ollama: 'Connect to a running Ollama instance. The default URL is usually correct.',
     LMStudio: 'Connect to the local server in LM Studio. Find the URL in the Server tab.',
@@ -226,7 +241,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
           Settings
         </h1>
         
-        <div className="space-y-8">
+        <div className="space-y-8 pb-8">
             <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
               <h3 className="text-lg font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">Connection</h3>
               <div className="space-y-4">
@@ -440,15 +455,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
             )}
         </div>
 
-        <div className="flex justify-end gap-3 mt-8">
-          <button
-            onClick={handleSave}
-            disabled={isConnecting}
-            className="flex items-center justify-center px-6 py-2.5 text-sm font-medium text-[--text-on-accent] bg-[--accent-settings] rounded-lg hover:brightness-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-primary] focus:ring-[--border-focus] disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {isConnecting ? 'Connecting...' : 'Save & Refresh Connection'}
-          </button>
-        </div>
       </div>
     </div>
   );
