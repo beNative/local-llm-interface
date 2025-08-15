@@ -26,10 +26,21 @@ export interface FileSystemEntry {
   children?: FileSystemEntry[]; // For tree view state
 }
 
+export interface ThemeOverrides {
+  userMessageBg?: string;
+  userMessageColor?: string;
+  assistantMessageBg?: string;
+  assistantMessageColor?: string;
+  chatBg?: string;
+  fontFamily?: 'sans-serif' | 'serif' | 'monospace';
+  fontSize?: number;
+}
+
 export interface Config {
   provider: LLMProvider;
   baseUrl: string;
   theme?: Theme;
+  themeOverrides?: ThemeOverrides;
   logToFile?: boolean;
   pythonProjectsPath?: string;
   nodejsProjectsPath?: string;

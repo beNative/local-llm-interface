@@ -460,15 +460,26 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
             </button>
         </div>
       </header>
-      <main className="flex-1 overflow-y-auto p-6 space-y-6">
+      <main
+        className="flex-1 overflow-y-auto p-6 space-y-6"
+        style={{
+            backgroundColor: 'var(--chat-bg-color)',
+            fontFamily: 'var(--chat-font-family)',
+            fontSize: 'var(--chat-font-size)',
+        }}
+       >
         {messages.map((msg, index) => (
           <div key={index} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
             {msg.role === 'assistant' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center"><ModelIcon className="w-5 h-5 text-blue-500 dark:text-blue-400" /></div>}
             <div
+              style={{
+                backgroundColor: msg.role === 'user' ? 'var(--user-message-bg-color)' : 'var(--assistant-message-bg-color)',
+                color: msg.role === 'user' ? 'var(--user-message-text-color)' : 'var(--assistant-message-text-color)',
+              }}
               className={`max-w-4xl p-4 rounded-xl ${
                 msg.role === 'user'
-                  ? 'bg-[--bg-accent] text-[--text-on-accent] rounded-br-none'
-                  : 'bg-[--bg-secondary] text-[--text-primary] rounded-bl-none'
+                  ? 'rounded-br-none'
+                  : 'rounded-bl-none'
               }`}
             >
               {msg.role === 'assistant' && msg.content === '' && isResponding

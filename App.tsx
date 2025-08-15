@@ -97,6 +97,7 @@ const App: React.FC = () => {
         provider: 'Ollama', 
         baseUrl: PROVIDER_CONFIGS.Ollama.baseUrl,
         theme: 'dark',
+        themeOverrides: {},
         logToFile: false,
         pythonProjectsPath: '',
         nodejsProjectsPath: '',
@@ -149,6 +150,33 @@ const App: React.FC = () => {
     }
     logger.debug(`Theme set to: ${config.theme}`);
   }, [config?.theme]);
+  
+  // Effect to apply theme overrides as CSS variables.
+  useEffect(() => {
+    const styleElement = document.getElementById('theme-overrides') || document.createElement('style');
+    styleElement.id = 'theme-overrides';
+
+    const overrides = config?.themeOverrides;
+    if (overrides && Object.values(overrides).some(v => v)) {
+      const css = `
+        :root {
+          ${overrides.chatBg ? `--chat-bg-color: ${overrides.chatBg};` : ''}
+          ${overrides.userMessageBg ? `--user-message-bg-color: ${overrides.userMessageBg};` : ''}
+          ${overrides.userMessageColor ? `--user-message-text-color: ${overrides.userMessageColor};` : ''}
+          ${overrides.assistantMessageBg ? `--assistant-message-bg-color: ${overrides.assistantMessageBg};` : ''}
+          ${overrides.assistantMessageColor ? `--assistant-message-text-color: ${overrides.assistantMessageColor};` : ''}
+          ${overrides.fontFamily ? `--chat-font-family: ${overrides.fontFamily};` : ''}
+          ${overrides.fontSize ? `--chat-font-size: ${overrides.fontSize}px;` : ''}
+        }
+      `;
+      styleElement.innerHTML = css;
+      document.head.appendChild(styleElement);
+      logger.debug('Applied custom theme overrides.');
+    } else {
+      styleElement.innerHTML = ''; // Clear styles if no overrides
+      logger.debug('No theme overrides to apply.');
+    }
+  }, [config?.themeOverrides]);
 
   // Effect to persist config changes.
   useEffect(() => {
