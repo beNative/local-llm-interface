@@ -47,17 +47,17 @@ const InfoView: React.FC<{ theme: Theme }> = ({ theme }) => {
   }, [activeDoc]);
 
   return (
-    <div className="flex h-full overflow-hidden bg-[--bg-primary]">
-      <aside className="w-64 p-4 border-r border-[--border-primary] overflow-y-auto flex-shrink-0 bg-[--bg-secondary]">
+    <div className="flex h-full overflow-hidden bg-[--bg-secondary]">
+      <aside className="w-64 p-4 border-r border-[--border-primary] overflow-y-auto flex-shrink-0 bg-[--bg-primary]">
         <nav className="space-y-2">
           <h2 className="px-3 py-2 text-xs font-semibold tracking-wider text-[--text-muted] uppercase">Documents</h2>
           {(Object.keys(DOC_FILES) as Doc[]).map((docKey) => (
             <button
               key={docKey}
               onClick={() => setActiveDoc(docKey)}
-              className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeDoc === docKey
-                  ? 'bg-blue-500/10 text-[--text-accent]'
+                  ? 'bg-[--accent-info]/10 dark:bg-[--accent-info]/20 text-[--accent-info]'
                   : 'text-[--text-secondary] hover:bg-[--bg-hover]'
               }`}
             >
@@ -84,7 +84,7 @@ const InfoView: React.FC<{ theme: Theme }> = ({ theme }) => {
                 code({ node, inline, className, children, ...props }: any) {
                   const match = /language-(\w+)/.exec(className || '');
                   return !inline && match ? (
-                    <div className="not-prose bg-[--code-bg] rounded-md my-2 border border-[--border-primary]">
+                    <div className="not-prose bg-[--code-bg] rounded-lg my-2 border border-[--border-primary]">
                       <SyntaxHighlighter
                         style={syntaxTheme}
                         language={match[1]}

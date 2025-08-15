@@ -17,10 +17,10 @@ interface SessionSidebarProps {
 const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSessionId, onNewChat, onSelectSession, onDeleteSession, onGenerateSessionName }) => {
   return (
     <aside className="h-full bg-[--bg-secondary] border-r border-[--border-primary] flex flex-col">
-      <div className="p-2 flex-shrink-0">
+      <div className="p-3 flex-shrink-0">
         <button
           onClick={onNewChat}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-dashed border-[--border-secondary] text-[--text-muted] hover:bg-[--bg-hover] hover:text-[--text-primary] transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg text-white bg-[--accent-chat] hover:brightness-95 transition-all shadow-sm"
         >
           <PlusIcon className="w-4 h-4" />
           New Chat
@@ -30,23 +30,23 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
         {sessions.map((session) => (
           <div
             key={session.id}
-            className={`group w-full text-left rounded-md text-sm font-medium transition-colors relative ${
+            className={`group w-full text-left rounded-lg text-sm font-medium transition-colors relative ${
               activeSessionId === session.id
-                ? 'bg-blue-500/10 text-[--text-accent]'
+                ? 'bg-[--accent-chat]/10 dark:bg-[--accent-chat]/20 text-[--accent-chat]'
                 : 'text-[--text-secondary] hover:bg-[--bg-hover]'
             }`}
           >
-            <button onClick={() => onSelectSession(session.id)} className="w-full flex items-center gap-2 text-left truncate px-3 py-2">
+            <button onClick={() => onSelectSession(session.id)} className="w-full flex items-center gap-2.5 text-left truncate px-3 py-2.5">
                 <MessageSquareIcon className="w-4 h-4 flex-shrink-0" />
                 <span className="truncate flex-1 pr-14">{session.name}</span>
             </button>
-            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-[--bg-hover] rounded-md">
+            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-transparent rounded-md">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onGenerateSessionName(session.id);
                 }}
-                className="p-1 rounded text-gray-400 hover:bg-blue-500/10 hover:text-blue-500"
+                className="p-1.5 rounded-md text-[--text-muted] hover:bg-[--accent-chat]/10 hover:text-[--accent-chat]"
                 title="Generate name"
               >
                 <SparklesIcon className="w-4 h-4" />
@@ -56,7 +56,7 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
                   e.stopPropagation();
                   onDeleteSession(session.id);
                 }}
-                className="p-1 rounded text-gray-400 hover:bg-red-500/10 hover:text-red-500"
+                className="p-1.5 rounded-md text-[--text-muted] hover:bg-red-500/10 hover:text-red-500"
                 title="Delete session"
               >
                 <TrashIcon className="w-4 h-4" />

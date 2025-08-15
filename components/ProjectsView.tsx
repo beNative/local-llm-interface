@@ -77,15 +77,15 @@ const EditorModal: React.FC<EditorModalProps> = ({ file, onClose, onAddToChat })
                     )}
                 </main>
                  <footer className="flex justify-end gap-3 p-4 border-t border-[--border-primary] flex-shrink-0">
-                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-md hover:bg-[--bg-hover]">Cancel</button>
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-lg hover:bg-[--bg-hover]">Cancel</button>
                     <button 
                         onClick={() => onAddToChat(file.name, content)} 
                         disabled={isLoading}
-                        className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-green-400">
+                        className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-green-400">
                         <MessagePlusIcon className="w-5 h-5"/>
                         Add to Chat Context
                     </button>
-                    <button onClick={handleSave} disabled={isSaving || isLoading} className="flex items-center justify-center px-4 py-2 text-sm font-medium text-[--text-on-accent] bg-[--bg-accent] rounded-md hover:bg-[--bg-accent-hover] disabled:bg-[--bg-accent-disabled]">
+                    <button onClick={handleSave} disabled={isSaving || isLoading} className="flex items-center justify-center px-4 py-2 text-sm font-medium text-[--text-on-accent] bg-[--accent-chat] rounded-lg hover:brightness-90 disabled:opacity-60">
                         {isSaving ? <SpinnerIcon className="w-5 h-5"/> : 'Save Changes'}
                     </button>
                 </footer>
@@ -116,7 +116,7 @@ const ProjectCard: React.FC<{
     const runText = project.type === 'webapp' ? 'Run in Browser' : 'Run Project';
     
     return (
-        <div className="bg-[--bg-secondary] rounded-lg border border-[--border-primary] flex flex-col transition-shadow hover:shadow-md">
+        <div className="bg-[--bg-primary] rounded-xl border border-[--border-primary] flex flex-col transition-shadow hover:shadow-md">
             <div className="p-4">
                 <div 
                     className="flex items-center gap-3 mb-2 cursor-pointer"
@@ -131,23 +131,23 @@ const ProjectCard: React.FC<{
                 <p className="text-xs text-[--text-muted] font-mono break-all">{project.path}</p>
             
                 <div className="grid grid-cols-2 gap-2 mt-4">
-                    <button onClick={onRun} disabled={isBusy} className="col-span-2 text-sm px-3 py-2 rounded-md bg-[--bg-accent] text-[--text-on-accent] hover:bg-[--bg-accent-hover] disabled:bg-[--bg-accent-disabled] disabled:cursor-wait flex items-center justify-center gap-2 font-semibold">
+                    <button onClick={onRun} disabled={isBusy} className="col-span-2 text-sm px-3 py-2 rounded-lg bg-[--accent-projects] text-white hover:brightness-95 disabled:opacity-60 disabled:cursor-wait flex items-center justify-center gap-2 font-semibold">
                         {isBusy ? <SpinnerIcon className="w-5 h-5"/> : <RunIcon className="w-5 h-5" />}
                         {isBusy ? 'Working...' : runText}
                     </button>
 
                     {project.type !== 'webapp' && (
-                         <button onClick={onInstall} disabled={isBusy} className="text-xs px-3 py-1.5 rounded-md bg-[--bg-tertiary] text-[--text-secondary] hover:bg-[--bg-hover] disabled:opacity-50">
+                         <button onClick={onInstall} disabled={isBusy} className="text-xs px-3 py-1.5 rounded-lg bg-[--bg-tertiary] text-[--text-secondary] hover:bg-[--bg-hover] disabled:opacity-50">
                             Install Deps
                         </button>
                     )}
                    
-                    <button onClick={onOpen} disabled={isBusy} className="text-xs px-3 py-1.5 rounded-md bg-[--bg-tertiary] text-[--text-secondary] hover:bg-[--bg-hover] disabled:opacity-50 flex items-center justify-center gap-1.5" title="Open folder">
+                    <button onClick={onOpen} disabled={isBusy} className="text-xs px-3 py-1.5 rounded-lg bg-[--bg-tertiary] text-[--text-secondary] hover:bg-[--bg-hover] disabled:opacity-50 flex items-center justify-center gap-1.5" title="Open folder">
                         <FolderOpenIcon className="w-4 h-4"/>
                         <span>Folder</span>
                     </button>
 
-                    <button onClick={onDelete} disabled={isBusy} className={`col-span-2 ${project.type !== 'webapp' ? '' : 'col-start-2'} mt-1 text-xs px-3 py-1 rounded-md bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900 disabled:opacity-50 flex items-center justify-center gap-1.5`} title="Delete project">
+                    <button onClick={onDelete} disabled={isBusy} className={`col-span-2 ${project.type !== 'webapp' ? '' : 'col-start-2'} mt-1 text-xs px-3 py-1 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900 disabled:opacity-50 flex items-center justify-center gap-1.5`} title="Delete project">
                         <TrashIcon className="w-4 h-4" />
                         <span>Delete</span>
                     </button>
@@ -187,10 +187,10 @@ const NewProjectForm: React.FC<{
                 value={name}
                 onChange={e => setName(e.target.value)}
                 placeholder="New project name..."
-                className="flex-grow px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
+                className="flex-grow px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
                 disabled={isBusy}
             />
-            <button type="submit" disabled={!name.trim() || isBusy} className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed">
+            <button type="submit" disabled={!name.trim() || isBusy} className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed">
                 {isBusy ? <SpinnerIcon className="w-5 h-5"/> : 'Create'}
             </button>
         </form>
@@ -323,7 +323,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
         const projects = config.projects?.filter(p => p.type === type) || [];
         
         return (
-             <div className="bg-[--bg-secondary]/50 p-6 rounded-lg border border-[--border-primary]">
+             <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
                 <h3 className="text-lg font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">{title}</h3>
                 <div className="space-y-4">
                     <div>
@@ -335,16 +335,16 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
                                 type="text"
                                 readOnly
                                 value={path || 'Not set'}
-                                className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md"
+                                className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg"
                             />
-                            <button onClick={() => handleSetPath(type)} className="px-4 py-2 text-sm font-medium text-[--text-on-accent] bg-[--bg-accent] hover:bg-[--bg-accent-hover] rounded-md">
+                            <button onClick={() => handleSetPath(type)} className="px-4 py-2 text-sm font-medium text-[--text-on-accent] bg-[--accent-chat] hover:brightness-95 rounded-lg">
                                 Choose...
                             </button>
                         </div>
                     </div>
                     {path && <NewProjectForm basePath={path} projectType={type} onCreate={(name) => handleCreateProject(type, name)} isBusy={busyProjects.has('new_project')} />}
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4">
                        {projects.map(p => (
                             <ProjectCard 
                                 key={p.id}
@@ -369,9 +369,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
   return (
     <>
     {editingFile && <EditorModal file={editingFile} onClose={() => setEditingFile(null)} onAddToChat={onInjectContentForChat} />}
-    <div className="p-4 sm:p-6 h-full overflow-y-auto bg-[--bg-primary]">
+    <div className="p-4 sm:p-6 h-full overflow-y-auto bg-[--bg-secondary]">
       <div className="max-w-4xl mx-auto">
-        <h1 className="flex items-center gap-3 text-3xl font-bold text-[--text-primary] mb-8">
+        <h1 className="flex items-center gap-3 text-3xl font-bold mb-8" style={{color: 'var(--accent-projects)'}}>
           <CodeIcon className="w-8 h-8"/>
           Projects
         </h1>

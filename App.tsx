@@ -19,25 +19,34 @@ import CodeIcon from './components/icons/CodeIcon';
 import ServerIcon from './components/icons/ServerIcon';
 import SessionSidebar from './components/SessionSidebar';
 
-type View = 'chat' | 'settings' | 'info' | 'projects' | 'api';
+type View = 'chat' | 'projects' | 'api' | 'settings' | 'info';
 
 const NavButton: React.FC<{
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
   ariaLabel: string;
-}> = ({ active, onClick, children, ariaLabel }) => (
-  <button 
-    onClick={onClick} 
-    aria-label={ariaLabel}
-    className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-    active 
-      ? 'bg-black/10 dark:bg-white/10 text-[--text-primary]' 
-      : 'text-[--text-muted] hover:bg-black/5 dark:hover:bg-white/5'
-  }`}>
-    {children}
-  </button>
-);
+  view: View;
+}> = ({ active, onClick, children, ariaLabel, view }) => {
+    const accentVar = `var(--accent-${view})`;
+    return (
+        <button
+            onClick={onClick}
+            aria-label={ariaLabel}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                active
+                    ? 'shadow-sm text-white'
+                    : 'text-[--text-muted] hover:bg-[--bg-hover] hover:text-[--text-primary]'
+            }`}
+            style={{
+                backgroundColor: active ? accentVar : 'transparent',
+                color: active ? 'var(--text-on-accent)' : '',
+            }}
+        >
+            {children}
+        </button>
+    );
+};
 
 const RunOutputModal: React.FC<{
     runOutput: { title: string; stdout: string; stderr: string };
@@ -53,13 +62,13 @@ const RunOutputModal: React.FC<{
                 {runOutput.stdout && (
                     <div>
                         <h3 className="text-[--text-muted] font-sans font-semibold text-sm mb-1 uppercase">Output (stdout)</h3>
-                        <pre className="whitespace-pre-wrap text-[--text-secondary] bg-[--bg-tertiary] p-3 rounded">{runOutput.stdout}</pre>
+                        <pre className="whitespace-pre-wrap text-[--text-secondary] bg-[--bg-tertiary] p-3 rounded-lg">{runOutput.stdout}</pre>
                     </div>
                 )}
                 {runOutput.stderr && (
                     <div className="mt-4">
                         <h3 className="text-red-500 font-sans font-semibold text-sm mb-1 uppercase">Error (stderr)</h3>
-                        <pre className="whitespace-pre-wrap text-red-500 bg-red-900/20 p-3 rounded">{runOutput.stderr}</pre>
+                        <pre className="whitespace-pre-wrap text-red-500 bg-red-900/20 p-3 rounded-lg">{runOutput.stderr}</pre>
                     </div>
                 )}
                 {!runOutput.stdout && !runOutput.stderr && <p className="text-[--text-muted] font-sans">The script produced no output.</p>}
@@ -584,7 +593,7 @@ const App: React.FC = () => {
                 );
              }
              return (
-                <div className="h-full overflow-y-auto bg-[--bg-primary]">
+                <div className="h-full overflow-y-auto bg-[--bg-secondary]">
                     <ModelSelector
                         models={models}
                         onSelectModel={handleSelectModel}
@@ -598,30 +607,30 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen font-sans">
+    <div className="flex flex-col h-screen font-sans bg-[--bg-primary]">
       {runOutput && <RunOutputModal runOutput={runOutput} onClose={() => setRunOutput(null)} />}
-      <header className="flex items-center justify-between p-2 border-b border-[--border-primary] bg-[--bg-secondary]/80 backdrop-blur-sm sticky top-0 z-10">
+      <header className="flex items-center justify-between p-2 border-b border-[--border-primary] bg-[--bg-primary] sticky top-0 z-10 flex-shrink-0">
         <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold px-2">{APP_NAME}</h1>
-            <nav className="flex items-center gap-1 bg-black/5 dark:bg-white/5 p-1 rounded-lg">
-              <NavButton active={view === 'chat'} onClick={() => setView('chat')} ariaLabel="Chat View">
-                <MessageSquareIcon className="w-4 h-4" />
+            <h1 className="text-xl font-bold px-2 text-[--text-primary]">{APP_NAME}</h1>
+            <nav className="flex items-center gap-1 bg-[--bg-secondary] p-1 rounded-xl">
+              <NavButton active={view === 'chat'} onClick={() => setView('chat')} ariaLabel="Chat View" view="chat">
+                <MessageSquareIcon className="w-5 h-5" />
                 <span>Chat</span>
               </NavButton>
-              <NavButton active={view === 'projects'} onClick={() => setView('projects')} ariaLabel="Projects View">
-                <CodeIcon className="w-4 h-4" />
+              <NavButton active={view === 'projects'} onClick={() => setView('projects')} ariaLabel="Projects View" view="projects">
+                <CodeIcon className="w-5 h-5" />
                 <span>Projects</span>
               </NavButton>
-               <NavButton active={view === 'api'} onClick={() => setView('api')} ariaLabel="API Client View">
-                <ServerIcon className="w-4 h-4" />
+               <NavButton active={view === 'api'} onClick={() => setView('api')} ariaLabel="API Client View" view="api">
+                <ServerIcon className="w-5 h-5" />
                 <span>API Client</span>
               </NavButton>
-              <NavButton active={view === 'settings'} onClick={() => setView('settings')} ariaLabel="Settings View">
-                 <SettingsIcon className="w-4 h-4" />
+              <NavButton active={view === 'settings'} onClick={() => setView('settings')} ariaLabel="Settings View" view="settings">
+                 <SettingsIcon className="w-5 h-5" />
                 <span>Settings</span>
               </NavButton>
-              <NavButton active={view === 'info'} onClick={() => setView('info')} ariaLabel="Info View">
-                <InfoIcon className="w-4 h-4" />
+              <NavButton active={view === 'info'} onClick={() => setView('info')} ariaLabel="Info View" view="info">
+                <InfoIcon className="w-5 h-5" />
                 <span>Info</span>
               </NavButton>
             </nav>

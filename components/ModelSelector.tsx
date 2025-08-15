@@ -16,18 +16,18 @@ const ModelCard: React.FC<{ model: Model; onSelect: () => void }> = ({ model, on
   return (
     <div
       onClick={onSelect}
-      className="flex flex-col justify-between p-4 bg-[--bg-secondary] border border-[--border-primary] rounded-lg cursor-pointer hover:bg-[--bg-hover] hover:border-[--text-accent] transition-all duration-200"
+      className="flex flex-col justify-between p-4 bg-[--bg-primary] border border-[--border-primary] rounded-xl cursor-pointer hover:bg-[--bg-hover] hover:border-[--accent-chat] transition-all duration-200 shadow-sm hover:shadow-lg"
     >
       <div>
         <div className="flex items-center gap-3 mb-2">
-            <ModelIcon className="w-6 h-6 text-blue-500 dark:text-blue-400" />
+            <ModelIcon className="w-6 h-6 text-[--accent-chat]" />
             <h3 className="text-lg font-semibold text-[--text-primary] truncate">{model.id}</h3>
         </div>
         <p className="text-sm text-[--text-muted]">
           Last updated: {new Date(model.created * 1000).toLocaleDateString()}
         </p>
       </div>
-      <button className="mt-4 w-full text-center px-4 py-2 text-sm font-medium text-[--text-on-accent] bg-[--bg-accent] rounded-md hover:bg-[--bg-accent-hover] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-secondary] focus:ring-[--border-focus]">
+      <button className="mt-4 w-full text-center px-4 py-2 text-sm font-medium text-[--text-on-accent] bg-[--accent-chat] rounded-lg hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-primary] focus:ring-[--border-focus]">
         Chat with this model
       </button>
     </div>
@@ -46,12 +46,12 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, onSelectModel, is
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center text-red-600 dark:text-red-400 p-8 bg-red-50 dark:bg-red-900/20 rounded-lg">
+      <div className="flex flex-col items-center justify-center h-full text-center text-red-600 dark:text-red-400 p-8 bg-red-50 dark:bg-red-900/20 rounded-lg m-6">
         <h2 className="text-2xl font-bold mb-2">Connection Error</h2>
         <p className="max-w-md">{error}</p>
         <button
             onClick={onGoToSettings}
-            className="mt-6 flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-[--text-on-accent] bg-[--bg-accent] rounded-md hover:bg-[--bg-accent-hover] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-secondary] focus:ring-[--border-focus]"
+            className="mt-6 flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-[--text-on-accent] bg-[--accent-settings] rounded-lg hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-secondary] focus:ring-[--border-focus]"
         >
             <SettingsIcon className="w-5 h-5" />
             Go to Settings
@@ -62,12 +62,12 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, onSelectModel, is
 
   if (models.length === 0) {
     return (
-        <div className="flex flex-col items-center justify-center h-full text-center text-[--text-muted] p-8 bg-[--bg-secondary]/50 rounded-lg">
+        <div className="flex flex-col items-center justify-center h-full text-center text-[--text-muted] p-8 bg-[--bg-primary] rounded-lg m-6">
             <h2 className="text-2xl font-bold mb-2 text-[--text-primary]">No Models Found</h2>
             <p className="max-w-md">The connected service reported zero available models. Make sure you have downloaded or configured models in Ollama or LMStudio.</p>
             <button
                 onClick={onGoToSettings}
-                className="mt-6 flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-[--text-on-accent] bg-[--bg-accent] rounded-md hover:bg-[--bg-accent-hover] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-secondary] focus:ring-[--border-focus]"
+                className="mt-6 flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-[--text-on-accent] bg-[--accent-settings] rounded-lg hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-secondary] focus:ring-[--border-focus]"
             >
                 <SettingsIcon className="w-5 h-5" />
                 Go to Settings

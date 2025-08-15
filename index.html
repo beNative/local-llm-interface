@@ -10,31 +10,36 @@
         --bg-primary: #ffffff;
         --bg-secondary: #f8fafc;
         --bg-tertiary: #f1f5f9;
-        --bg-hover: #e2e8f0;
+        --bg-hover: #eef2ff;
         --bg-backdrop: rgba(255, 255, 255, 0.5);
 
-        --text-primary: #0f172a;
-        --text-secondary: #334155;
+        --text-primary: #1e293b;
+        --text-secondary: #475569;
         --text-muted: #64748b;
-        --text-accent: #2563eb;
-        --text-on-accent: #ffffff;
-
+        
         --border-primary: #e2e8f0;
         --border-secondary: #cbd5e1;
-        --border-focus: #3b82f6;
+        --border-focus: #4f46e5;
 
-        --bg-accent: #2563eb;
-        --bg-accent-hover: #1d4ed8;
-        --bg-accent-disabled: #93c5fd;
+        /* Accent Colors per View */
+        --accent-chat: #4f46e5;
+        --accent-projects: #16a34a;
+        --accent-api: #9333ea;
+        --accent-settings: #d97706;
+        --accent-info: #0d9488;
+
+        --text-on-accent: #ffffff;
+        --bg-accent-hover-scale: 0.9;
 
         --code-bg: #f8fafc;
         --code-output-bg: #f1f5f9;
 
-        /* Chat Appearance Variables (Defaults) */
-        --chat-bg-color: var(--bg-primary);
-        --user-message-bg-color: var(--bg-accent);
+        /* Chat Appearance Variables */
+        --chat-bg-color: var(--bg-secondary);
+        --user-message-bg-color: var(--accent-chat);
         --user-message-text-color: var(--text-on-accent);
-        --assistant-message-bg-color: var(--bg-secondary);
+        --user-message-bg-image: linear-gradient(to right, #4f46e5, #6366f1);
+        --assistant-message-bg-color: var(--bg-tertiary);
         --assistant-message-text-color: var(--text-primary);
         --chat-font-family: 'sans-serif';
         --chat-font-size: 16px;
@@ -43,30 +48,40 @@
         --bg-primary: #0f172a;
         --bg-secondary: #1e293b;
         --bg-tertiary: #334155;
-        --bg-hover: #475569;
+        --bg-hover: #374151;
         --bg-backdrop: rgba(0, 0, 0, 0.5);
 
         --text-primary: #f8fafc;
         --text-secondary: #cbd5e1;
         --text-muted: #94a3b8;
-        --text-accent: #60a5fa;
-        --text-on-accent: #ffffff;
         
         --border-primary: #334155;
         --border-secondary: #475569;
-        --border-focus: #60a5fa;
+        --border-focus: #818cf8;
 
-        --bg-accent: #3b82f6;
-        --bg-accent-hover: #2563eb;
-        --bg-accent-disabled: #1e40af;
+        /* Accent Colors per View */
+        --accent-chat: #818cf8;
+        --accent-projects: #4ade80;
+        --accent-api: #c084fc;
+        --accent-settings: #f59e0b;
+        --accent-info: #2dd4bf;
+
+        --text-on-accent: #1e293b;
+        --bg-accent-hover-scale: 1.1;
 
         --code-bg: #1e293b;
         --code-output-bg: #0f172a;
+
+        /* Chat Appearance Overrides for Dark Mode */
+        --user-message-bg-image: linear-gradient(to right, #6366f1, #818cf8);
+        --user-message-text-color: #ffffff;
+        --assistant-message-bg-color: var(--bg-secondary);
       }
       body {
         background-color: var(--bg-primary);
         color: var(--text-primary);
         -webkit-font-smoothing: subpixel-antialiased;
+        transition: background-color 0.3s ease, color 0.3s ease;
       }
     </style>
   <script type="importmap">

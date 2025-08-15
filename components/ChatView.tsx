@@ -135,7 +135,7 @@ const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, on
                             id="project-select"
                             value={selectedProjectId}
                             onChange={e => setSelectedProjectId(e.target.value)}
-                            className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
+                            className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
                         >
                             <option value="" disabled>-- Select a project --</option>
                             {relevantProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -148,7 +148,7 @@ const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, on
                             type="text"
                             value={filename}
                             onChange={e => setFilename(e.target.value)}
-                            className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
+                            className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
                             placeholder="Enter new filename or select existing"
                         />
                     </div>
@@ -158,7 +158,7 @@ const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, on
                              <select
                                 id="file-select"
                                 onChange={handleFileSelect}
-                                className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
+                                className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
                             >
                                 <option value="">-- Choose a file to overwrite --</option>
                                 {existingFiles.map(f => <option key={f.path} value={f.name}>{f.name}</option>)}
@@ -167,8 +167,8 @@ const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, on
                      )}
                 </div>
                 <div className="flex justify-end gap-3 mt-6">
-                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-md hover:bg-[--bg-hover]">Cancel</button>
-                    <button onClick={handleSave} disabled={isSaving || !selectedProjectId || !filename.trim()} className="flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-green-400">
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-lg hover:bg-[--bg-hover]">Cancel</button>
+                    <button onClick={handleSave} disabled={isSaving || !selectedProjectId || !filename.trim()} className="flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-green-400">
                         {isSaving ? <SpinnerIcon className="w-5 h-5"/> : 'Save File'}
                     </button>
                 </div>
@@ -278,8 +278,8 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
   const runButtonText = runState.isLoading ? 'Running...' : isWebApp ? 'Open in Browser' : 'Run';
 
   return !inline && match ? (
-    <div className="not-prose relative bg-[--code-bg] my-2 rounded-md border border-[--border-primary]">
-      <div className="flex items-center justify-between px-4 py-1 bg-black/5 dark:bg-white/5 rounded-t-md text-xs">
+    <div className="not-prose relative bg-[--code-bg] my-2 rounded-lg border border-[--border-primary]">
+      <div className="flex items-center justify-between px-4 py-1.5 bg-black/5 dark:bg-white/5 rounded-t-lg text-xs">
         <span className="font-sans text-[--text-muted]">{match[1]}</span>
         <div className="flex items-center gap-2">
             {(canRunCode || canRunOrSaveNative) && (
@@ -343,7 +343,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
         {codeText}
       </SyntaxHighlighter>
       {(runState.output || runState.error) && (
-        <div className="border-t border-[--border-primary] p-4 font-mono text-xs bg-[--code-output-bg] rounded-b-md">
+        <div className="border-t border-[--border-primary] p-4 font-mono text-xs bg-[--code-output-bg] rounded-b-lg">
            <h4 className="text-[--text-muted] font-sans font-semibold text-sm mb-2">Output</h4>
            {runState.output && (
              <pre className="whitespace-pre-wrap text-[--text-secondary]">{runState.output}</pre>
@@ -505,9 +505,9 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
             onClose={() => setSaveModalState(null)}
         />
      )}
-      <header className="flex items-center justify-between p-4 bg-[--bg-secondary] border-b border-[--border-primary] gap-4">
+      <header className="flex items-center justify-between p-4 bg-[--bg-primary] border-b border-[--border-primary] gap-4">
         <div className="flex items-center gap-3 min-w-0">
-          <ModelIcon className="w-6 h-6 text-blue-500 dark:text-blue-400 flex-shrink-0"/>
+          <ModelIcon className="w-6 h-6 text-[--accent-chat] flex-shrink-0"/>
           <div className="flex flex-col min-w-0">
             {isEditingTitle ? (
               <input
@@ -520,7 +520,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
               />
             ) : (
               <h2 
-                className="text-lg font-semibold text-[--text-primary] truncate cursor-pointer hover:bg-[--bg-hover] px-2 -ml-2 py-1 rounded-md"
+                className="text-lg font-semibold text-[--text-primary] truncate cursor-pointer hover:bg-[--bg-hover] px-2 -ml-2 py-1 rounded-lg"
                 title="Click to rename"
                 onClick={() => setIsEditingTitle(true)}
               >
@@ -530,7 +530,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
             <div className="relative" ref={modelSelectorRef}>
                 <button 
                     onClick={() => setIsModelSelectorOpen(prev => !prev)} 
-                    className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] px-2 -ml-2 py-0.5 rounded-md hover:bg-[--bg-hover]"
+                    className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] px-2 -ml-2 py-0.5 rounded-lg hover:bg-[--bg-hover]"
                     title="Start new chat with a different model"
                 >
                     <span className="truncate max-w-xs">Using: {session.modelId}</span>
@@ -566,7 +566,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
               id="project-context-select"
               value={activeProjectId || ''}
               onChange={(e) => onSetActiveProject(e.target.value || null)}
-              className="text-sm text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-2 focus:ring-[--border-focus] w-full max-w-xs truncate"
+              className="text-sm text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus] w-full max-w-xs truncate"
               aria-label="Select active project for context"
             >
               <option value="">No Project Context</option>
@@ -588,17 +588,18 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
         }}
        >
         {messages.filter(m => m.role !== 'system').map((msg, index) => (
-          <div key={index} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-            {msg.role === 'assistant' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center"><ModelIcon className="w-5 h-5 text-blue-500 dark:text-blue-400" /></div>}
+          <div key={index} className={`flex items-start gap-4 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+            {msg.role === 'assistant' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center"><ModelIcon className="w-5 h-5 text-[--accent-chat]" /></div>}
             <div
               style={{
                 backgroundColor: msg.role === 'user' ? 'var(--user-message-bg-color)' : 'var(--assistant-message-bg-color)',
                 color: msg.role === 'user' ? 'var(--user-message-text-color)' : 'var(--assistant-message-text-color)',
+                backgroundImage: msg.role === 'user' ? 'var(--user-message-bg-image)' : 'none',
               }}
-              className={`max-w-4xl p-4 rounded-xl ${
+              className={`max-w-4xl p-4 rounded-2xl shadow-sm ${
                 msg.role === 'user'
-                  ? 'rounded-br-none'
-                  : 'rounded-bl-none'
+                  ? 'rounded-br-lg'
+                  : 'rounded-bl-lg'
               }`}
             >
               {msg.role === 'assistant' ? (
@@ -642,7 +643,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
         ))}
         <div ref={messagesEndRef} />
       </main>
-      <footer className="p-4 bg-[--bg-secondary] border-t border-[--border-primary]">
+      <footer className="p-4 bg-[--bg-primary] border-t border-[--border-primary]">
         {attachedImage && (
             <div className="relative w-20 h-20 mb-2 border border-[--border-secondary] rounded-lg p-1">
                 <img src={attachedImage} className="w-full h-full object-cover rounded-md" alt="Attachment preview"/>
@@ -672,7 +673,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
             placeholder="Type your message, or attach an image..."
             rows={1}
             disabled={isResponding}
-            className="w-full pl-12 pr-12 py-3 bg-[--bg-tertiary] text-[--text-primary] rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[--border-focus] disabled:cursor-not-allowed max-h-48 overflow-y-auto"
+            className="w-full pl-12 pr-14 py-3 bg-[--bg-tertiary] text-[--text-primary] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[--border-focus] disabled:cursor-not-allowed max-h-48 overflow-y-auto"
             autoFocus
           />
           <button
@@ -686,7 +687,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
           {isResponding ? (
             <button
               onClick={onStopGeneration}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors"
               title="Stop generating"
             >
               <StopIcon className="w-5 h-5" />
@@ -695,7 +696,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
             <button
               onClick={handleSend}
               disabled={!input.trim() && !attachedImage}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-[--bg-accent] text-[--text-on-accent] hover:bg-[--bg-accent-hover] disabled:bg-[--bg-accent-disabled] disabled:cursor-not-allowed transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full bg-[--accent-chat] text-white hover:brightness-90 disabled:bg-indigo-300 dark:disabled:bg-indigo-800 disabled:cursor-not-allowed transition-all"
               title="Send message"
             >
               <SendIcon className="w-5 h-5" />

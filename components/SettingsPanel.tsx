@@ -126,15 +126,15 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
   };
 
   return (
-    <div className="p-4 sm:p-6 h-full overflow-y-auto bg-[--bg-primary]">
+    <div className="p-4 sm:p-6 h-full overflow-y-auto bg-[--bg-secondary]">
       <div className="max-w-2xl mx-auto">
-        <h1 className="flex items-center gap-3 text-3xl font-bold text-[--text-primary] mb-8">
+        <h1 className="flex items-center gap-3 text-3xl font-bold mb-8" style={{ color: 'var(--accent-settings)'}}>
           <SettingsIcon className="w-8 h-8"/>
           Settings
         </h1>
         
         <div className="space-y-8">
-            <div className="bg-[--bg-secondary]/50 p-6 rounded-lg border border-[--border-primary]">
+            <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
               <h3 className="text-lg font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">Connection</h3>
               <div className="space-y-4">
                   <div>
@@ -145,7 +145,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                       id="provider"
                       value={localConfig.provider}
                       onChange={handleProviderChange}
-                      className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
+                      className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
                       >
                       <option value="Ollama">Ollama</option>
                       <option value="LMStudio">LMStudio</option>
@@ -164,19 +164,19 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                       id="baseUrl"
                       value={localConfig.baseUrl}
                       onChange={handleUrlChange}
-                      className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
+                      className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
                       placeholder="e.g., http://localhost:11434/v1"
                       />
                   </div>
               </div>
             </div>
             
-            <div className="bg-[--bg-secondary]/50 p-6 rounded-lg border border-[--border-primary]">
+            <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
               <div className="flex justify-between items-center mb-4 border-b border-[--border-primary] pb-3">
                 <h3 className="text-lg font-semibold text-[--text-secondary]">Appearance</h3>
                 <button
                     onClick={handleResetThemeOverrides}
-                    className="px-3 py-1 text-xs font-medium text-red-600 bg-red-100 dark:bg-red-900/50 dark:text-red-300 rounded-md hover:bg-red-200 dark:hover:bg-red-800"
+                    className="px-3 py-1 text-xs font-medium text-red-600 bg-red-100 dark:bg-red-900/50 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-800"
                 >
                     Reset Appearance
                 </button>
@@ -191,7 +191,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="space-y-4 p-4 rounded-lg border border-[--border-secondary] bg-[--bg-primary]">
+                  <div className="space-y-4 p-4 rounded-lg border border-[--border-secondary] bg-[--bg-secondary]">
                     <PreviewBox 
                       label="User Message Preview"
                       bgColor={themeOverrides.userMessageBg || defaults.userMessageBg}
@@ -207,7 +207,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                       onChange={v => handleThemeOverrideChange('userMessageColor', v)} />
                   </div>
 
-                  <div className="space-y-4 p-4 rounded-lg border border-[--border-secondary] bg-[--bg-primary]">
+                  <div className="space-y-4 p-4 rounded-lg border border-[--border-secondary] bg-[--bg-secondary]">
                     <PreviewBox 
                       label="Assistant Message Preview"
                       bgColor={themeOverrides.assistantMessageBg || defaults.assistantMessageBg}
@@ -233,7 +233,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                             id="font-family"
                             value={themeOverrides.fontFamily || 'sans-serif'}
                             onChange={e => handleThemeOverrideChange('fontFamily', e.target.value)}
-                            className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
+                            className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
                         >
                             <option value="sans-serif">Sans-serif</option>
                             <option value="serif">Serif</option>
@@ -249,7 +249,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                             id="font-size"
                             value={themeOverrides.fontSize || 16}
                             onChange={e => handleThemeOverrideChange('fontSize', e.target.valueAsNumber)}
-                            className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
+                            className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
                             placeholder="16"
                         />
                    </div>
@@ -258,7 +258,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
             </div>
               
             {isElectron && (
-              <div className="bg-[--bg-secondary]/50 p-6 rounded-lg border border-[--border-primary]">
+              <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
                    <h3 className="text-lg font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">Advanced</h3>
                   <div className="space-y-4">
                       <label className="flex items-center gap-3 cursor-pointer">
@@ -266,7 +266,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                               type="checkbox"
                               checked={!!localConfig.logToFile}
                               onChange={handleLogToFileChange}
-                              className="w-4 h-4 rounded text-blue-600 bg-[--bg-tertiary] border-[--border-secondary] focus:ring-blue-500"
+                              className="w-4 h-4 rounded text-indigo-600 bg-[--bg-tertiary] border-[--border-secondary] focus:ring-indigo-500"
                           />
                           <span className="text-sm font-medium text-[--text-muted]">
                               Automatically save logs to file
@@ -285,7 +285,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                               id="pythonCommand"
                               value={localConfig.pythonCommand || ''}
                               onChange={handlePythonCommandChange}
-                              className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
+                              className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
                               placeholder="e.g., python or python3"
                           />
                            <p className="text-xs text-[--text-muted] mt-2 px-1">
@@ -301,7 +301,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
           <button
             onClick={handleSave}
             disabled={isConnecting}
-            className="flex items-center justify-center px-6 py-2.5 text-sm font-medium text-[--text-on-accent] bg-[--bg-accent] rounded-md hover:bg-[--bg-accent-hover] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-primary] focus:ring-[--border-focus] disabled:bg-[--bg-accent-disabled] disabled:cursor-not-allowed"
+            className="flex items-center justify-center px-6 py-2.5 text-sm font-medium text-[--text-on-accent] bg-[--accent-settings] rounded-lg hover:brightness-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-primary] focus:ring-[--border-focus] disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isConnecting ? 'Connecting...' : 'Save & Refresh Connection'}
           </button>
