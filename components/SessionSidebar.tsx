@@ -1,9 +1,9 @@
-
 import React from 'react';
 import type { ChatSession } from '../types';
 import PlusIcon from './icons/PlusIcon';
 import TrashIcon from './icons/TrashIcon';
 import MessageSquareIcon from './icons/MessageSquareIcon';
+import SparklesIcon from './icons/SparklesIcon';
 
 interface SessionSidebarProps {
   sessions: ChatSession[];
@@ -11,9 +11,10 @@ interface SessionSidebarProps {
   onNewChat: () => void;
   onSelectSession: (sessionId: string) => void;
   onDeleteSession: (sessionId: string) => void;
+  onGenerateSessionName: (sessionId: string) => void;
 }
 
-const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSessionId, onNewChat, onSelectSession, onDeleteSession }) => {
+const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSessionId, onNewChat, onSelectSession, onDeleteSession, onGenerateSessionName }) => {
   return (
     <aside className="w-64 bg-[--bg-secondary] border-r border-[--border-primary] flex flex-col">
       <div className="p-2 flex-shrink-0">
@@ -29,26 +30,38 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
         {sessions.map((session) => (
           <div
             key={session.id}
-            className={`group w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors relative ${
+            className={`group w-full text-left rounded-md text-sm font-medium transition-colors relative ${
               activeSessionId === session.id
                 ? 'bg-blue-500/10 text-[--text-accent]'
                 : 'text-[--text-secondary] hover:bg-[--bg-hover]'
             }`}
           >
-            <button onClick={() => onSelectSession(session.id)} className="w-full h-full flex items-center gap-2 text-left truncate">
+            <button onClick={() => onSelectSession(session.id)} className="w-full flex items-center gap-2 text-left truncate px-3 py-2">
                 <MessageSquareIcon className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate flex-1">{session.name}</span>
+                <span className="truncate flex-1 pr-14">{session.name}</span>
             </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDeleteSession(session.id);
-              }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-gray-400 hover:bg-red-500/10 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-              title="Delete session"
-            >
-              <TrashIcon className="w-4 h-4" />
-            </button>
+            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-[--bg-hover] rounded-md">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onGenerateSessionName(session.id);
+                }}
+                className="p-1 rounded text-gray-400 hover:bg-blue-500/10 hover:text-blue-500"
+                title="Generate name"
+              >
+                <SparklesIcon className="w-4 h-4" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteSession(session.id);
+                }}
+                className="p-1 rounded text-gray-400 hover:bg-red-500/10 hover:text-red-500"
+                title="Delete session"
+              >
+                <TrashIcon className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         ))}
       </nav>

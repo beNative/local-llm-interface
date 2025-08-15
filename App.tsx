@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
@@ -283,30 +282,19 @@ const App: React.FC = () => {
     });
   };
 
-  const handleSelectModel = (modelId: string) => {
-    logger.info(`Model selected for new chat: ${modelId}`);
-    const newSession: ChatSession = {
-        id: `session_${Date.now()}`,
-        name: 'New Chat',
-        modelId: modelId,
-        messages: [{ role: 'system', content: DEFAULT_SYSTEM_PROMPT }],
-    };
-    setConfig(c => {
-        if (!c) return null;
-        const newSessions = [...(c.sessions || []), newSession];
-        return { ...c, sessions: newSessions, activeSessionId: newSession.id };
-    });
-    setView('chat');
-  };
-
   const generateSessionName = async (session: ChatSession) => {
       if (!config) return;
 
       const conversation = session.messages
-          .filter(m => ['user', 'assistant'].includes(m.role))
+          .filter(m => ['user', 'assistant'].includes(m.role) && m.content)
           .slice(0, 2) // Base title on first exchange
           .map(m => `${m.role}: ${m.content}`)
           .join('\n');
+
+      if (!conversation.trim()) {
+        logger.warn(`Cannot generate session name for session ${session.id}: no conversation content found.`);
+        return;
+      }
 
       const prompt = `${SESSION_NAME_PROMPT}\n\n---\n\nConversation:\n${conversation}`;
       
@@ -321,6 +309,32 @@ const App: React.FC = () => {
       } catch (e) {
           logger.error(`Failed to generate session name: ${e}`);
       }
+  };
+
+  const handleManualGenerateSessionName = (sessionId: string) => {
+    const sessionToRename = sessions.find(s => s.id === sessionId);
+    if (sessionToRename) {
+      logger.info(`Manually triggered name generation for session: ${sessionToRename.name}`);
+      generateSessionName(sessionToRename);
+    } else {
+      logger.warn(`Could not find session with id ${sessionId} to generate name.`);
+    }
+  };
+
+  const handleSelectModel = (modelId: string) => {
+    logger.info(`Model selected for new chat: ${modelId}`);
+    const newSession: ChatSession = {
+        id: `session_${Date.now()}`,
+        name: 'New Chat',
+        modelId: modelId,
+        messages: [{ role: 'system', content: DEFAULT_SYSTEM_PROMPT }],
+    };
+    setConfig(c => {
+        if (!c) return null;
+        const newSessions = [...(c.sessions || []), newSession];
+        return { ...c, sessions: newSessions, activeSessionId: newSession.id };
+    });
+    setView('chat');
   };
 
   const handleSendMessage = async (userInput: string) => {
@@ -566,6 +580,7 @@ const App: React.FC = () => {
             onNewChat={handleNewChat}
             onSelectSession={handleSelectSession}
             onDeleteSession={handleDeleteSession}
+            onGenerateSessionName={handleManualGenerateSessionName}
           />
         )}
         <div className="flex-1 overflow-hidden">
