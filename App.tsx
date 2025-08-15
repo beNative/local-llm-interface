@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession } from './types';
+import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
 import { fetchModels, streamChatCompletion, LLMServiceError, generateTextCompletion } from './services/llmService';
 import { logger } from './services/logger';
@@ -289,7 +289,13 @@ const App: React.FC = () => {
       const conversation = session.messages
           .filter(m => ['user', 'assistant'].includes(m.role) && m.content)
           .slice(0, 2) // Base title on first exchange
-          .map(m => `${m.role}: ${m.content}`)
+          .map(m => {
+            if (Array.isArray(m.content)) {
+                const textPart = m.content.find((p): p is Extract<ChatMessageContentPart, { type: 'text' }> => p.type === 'text');
+                return `${m.role}: ${textPart?.text || '[image]'}`;
+            }
+            return `${m.role}: ${m.content}`;
+          })
           .join('\n');
 
       if (!conversation.trim()) {
@@ -347,7 +353,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSendMessage = async (userInput: string) => {
+  const handleSendMessage = async (content: string | ChatMessageContentPart[]) => {
     if (!activeSession || !config) return;
 
     logger.info(`Sending message to model ${activeSession.modelId}.`);
@@ -356,7 +362,7 @@ const App: React.FC = () => {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    const userMessage: ChatMessage = { role: 'user', content: userInput };
+    const userMessage: ChatMessage = { role: 'user', content: content };
     const newMessages: ChatMessage[] = [...activeSession.messages, userMessage];
     
     const updatedSession: ChatSession = { ...activeSession, messages: [...newMessages, { role: 'assistant', content: '' }] };
@@ -391,7 +397,7 @@ const App: React.FC = () => {
             if (!targetSession) return c;
             const lastMsg = targetSession.messages[targetSession.messages.length - 1];
             if (lastMsg && lastMsg.role === 'assistant') {
-                const updatedMsg: ChatMessage = { ...lastMsg, content: lastMsg.content + chunk };
+                const updatedMsg: ChatMessage = { ...lastMsg, content: (lastMsg.content as string) + chunk };
                 const updatedMessages: ChatMessage[] = [...targetSession.messages.slice(0, -1), updatedMsg];
                 const updatedS: ChatSession = { ...targetSession, messages: updatedMessages };
                 return { ...c, sessions: c.sessions!.map(s => s.id === activeSessionId ? updatedS : s) };

@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
-import type { ChatMessage, Theme, CodeProject, ProjectType, FileSystemEntry, ChatSession, Model } from '../types';
+import type { ChatMessage, Theme, CodeProject, ProjectType, FileSystemEntry, ChatSession, Model, ChatMessageContentPart } from '../types';
 import SendIcon from './icons/SendIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
 import ModelIcon from './icons/ModelIcon';
@@ -16,6 +16,8 @@ import ChevronDownIcon from './icons/ChevronDownIcon';
 import { runPythonCode } from '../services/pyodideService';
 import { logger } from '../services/logger';
 import StopIcon from './icons/StopIcon';
+import PaperclipIcon from './icons/PaperclipIcon';
+import XIcon from './icons/XIcon';
 
 const getProjectTypeForLang = (lang: string): ProjectType | null => {
     if (lang === 'python') return 'python';
@@ -361,7 +363,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
 
 interface ChatViewProps {
   session: ChatSession;
-  onSendMessage: (userInput: string) => void;
+  onSendMessage: (content: string | ChatMessageContentPart[]) => void;
   isResponding: boolean;
   onStopGeneration: () => void;
   onRenameSession: (newName: string) => void;
@@ -378,6 +380,7 @@ interface ChatViewProps {
 
 const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isResponding, onStopGeneration, onRenameSession, theme, isElectron, projects, prefilledInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel }) => {
   const [input, setInput] = useState('');
+  const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [saveModalState, setSaveModalState] = useState<{ code: string; lang: string } | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(session.name);
@@ -386,6 +389,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const modelSelectorRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { messages, name: sessionName } = session;
 
@@ -444,16 +448,38 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
   }, [input]);
 
   const handleSend = () => {
-    if (input.trim() && !isResponding) {
-      onSendMessage(input.trim());
-      setInput('');
+    if ((!input.trim() && !attachedImage) || isResponding) return;
+
+    if (attachedImage) {
+        const contentParts: ChatMessageContentPart[] = [];
+        if (input.trim()) {
+            contentParts.push({ type: 'text', text: input.trim() });
+        }
+        contentParts.push({ type: 'image_url', image_url: { url: attachedImage } });
+        onSendMessage(contentParts);
+    } else {
+        onSendMessage(input.trim());
     }
+    
+    setInput('');
+    setAttachedImage(null);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+  
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setAttachedImage(reader.result as string);
+        };
+        reader.readAsDataURL(file);
     }
   };
 
@@ -575,9 +601,11 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
                   : 'rounded-bl-none'
               }`}
             >
-              {msg.role === 'assistant' && msg.content === '' && isResponding
-                ? <SpinnerIcon className="w-5 h-5 text-gray-400"/>
-                : <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2">
+              {msg.role === 'assistant' ? (
+                msg.content === '' && isResponding ? (
+                  <SpinnerIcon className="w-5 h-5 text-gray-400"/>
+                ) : (
+                  <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
@@ -587,10 +615,27 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
                           pre: ({ children }) => <>{children}</>,
                       }}
                     >
-                      {msg.content}
+                      {msg.content as string}
                     </ReactMarkdown>
                   </div>
-              }
+                )
+              ) : ( // User message
+                <div className="space-y-2">
+                  {Array.isArray(msg.content) ? (
+                    msg.content.map((part, i) => {
+                      if (part.type === 'image_url') {
+                        return <img key={i} src={part.image_url.url} className="max-w-xs rounded-lg" alt="User upload" />;
+                      }
+                      if (part.type === 'text') {
+                        return <p key={i} className="whitespace-pre-wrap">{part.text}</p>;
+                      }
+                      return null;
+                    })
+                  ) : (
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                  )}
+                </div>
+              )}
             </div>
              {msg.role === 'user' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center font-bold text-[--text-primary]">U</div>}
           </div>
@@ -598,18 +643,46 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
         <div ref={messagesEndRef} />
       </main>
       <footer className="p-4 bg-[--bg-secondary] border-t border-[--border-primary]">
+        {attachedImage && (
+            <div className="relative w-20 h-20 mb-2 border border-[--border-secondary] rounded-lg p-1">
+                <img src={attachedImage} className="w-full h-full object-cover rounded-md" alt="Attachment preview"/>
+                <button 
+                    onClick={() => setAttachedImage(null)} 
+                    className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-0.5 hover:bg-red-700 transition-colors"
+                    aria-label="Remove image"
+                    title="Remove image"
+                >
+                    <XIcon className="w-4 h-4" />
+                </button>
+            </div>
+        )}
         <div className="relative">
+           <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImageChange}
+            accept="image/*"
+            className="hidden"
+           />
           <textarea
             ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Type your message..."
+            placeholder="Type your message, or attach an image..."
             rows={1}
             disabled={isResponding}
-            className="w-full pl-4 pr-12 py-3 bg-[--bg-tertiary] text-[--text-primary] rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[--border-focus] disabled:cursor-not-allowed max-h-48 overflow-y-auto"
+            className="w-full pl-12 pr-12 py-3 bg-[--bg-tertiary] text-[--text-primary] rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[--border-focus] disabled:cursor-not-allowed max-h-48 overflow-y-auto"
             autoFocus
           />
+          <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isResponding}
+              className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] hover:text-[--text-primary] disabled:opacity-50"
+              title="Attach image"
+          >
+              <PaperclipIcon className="w-5 h-5" />
+          </button>
           {isResponding ? (
             <button
               onClick={onStopGeneration}
@@ -621,7 +694,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
           ) : (
             <button
               onClick={handleSend}
-              disabled={!input.trim()}
+              disabled={!input.trim() && !attachedImage}
               className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-[--bg-accent] text-[--text-on-accent] hover:bg-[--bg-accent-hover] disabled:bg-[--bg-accent-disabled] disabled:cursor-not-allowed transition-colors"
               title="Send message"
             >
