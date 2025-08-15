@@ -2,6 +2,7 @@
 
 
 
+
 const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 import * as path from 'path';
 import * as fs from 'fs';
@@ -725,7 +726,9 @@ end.
             }
             
             console.log(`Compiling Delphi project: ${dprFile} with compiler ${compilerPath}`);
-            return runCommand(compilerPath, ['-B', '-Q', dprFile], project.path);
+            // On Windows, the path must be quoted if it contains spaces, which is common for Program Files.
+            const command = os.platform() === 'win32' ? `"${compilerPath}"` : compilerPath;
+            return runCommand(command, ['-B', '-Q', dprFile], project.path);
         }
 
         return { stdout: '', stderr: `Project type "${project.type}" cannot be run.` };
