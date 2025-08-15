@@ -72,6 +72,12 @@ In the "Chat" tab, if no model is selected, you will see a grid of all available
 
 The chat view is where you interact with the selected LLM.
 
+### Project Context Selector (Desktop App Only)
+
+- A "Context" dropdown menu appears in the header when you have created projects.
+- **No Project Context**: This is the default. The chat behaves normally.
+- **Select a Project**: When you select one of your projects, the application will automatically include that project's file and folder structure as context for every message you send. The AI will then be aware of your project's layout, allowing you to ask more specific questions about your code without needing to copy and paste file contents.
+
 ### Code Execution & Management
 
 - **Run Button**: Code blocks for Python or Node.js will have a "Run" button.

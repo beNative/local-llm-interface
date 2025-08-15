@@ -44,9 +44,8 @@ The application employs a simple, centralized state management model. The root `
 The renderer process is sandboxed and cannot directly access Node.js APIs. Communication with the main process is handled via IPC:
 
 - `electron/preload.ts` exposes a `window.electronAPI` object to the renderer.
-- This API includes functions like `getSettings`, `saveSettings`, `runPython`, and `writeLog`.
-- When a renderer function like `window.electronAPI.runPython(code)` is called, it sends an IPC message to the main process via `ipcRenderer.invoke`.
-- The main process listens for these messages with `ipcMain.handle`. For example, the `python:run` handler receives the code, executes it in a native child process, and returns the result.
+- This API includes functions like `getSettings`, `saveSettings`, `runPython`, `writeLog`, and `projectGetFileTree`.
+- When a renderer function like `window.electronAPI.projectGetFileTree(path)` is called, it sends an IPC message to the main process. The main process's handler for `project:get-file-tree` recursively scans the project directory, generates a text-based file tree, and returns it. This tree is then injected into the system prompt for LLM requests to provide project-wide context.
 
 ## 6. Services Deep Dive
 
