@@ -77,7 +77,7 @@ const InfoView: React.FC<{ theme: Theme }> = ({ theme }) => {
             <p>{error}</p>
           </div>
         ) : (
-          <article className="prose prose-sm md:prose-base dark:prose-invert max-w-none text-[--text-secondary]">
+          <article className="prose prose-sm md:prose-base dark:prose-invert max-w-none">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{

@@ -665,7 +665,7 @@ const App: React.FC = () => {
             </div>
             <div
               onMouseDown={handleResizeMouseDown}
-              className="w-1.5 flex-shrink-0 cursor-col-resize bg-[--border-primary] hover:bg-[--border-focus] transition-colors duration-200"
+              className="w-1.5 flex-shrink-0 cursor-col-resize bg-[--bg-tertiary] hover:bg-[--border-focus] transition-colors duration-200"
               aria-label="Resize sidebar"
               role="separator"
             ></div>
