@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Config, LLMProvider, Theme, ThemeOverrides, PredefinedPrompt } from '../types';
+import type { Config, LLMProvider, Theme, ThemeOverrides, PredefinedPrompt, ColorOverrides } from '../types';
 import { PROVIDER_CONFIGS } from '../constants';
 import SettingsIcon from './icons/SettingsIcon';
 import TrashIcon from './icons/TrashIcon';
@@ -107,27 +107,32 @@ const NewPromptForm: React.FC<{ onAdd: (title: string, content: string) => void 
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, isConnecting, isElectron, theme }) => {
   const [localConfig, setLocalConfig] = useState<Config>(config);
+  const [activeAppearanceTab, setActiveAppearanceTab] = useState<Theme>(theme);
 
   useEffect(() => {
     setLocalConfig(config);
   }, [config]);
   
-  const defaults = useMemo(() => {
-      if (typeof window === 'undefined') {
-          return { chatBg: '', userMessageBg: '', userMessageColor: '', assistantMessageBg: '', assistantMessageColor: '' };
-      }
-      const rootStyle = getComputedStyle(document.documentElement);
-      const getCssVar = (name: string) => rootStyle.getPropertyValue(name).trim();
-      return {
-          chatBg: getCssVar('--bg-primary'),
-          userMessageBg: getCssVar('--bg-accent'),
-          userMessageColor: getCssVar('--text-on-accent'),
-          assistantMessageBg: getCssVar('--bg-secondary'),
-          assistantMessageColor: getCssVar('--text-primary'),
-      };
-  }, [theme]);
+  const defaults = useMemo(() => ({
+    light: {
+        chatBg: '#f8fafc',
+        userMessageBg: '#4f46e5',
+        userMessageColor: '#ffffff',
+        assistantMessageBg: '#f1f5f9',
+        assistantMessageColor: '#1e293b',
+    },
+    dark: {
+        chatBg: '#1e293b',
+        userMessageBg: '#818cf8',
+        userMessageColor: '#1e293b',
+        assistantMessageBg: '#334155',
+        assistantMessageColor: '#f8fafc',
+    }
+  }), []);
 
+  const activeThemeDefaults = activeAppearanceTab === 'dark' ? defaults.dark : defaults.light;
   const themeOverrides = localConfig.themeOverrides || {};
+  const activeColorOverrides = (activeAppearanceTab === 'dark' ? themeOverrides.dark : themeOverrides.light) || {};
 
   const handleProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const provider = e.target.value as LLMProvider;
@@ -150,7 +155,20 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
     setLocalConfig({ ...localConfig, pythonCommand: e.target.value });
   };
   
-  const handleThemeOverrideChange = (key: keyof ThemeOverrides, value: string | number) => {
+  const handleColorOverrideChange = (key: keyof ColorOverrides, value: string) => {
+    setLocalConfig(current => ({
+        ...current,
+        themeOverrides: {
+            ...current.themeOverrides,
+            [activeAppearanceTab]: {
+                ...current.themeOverrides?.[activeAppearanceTab],
+                [key]: value
+            }
+        }
+    }));
+  };
+
+  const handleFontOverrideChange = (key: 'fontFamily' | 'fontSize', value: string | number) => {
     setLocalConfig(current => ({
         ...current,
         themeOverrides: {
@@ -163,7 +181,10 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
   const handleResetThemeOverrides = () => {
     setLocalConfig(current => ({
         ...current,
-        themeOverrides: {}
+        themeOverrides: {
+            ...current.themeOverrides,
+            [activeAppearanceTab]: {},
+        }
     }));
   };
 
@@ -279,15 +300,33 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                     onClick={handleResetThemeOverrides}
                     className="px-3 py-1 text-xs font-medium text-red-600 bg-red-100 dark:bg-red-900/50 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-800"
                 >
-                    Reset Appearance
+                    Reset {activeAppearanceTab === 'light' ? 'Light' : 'Dark'} Theme Colors
                 </button>
               </div>
-              <div className="space-y-6">
+
+              <div className="border-b border-[--border-primary]">
+                  <nav className="-mb-px flex space-x-4" aria-label="Tabs">
+                      <button
+                          onClick={() => setActiveAppearanceTab('light')}
+                          className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${activeAppearanceTab === 'light' ? 'border-[--border-focus] text-[--text-primary]' : 'border-transparent text-[--text-muted] hover:border-gray-400'}`}
+                      >
+                          Light Theme
+                      </button>
+                      <button
+                          onClick={() => setActiveAppearanceTab('dark')}
+                          className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${activeAppearanceTab === 'dark' ? 'border-[--border-focus] text-[--text-primary]' : 'border-transparent text-[--text-muted] hover:border-gray-400'}`}
+                      >
+                          Dark Theme
+                      </button>
+                  </nav>
+              </div>
+
+              <div className="space-y-6 pt-6">
                 <div>
                    <ColorSelector 
                       label="Chat Background" 
-                      value={themeOverrides.chatBg || defaults.chatBg}
-                      onChange={v => handleThemeOverrideChange('chatBg', v)} 
+                      value={activeColorOverrides.chatBg || activeThemeDefaults.chatBg}
+                      onChange={v => handleColorOverrideChange('chatBg', v)} 
                     />
                 </div>
 
@@ -295,37 +334,40 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                   <div className="space-y-4 p-4 rounded-lg border border-[--border-secondary] bg-[--bg-secondary]">
                     <PreviewBox 
                       label="User Message Preview"
-                      bgColor={themeOverrides.userMessageBg || defaults.userMessageBg}
-                      textColor={themeOverrides.userMessageColor || defaults.userMessageColor}
+                      bgColor={activeColorOverrides.userMessageBg || activeThemeDefaults.userMessageBg}
+                      textColor={activeColorOverrides.userMessageColor || activeThemeDefaults.userMessageColor}
                     />
                     <ColorSelector 
                       label="Background Color" 
-                      value={themeOverrides.userMessageBg || defaults.userMessageBg}
-                      onChange={v => handleThemeOverrideChange('userMessageBg', v)} />
+                      value={activeColorOverrides.userMessageBg || activeThemeDefaults.userMessageBg}
+                      onChange={v => handleColorOverrideChange('userMessageBg', v)} />
                     <ColorSelector 
                       label="Text Color" 
-                      value={themeOverrides.userMessageColor || defaults.userMessageColor}
-                      onChange={v => handleThemeOverrideChange('userMessageColor', v)} />
+                      value={activeColorOverrides.userMessageColor || activeThemeDefaults.userMessageColor}
+                      onChange={v => handleColorOverrideChange('userMessageColor', v)} />
                   </div>
 
                   <div className="space-y-4 p-4 rounded-lg border border-[--border-secondary] bg-[--bg-secondary]">
                     <PreviewBox 
                       label="Assistant Message Preview"
-                      bgColor={themeOverrides.assistantMessageBg || defaults.assistantMessageBg}
-                      textColor={themeOverrides.assistantMessageColor || defaults.assistantMessageColor}
+                      bgColor={activeColorOverrides.assistantMessageBg || activeThemeDefaults.assistantMessageBg}
+                      textColor={activeColorOverrides.assistantMessageColor || activeThemeDefaults.assistantMessageColor}
                     />
                     <ColorSelector 
                       label="Background Color" 
-                      value={themeOverrides.assistantMessageBg || defaults.assistantMessageBg}
-                      onChange={v => handleThemeOverrideChange('assistantMessageBg', v)} />
+                      value={activeColorOverrides.assistantMessageBg || activeThemeDefaults.assistantMessageBg}
+                      onChange={v => handleColorOverrideChange('assistantMessageBg', v)} />
                     <ColorSelector 
                       label="Text Color" 
-                      value={themeOverrides.assistantMessageColor || defaults.assistantMessageColor}
-                      onChange={v => handleThemeOverrideChange('assistantMessageColor', v)} />
+                      value={activeColorOverrides.assistantMessageColor || activeThemeDefaults.assistantMessageColor}
+                      onChange={v => handleColorOverrideChange('assistantMessageColor', v)} />
                   </div>
                 </div>
-                  
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              </div>
+
+              <div className="border-t border-[--border-primary] mt-6 pt-6">
+                <h4 className="text-md font-semibold text-[--text-secondary] mb-4">Font Settings (Global)</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                    <div>
                         <label htmlFor="font-family" className="block text-sm font-medium text-[--text-muted] mb-1">
                             Font Family
@@ -333,7 +375,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                         <select
                             id="font-family"
                             value={themeOverrides.fontFamily || 'sans-serif'}
-                            onChange={e => handleThemeOverrideChange('fontFamily', e.target.value)}
+                            onChange={e => handleFontOverrideChange('fontFamily', e.target.value)}
                             className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
                         >
                             <option value="sans-serif">Sans-serif</option>
@@ -349,7 +391,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                             type="number"
                             id="font-size"
                             value={themeOverrides.fontSize || 16}
-                            onChange={e => handleThemeOverrideChange('fontSize', e.target.valueAsNumber)}
+                            onChange={e => handleFontOverrideChange('fontSize', e.target.valueAsNumber)}
                             className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
                             placeholder="16"
                         />

@@ -77,6 +77,12 @@
         --user-message-text-color: #ffffff;
         --assistant-message-bg-color: var(--bg-secondary);
       }
+      /* Improve dark mode readability for all markdown content */
+      html.dark .prose-invert {
+        --tw-prose-body: #cbd5e1; /* slate-300 */
+        --tw-prose-quotes: #cbd5e1; /* slate-300 */
+        --tw-prose-captions: #94a3b8; /* slate-400 */
+      }
       body {
         background-color: var(--bg-primary);
         color: var(--text-primary);

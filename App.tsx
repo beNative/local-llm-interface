@@ -115,7 +115,10 @@ const App: React.FC = () => {
         provider: 'Ollama', 
         baseUrl: PROVIDER_CONFIGS.Ollama.baseUrl,
         theme: 'dark',
-        themeOverrides: {},
+        themeOverrides: {
+            light: {},
+            dark: {},
+        },
         logToFile: false,
         pythonProjectsPath: '',
         nodejsProjectsPath: '',
@@ -177,26 +180,29 @@ const App: React.FC = () => {
     styleElement.id = 'theme-overrides';
 
     const overrides = config?.themeOverrides;
-    if (overrides && Object.values(overrides).some(v => v)) {
-      const css = `
+    const activeTheme = config?.theme || 'dark';
+    
+    if (overrides) {
+        const themeSpecificOverrides = activeTheme === 'dark' ? overrides.dark : overrides.light;
+        const css = `
         :root {
-          ${overrides.chatBg ? `--chat-bg-color: ${overrides.chatBg};` : ''}
-          ${overrides.userMessageBg ? `--user-message-bg-color: ${overrides.userMessageBg};` : ''}
-          ${overrides.userMessageColor ? `--user-message-text-color: ${overrides.userMessageColor};` : ''}
-          ${overrides.assistantMessageBg ? `--assistant-message-bg-color: ${overrides.assistantMessageBg};` : ''}
-          ${overrides.assistantMessageColor ? `--assistant-message-text-color: ${overrides.assistantMessageColor};` : ''}
+          ${themeSpecificOverrides?.chatBg ? `--chat-bg-color: ${themeSpecificOverrides.chatBg};` : ''}
+          ${themeSpecificOverrides?.userMessageBg ? `--user-message-bg-color: ${themeSpecificOverrides.userMessageBg};` : ''}
+          ${themeSpecificOverrides?.userMessageColor ? `--user-message-text-color: ${themeSpecificOverrides.userMessageColor};` : ''}
+          ${themeSpecificOverrides?.assistantMessageBg ? `--assistant-message-bg-color: ${themeSpecificOverrides.assistantMessageBg};` : ''}
+          ${themeSpecificOverrides?.assistantMessageColor ? `--assistant-message-text-color: ${themeSpecificOverrides.assistantMessageColor};` : ''}
           ${overrides.fontFamily ? `--chat-font-family: ${overrides.fontFamily};` : ''}
           ${overrides.fontSize ? `--chat-font-size: ${overrides.fontSize}px;` : ''}
         }
       `;
       styleElement.innerHTML = css;
       document.head.appendChild(styleElement);
-      logger.debug('Applied custom theme overrides.');
+      logger.debug(`Applied custom theme overrides for ${activeTheme} mode.`);
     } else {
       styleElement.innerHTML = ''; // Clear styles if no overrides
       logger.debug('No theme overrides to apply.');
     }
-  }, [config?.themeOverrides]);
+  }, [config?.themeOverrides, config?.theme]);
 
   // Effect to persist config changes.
   useEffect(() => {
@@ -211,10 +217,9 @@ const App: React.FC = () => {
 
 
   const handleConfigChange = (newConfig: Config) => {
-    if (!config) return;
     logger.info('Configuration change requested.');
 
-    const needsModelReload = newConfig.baseUrl !== config.baseUrl || newConfig.provider !== config.provider;
+    const needsModelReload = newConfig.baseUrl !== config?.baseUrl || newConfig.provider !== config?.provider;
 
     if (needsModelReload) {
         logger.info('Provider or Base URL changed, resetting sessions and returning to model selection.');
@@ -223,6 +228,7 @@ const App: React.FC = () => {
             sessions: [],
             activeSessionId: undefined,
         });
+        setView('chat');
     } else {
         setConfig(newConfig);
     }

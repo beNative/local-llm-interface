@@ -26,15 +26,21 @@ export interface FileSystemEntry {
   children?: FileSystemEntry[]; // For tree view state
 }
 
-export interface ThemeOverrides {
+export interface ColorOverrides {
   userMessageBg?: string;
   userMessageColor?: string;
   assistantMessageBg?: string;
   assistantMessageColor?: string;
   chatBg?: string;
+}
+
+export interface ThemeOverrides {
+  light?: ColorOverrides;
+  dark?: ColorOverrides;
   fontFamily?: 'sans-serif' | 'serif' | 'monospace';
   fontSize?: number;
 }
+
 
 export interface ChatSession {
   id: string;
