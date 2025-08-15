@@ -140,6 +140,10 @@ export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string | ChatMessageContentPart[];
   metadata?: ChatMessageMetadata;
+  fileModification?: {
+    filePath: string;
+    status: 'pending' | 'accepted' | 'rejected';
+  };
 }
 
 export type ApiHttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';

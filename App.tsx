@@ -345,8 +345,11 @@ const App: React.FC = () => {
           .slice(0, 2) // Base title on first exchange
           .map(m => {
             if (Array.isArray(m.content)) {
-                const textPart = m.content.find((p): p is Extract<ChatMessageContentPart, { type: 'text' }> => p.type === 'text');
-                return `${m.role}: ${textPart?.text || '[image]'}`;
+                const textPart = m.content.find(p => p.type === 'text');
+                if (textPart && 'text' in textPart) {
+                  return `${m.role}: ${textPart.text || '[image]'}`;
+                }
+                return `${m.role}: [image]`;
             }
             return `${m.role}: ${m.content}`;
           })
@@ -448,42 +451,81 @@ const App: React.FC = () => {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    const userMessage: ChatMessage = { role: 'user', content: content };
-    let newMessages: ChatMessage[] = [...activeSession.messages, userMessage];
+    const userMessageContent = Array.isArray(content) ? (content.find(p => p.type === 'text')?.text || '') : content;
+    const modificationRegex = /(?:refactor|modify|change|update|add to|edit|implement|create|write|delete)\s+(?:in\s+)?(?:the\s+file\s+)?([\w./\\-]+)/i;
+    const match = modificationRegex.exec(userMessageContent);
     
+    let userMessage: ChatMessage = { role: 'user', content };
+    let newMessages: ChatMessage[] = [...activeSession.messages, userMessage];
+
     // Ensure there is a system message. If not, add the default one.
     if (!newMessages.some(m => m.role === 'system')) {
         newMessages.unshift({ role: 'system', content: DEFAULT_SYSTEM_PROMPT });
     }
-    
-    const updatedSession: ChatSession = { ...activeSession, messages: [...newMessages, { role: 'assistant', content: '' }] };
-    setConfig(c => ({ ...c!, sessions: c!.sessions!.map(s => s.id === activeSessionId ? updatedSession : s) }));
-    setIsResponding(true);
 
     let messagesForApi: ChatMessage[] = [...newMessages];
-    
-    if (activeProjectId && window.electronAPI) {
+
+    // AI-Assisted File Modification Logic
+    if (match && activeProjectId && window.electronAPI) {
+        const fileName = match[1];
+        const activeProject = config.projects?.find(p => p.id === activeProjectId);
+        if (activeProject) {
+            const filePath = await window.electronAPI.projectFindFile({ projectPath: activeProject.path, fileName });
+            if (filePath) {
+                try {
+                    const originalContent = await window.electronAPI.readProjectFile(filePath);
+                    const systemPrompt = `You are an expert AI code assistant. The user wants to modify the file "${fileName}".
+Read the user's request and the original file content, then return the ENTIRE, NEW, and COMPLETE content of the modified file.
+Do NOT add any explanations, comments, or markdown formatting around the code. Only output the raw, modified code for the file.
+
+Original content of "${fileName}":
+\`\`\`
+${originalContent}
+\`\`\`
+`;
+                    // Temporarily prepend this special system message for this request only.
+                    // It won't be saved in the session history, but will be sent to the API.
+                    const systemMessageIndex = messagesForApi.findIndex(m => m.role === 'system');
+                    if (systemMessageIndex > -1) {
+                      messagesForApi[systemMessageIndex] = {...messagesForApi[systemMessageIndex], content: `${messagesForApi[systemMessageIndex].content}\n\n${systemPrompt}`};
+                    } else {
+                       messagesForApi.unshift({ role: 'system', content: systemPrompt });
+                    }
+
+                    // Tag the user message for our UI to handle rendering
+                    userMessage.fileModification = { filePath, status: 'pending' };
+                    logger.info(`Detected file modification request for "${fileName}" in project "${activeProject.name}".`);
+                } catch (e) {
+                    logger.error(`Could not read file for modification task: ${e}`);
+                    // Fallback to normal message if file read fails
+                }
+            } else {
+                 logger.warn(`File modification requested for "${fileName}", but it was not found in project "${activeProject.name}". Proceeding as normal chat.`);
+            }
+        }
+    } else if (activeProjectId && window.electronAPI) {
+        // Standard Project Context Injection
         const activeProject = config.projects?.find(p => p.id === activeProjectId);
         if (activeProject) {
             try {
                 const fileTree = await window.electronAPI.projectGetFileTree(activeProject.path);
                 const projectContext = `The user has provided context for a software project named "${activeProject.name}".\nThe project's file structure is as follows:\n\`\`\`\n${fileTree}\n\`\`\`\nAnswer the user's questions based on this project context.`;
-
                 const systemMessageIndex = messagesForApi.findIndex(m => m.role === 'system');
                 if (systemMessageIndex !== -1) {
                     const originalSystemContent = messagesForApi[systemMessageIndex].content as string;
-                    messagesForApi[systemMessageIndex] = {
-                        role: 'system',
-                        content: `${originalSystemContent}\n\n${projectContext}`
-                    };
+                    messagesForApi[systemMessageIndex] = { role: 'system', content: `${originalSystemContent}\n\n${projectContext}` };
                 }
-                
                 logger.info(`Injected project context for "${activeProject.name}" into system prompt.`);
             } catch (e) {
                 logger.error(`Failed to get project file tree: ${e}`);
             }
         }
     }
+    
+    // Update the UI state with the user's message immediately
+    const updatedSession: ChatSession = { ...activeSession, messages: [...newMessages, { role: 'assistant', content: '' }] };
+    setConfig(c => ({ ...c!, sessions: c!.sessions!.map(s => s.id === activeSessionId ? updatedSession : s) }));
+    setIsResponding(true);
 
     await streamChatCompletion(
       config.baseUrl,
@@ -554,6 +596,51 @@ const App: React.FC = () => {
       }
     );
   };
+
+  const handleAcceptModification = async (filePath: string, newContent: string) => {
+    if (!window.electronAPI) return;
+    try {
+        await window.electronAPI.writeProjectFile(filePath, newContent);
+        logger.info(`Successfully applied AI modifications to ${filePath}`);
+        // Find the message and update its status
+        setConfig(c => {
+            if (!c || !activeSessionId) return c;
+            const newSessions = c.sessions.map(s => {
+                if (s.id !== activeSessionId) return s;
+                const newMessages = s.messages.map(m => {
+                    if (m.fileModification && m.fileModification.filePath === filePath) {
+                        return { ...m, fileModification: { filePath: m.fileModification.filePath, status: 'accepted' } };
+                    }
+                    return m;
+                });
+                return { ...s, messages: newMessages };
+            });
+            return { ...c, sessions: newSessions };
+        });
+    } catch (e) {
+        logger.error(`Failed to write file modifications to ${filePath}: ${e}`);
+        alert(`Failed to save changes: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
+  const handleRejectModification = (filePath: string) => {
+      logger.info(`User rejected AI modifications for ${filePath}`);
+      setConfig(c => {
+          if (!c || !activeSessionId) return c;
+          const newSessions = c.sessions.map(s => {
+              if (s.id !== activeSessionId) return s;
+              const newMessages = s.messages.map(m => {
+                  if (m.fileModification && m.fileModification.filePath === filePath) {
+                      return { ...m, fileModification: { filePath: m.fileModification.filePath, status: 'rejected' } };
+                  }
+                  return m;
+              });
+              return { ...s, messages: newMessages };
+          });
+          return { ...c, sessions: newSessions };
+      });
+  };
+
 
   const handleInjectContentForChat = (filename: string, content: string) => {
     const formattedContent = `Here is the content of \`${filename}\` for context:\n\n\`\`\`\n${content}\n\`\`\`\n\nI have a question about this file.`;
@@ -700,6 +787,8 @@ const App: React.FC = () => {
                         predefinedPrompts={config.predefinedPrompts || []}
                         systemPrompts={config.systemPrompts || []}
                         onSetSessionSystemPrompt={handleSetSessionSystemPrompt}
+                        onAcceptModification={handleAcceptModification}
+                        onRejectModification={handleRejectModification}
                     />
                 );
              }

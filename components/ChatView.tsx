@@ -1,6 +1,7 @@
 
 
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -24,6 +25,9 @@ import XIcon from './icons/XIcon';
 import BookmarkIcon from './icons/BookmarkIcon';
 import IdentityIcon from './icons/IdentityIcon';
 import { DEFAULT_SYSTEM_PROMPT } from '../constants';
+import FileModificationView from './FileModificationView';
+import CheckIcon from './icons/CheckIcon';
+import XCircleIcon from './icons/XCircleIcon';
 
 const MessageMetadata: React.FC<{ metadata: ChatMessageMetadata }> = ({ metadata }) => {
     const { usage, speed } = metadata;
@@ -409,9 +413,11 @@ interface ChatViewProps {
   predefinedPrompts: PredefinedPrompt[];
   systemPrompts: SystemPrompt[];
   onSetSessionSystemPrompt: (systemPromptId: string | null) => void;
+  onAcceptModification: (filePath: string, newContent: string) => void;
+  onRejectModification: (filePath: string) => void;
 }
 
-const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isResponding, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt }) => {
+const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isResponding, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onAcceptModification, onRejectModification }) => {
   const [input, setInput] = useState('');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [saveModalState, setSaveModalState] = useState<{ code: string; lang: string } | null>(null);
@@ -748,63 +754,101 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
             fontSize: 'var(--chat-font-size)',
         }}
        >
-        {messages.filter(m => m.role !== 'system').map((msg, index) => (
-          <div key={index} className={`flex items-start gap-4 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-            {msg.role === 'assistant' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center"><ModelIcon className="w-5 h-5 text-[--accent-chat]" /></div>}
-            <div
-              style={{
-                backgroundColor: msg.role === 'user' ? 'var(--user-message-bg-color)' : 'var(--assistant-message-bg-color)',
-                color: msg.role === 'user' ? 'var(--user-message-text-color)' : 'var(--assistant-message-text-color)',
-                backgroundImage: msg.role === 'user' ? 'var(--user-message-bg-image)' : 'none',
-              }}
-              className={`p-4 rounded-2xl shadow-sm ${
-                msg.role === 'user'
-                  ? 'rounded-br-lg'
-                  : 'rounded-bl-lg'
-              }`}
-            >
-              {msg.role === 'assistant' ? (
-                msg.content === '' && isResponding ? (
-                  <SpinnerIcon className="w-5 h-5 text-gray-400"/>
-                ) : (
-                  <>
-                    <div className="prose prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                            code: (props) => (
-                                <CodeBlock {...props} theme={theme} isElectron={isElectron} projects={projects} onSaveRequest={handleSaveRequest} />
-                            ),
-                            pre: ({ children }) => <>{children}</>,
-                        }}
-                      >
-                        {msg.content as string}
-                      </ReactMarkdown>
+        {messages.filter(m => m.role !== 'system').map((msg, index, arr) => {
+          const prevMessage = arr[index - 1];
+          const isModificationResponse = msg.role === 'assistant' && prevMessage?.role === 'user' && prevMessage.fileModification;
+
+          if (isModificationResponse) {
+            const modInfo = prevMessage.fileModification!;
+            const fileName = modInfo.filePath.split(/[/\\]/).pop();
+
+            return (
+              <div key={index} className="flex items-start gap-4">
+                <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center"><ModelIcon className="w-5 h-5 text-[--accent-chat]" /></div>
+                <div className="flex-1 min-w-0">
+                  {modInfo.status === 'pending' && (
+                    <FileModificationView
+                      filePath={modInfo.filePath}
+                      newContent={msg.content as string}
+                      onAccept={(newContent) => onAcceptModification(modInfo.filePath, newContent)}
+                      onReject={() => onRejectModification(modInfo.filePath)}
+                      theme={theme}
+                    />
+                  )}
+                  {modInfo.status === 'accepted' && (
+                    <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400 p-3 bg-green-100 dark:bg-green-900/50 rounded-lg border border-green-200 dark:border-green-800">
+                      <CheckIcon className="w-5 h-5" />
+                      <span>Changes successfully applied to <strong>{fileName}</strong>.</span>
                     </div>
-                    {msg.metadata && <MessageMetadata metadata={msg.metadata} />}
-                  </>
-                )
-              ) : ( // User message
-                <div className="space-y-2">
-                  {Array.isArray(msg.content) ? (
-                    msg.content.map((part, i) => {
-                      if (part.type === 'image_url') {
-                        return <img key={i} src={part.image_url.url} className="max-w-xs rounded-lg" alt="User upload" />;
-                      }
-                      if (part.type === 'text') {
-                        return <p key={i} className="whitespace-pre-wrap">{part.text}</p>;
-                      }
-                      return null;
-                    })
-                  ) : (
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                  )}
+                  {modInfo.status === 'rejected' && (
+                    <div className="flex items-center gap-2 text-sm text-red-700 dark:text-red-500 p-3 bg-red-100 dark:bg-red-900/50 rounded-lg border border-red-200 dark:border-red-800">
+                      <XCircleIcon className="w-5 h-5" />
+                      <span>Changes for <strong>{fileName}</strong> were rejected.</span>
+                    </div>
                   )}
                 </div>
-              )}
+              </div>
+            );
+          }
+
+          return (
+            <div key={index} className={`flex items-start gap-4 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+              {msg.role === 'assistant' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center"><ModelIcon className="w-5 h-5 text-[--accent-chat]" /></div>}
+              <div
+                style={{
+                  backgroundColor: msg.role === 'user' ? 'var(--user-message-bg-color)' : 'var(--assistant-message-bg-color)',
+                  color: msg.role === 'user' ? 'var(--user-message-text-color)' : 'var(--assistant-message-text-color)',
+                  backgroundImage: msg.role === 'user' ? 'var(--user-message-bg-image)' : 'none',
+                }}
+                className={`p-4 rounded-2xl shadow-sm ${
+                  msg.role === 'user'
+                    ? 'rounded-br-lg'
+                    : 'rounded-bl-lg'
+                }`}
+              >
+                {msg.role === 'assistant' ? (
+                  msg.content === '' && isResponding ? (
+                    <SpinnerIcon className="w-5 h-5 text-gray-400"/>
+                  ) : (
+                    <>
+                      <div className="prose prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                              code: (props) => (
+                                  <CodeBlock {...props} theme={theme} isElectron={isElectron} projects={projects} onSaveRequest={handleSaveRequest} />
+                              ),
+                              pre: ({ children }) => <>{children}</>,
+                          }}
+                        >
+                          {msg.content as string}
+                        </ReactMarkdown>
+                      </div>
+                      {msg.metadata && <MessageMetadata metadata={msg.metadata} />}
+                    </>
+                  )
+                ) : ( // User message
+                  <div className="space-y-2">
+                    {Array.isArray(msg.content) ? (
+                      msg.content.map((part, i) => {
+                        if (part.type === 'image_url') {
+                          return <img key={i} src={part.image_url.url} className="max-w-xs rounded-lg" alt="User upload" />;
+                        }
+                        if (part.type === 'text') {
+                          return <p key={i} className="whitespace-pre-wrap">{part.text}</p>;
+                        }
+                        return null;
+                      })
+                    ) : (
+                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+               {msg.role === 'user' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center font-bold text-[--text-primary]">U</div>}
             </div>
-             {msg.role === 'user' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center font-bold text-[--text-primary]">U</div>}
-          </div>
-        ))}
+        )})}
         <div ref={messagesEndRef} />
       </main>
       <footer className="p-4 bg-[--bg-primary] border-t border-[--border-primary]">

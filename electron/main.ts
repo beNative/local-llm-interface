@@ -849,6 +849,14 @@ end.
         return await getAllFilesRecursive(projectPath);
     });
 
+    ipcMain.handle('project:find-file', async (_, { projectPath, fileName }: { projectPath: string, fileName: string }) => {
+        if (!isPathInAllowedBase(projectPath)) throw new Error('Access denied to path.');
+        const allFiles = await getAllFilesRecursive(projectPath);
+        // Find a file that ends with the requested fileName. This allows for partial paths like `src/utils.js`
+        const foundFile = allFiles.find(f => f.path.endsWith(path.normalize(fileName)));
+        return foundFile ? foundFile.path : null;
+    });
+
     const generateFileTree = async (dirPath: string, prefix = ''): Promise<string> => {
         let tree = '';
         try {

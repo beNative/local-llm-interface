@@ -36,6 +36,7 @@ export interface IElectronAPI {
   projectGetFileTree: (projectPath: string) => Promise<string>;
   projectGetAllFiles: (projectPath: string) => Promise<{name: string, path: string}[]>;
   projectAddFileFromPath: (args: {sourcePath: string, targetDir: string}) => Promise<void>;
+  projectFindFile: (args: { projectPath: string, fileName: string }) => Promise<string | null>;
 
   // System Stats
   onSystemStatsUpdate: (callback: (stats: SystemStats) => void) => void;
