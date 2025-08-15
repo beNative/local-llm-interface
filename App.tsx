@@ -1,11 +1,4 @@
 
-
-
-
-
-
-
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, FileSystemEntry, SystemStats } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
@@ -263,11 +256,10 @@ const App: React.FC = () => {
       const needsModelReload = newConfig.baseUrl !== currentConfig.baseUrl || newConfig.provider !== currentConfig.provider;
 
       if (needsModelReload) {
-        logger.info('Provider or Base URL changed, resetting sessions and returning to model selection.');
+        logger.info('Provider or Base URL changed. Sessions are preserved. Returning to model selection.');
         setView('chat');
         return {
           ...newConfig,
-          sessions: [],
           activeSessionId: undefined,
         };
       }
