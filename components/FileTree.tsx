@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import type { FileSystemEntry } from '../types';
 import SpinnerIcon from './icons/SpinnerIcon';
@@ -18,6 +19,19 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({ entry, onFileClick, level }
   const [isExpanded, setIsExpanded] = useState(false);
   const [children, setChildren] = useState<FileSystemEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const fetchChildren = async () => {
+      setIsLoading(true);
+      try {
+        const childEntries = await window.electronAPI!.readProjectDir(entry.path);
+        setChildren(childEntries);
+      } catch (e) {
+        logger.error(`Failed to read directory ${entry.path}: ${e}`);
+      } finally {
+        setIsLoading(false);
+      }
+  };
 
   const handleToggle = async () => {
     if (!entry.isDirectory) return;
@@ -25,16 +39,8 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({ entry, onFileClick, level }
     if (isExpanded) {
       setIsExpanded(false);
     } else {
-      setIsLoading(true);
-      try {
-        const childEntries = await window.electronAPI!.readProjectDir(entry.path);
-        setChildren(childEntries);
-        setIsExpanded(true);
-      } catch (e) {
-        logger.error(`Failed to read directory ${entry.path}: ${e}`);
-      } finally {
-        setIsLoading(false);
-      }
+      await fetchChildren();
+      setIsExpanded(true);
     }
   };
 
@@ -46,6 +52,52 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({ entry, onFileClick, level }
     }
   };
   
+  // Drag and Drop Handlers for adding files
+  const handleDragOver = (e: React.DragEvent) => {
+    if (entry.isDirectory) {
+        e.preventDefault();
+        setIsDragOver(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (entry.isDirectory) {
+        e.preventDefault();
+        setIsDragOver(false);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    if (!entry.isDirectory || !window.electronAPI) return;
+    
+    e.preventDefault();
+    setIsDragOver(false);
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        logger.info(`Dropping ${files.length} file(s) into ${entry.path}`);
+        try {
+            const dropPromises = Array.from(files).map(file => 
+                window.electronAPI!.projectAddFileFromPath({
+                    sourcePath: (file as any).path, // Electron provides the full path
+                    targetDir: entry.path,
+                })
+            );
+            await Promise.all(dropPromises);
+            logger.info('All files dropped successfully.');
+            // Refresh the directory view
+            if (isExpanded) {
+                await fetchChildren();
+            } else {
+                await handleToggle();
+            }
+        } catch (err) {
+            logger.error(`Error dropping files: ${err}`);
+            alert(`Could not add files: ${err instanceof Error ? err.message : String(err)}`);
+        }
+    }
+  };
+
   const Icon = entry.isDirectory ? FolderIcon : FileIcon;
   const ExpanderIcon = isExpanded ? ChevronDownIcon : ChevronRightIcon;
 
@@ -53,8 +105,11 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({ entry, onFileClick, level }
     <div>
       <div
         onClick={handleClick}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
         style={{ paddingLeft: `${level * 1.25}rem` }}
-        className="flex items-center gap-2 py-1 px-2 rounded-md cursor-pointer hover:bg-[--bg-hover] text-sm"
+        className={`flex items-center gap-2 py-1 px-2 rounded-md cursor-pointer hover:bg-[--bg-hover] text-sm transition-colors ${isDragOver ? 'bg-[--accent-projects]/20' : ''}`}
       >
         {entry.isDirectory ? (
             isLoading ? <SpinnerIcon className="w-4 h-4 flex-shrink-0" /> : <ExpanderIcon className="w-4 h-4 flex-shrink-0" />

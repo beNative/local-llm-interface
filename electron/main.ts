@@ -3,10 +3,11 @@
 
 
 
+
 const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 import * as path from 'path';
 import * as fs from 'fs';
-import { readdir, stat, readFile, writeFile, mkdir } from 'fs/promises';
+import { readdir, stat, readFile, writeFile, mkdir, copyFile } from 'fs/promises';
 import * as os from 'os';
 import { spawn } from 'child_process';
 import * as crypto from 'crypto';
@@ -228,6 +229,7 @@ async function detectDelphiCompilers(): Promise<Toolchain[]> {
     }
 }
 
+const ignoredDirsAndFiles = new Set(['.git', 'node_modules', 'venv', 'target', '.DS_Store', 'dist', 'release']);
 
 const createWindow = () => {
   // Create the browser window.
@@ -793,8 +795,37 @@ end.
         await mkdir(dirPath, { recursive: true });
         await writeFile(filePath, content, 'utf-8');
     });
+
+    ipcMain.handle('project:add-file-from-path', async (_, { sourcePath, targetDir }: { sourcePath: string, targetDir: string }) => {
+        if (!isPathInAllowedBase(targetDir)) throw new Error('Access denied to path.');
+        const targetPath = path.join(targetDir, path.basename(sourcePath));
+        await copyFile(sourcePath, targetPath);
+    });
     
-    const ignoredDirsAndFiles = new Set(['.git', 'node_modules', 'venv', 'target', '.DS_Store', 'dist', 'release']);
+    const getAllFilesRecursive = async (dirPath: string): Promise<{name: string, path: string}[]> => {
+        let files: {name: string, path: string}[] = [];
+        try {
+            const dirents = await readdir(dirPath, { withFileTypes: true });
+            for (const dirent of dirents) {
+                if (ignoredDirsAndFiles.has(dirent.name)) continue;
+                
+                const fullPath = path.join(dirPath, dirent.name);
+                if (dirent.isDirectory()) {
+                    files = files.concat(await getAllFilesRecursive(fullPath));
+                } else {
+                    files.push({ name: dirent.name, path: fullPath });
+                }
+            }
+        } catch (error) {
+            console.error(`Error getting all files for ${dirPath}:`, error);
+        }
+        return files;
+    };
+    
+    ipcMain.handle('project:get-all-files', async (_, projectPath: string) => {
+        if (!isPathInAllowedBase(projectPath)) throw new Error('Access denied to path.');
+        return await getAllFilesRecursive(projectPath);
+    });
 
     const generateFileTree = async (dirPath: string, prefix = ''): Promise<string> => {
         let tree = '';

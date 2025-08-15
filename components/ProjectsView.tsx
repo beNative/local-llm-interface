@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState } from 'react';
 import type { Config, CodeProject, ProjectType, FileSystemEntry } from '../types';
 import CodeIcon from './icons/CodeIcon';
@@ -208,6 +210,8 @@ interface ProjectsViewProps {
   isElectron: boolean;
   onInjectContentForChat: (filename: string, content: string) => void;
   onRunProject: (project: CodeProject) => void;
+  editingFile: { path: string, name: string } | null;
+  onSetEditingFile: (file: { path: string, name: string } | null) => void;
 }
 
 const projectTypes: { key: ProjectType; name: string }[] = [
@@ -218,10 +222,9 @@ const projectTypes: { key: ProjectType; name: string }[] = [
     { key: 'webapp', name: 'Web App' },
 ];
 
-const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isElectron, onInjectContentForChat, onRunProject }) => {
+const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isElectron, onInjectContentForChat, onRunProject, editingFile, onSetEditingFile }) => {
     const [busyProjects, setBusyProjects] = useState<Set<string>>(new Set());
     const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
-    const [editingFile, setEditingFile] = useState<{ path: string, name: string } | null>(null);
     const [activeTab, setActiveTab] = useState<ProjectType>('python');
     
     if (!isElectron) {
@@ -324,7 +327,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
     };
 
     const handleFileClick = (file: FileSystemEntry) => {
-        setEditingFile({ path: file.path, name: file.name });
+        onSetEditingFile({ path: file.path, name: file.name });
     };
     
     const renderProjectSection = (type: ProjectType) => {
@@ -386,7 +389,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
 
   return (
     <>
-    {editingFile && <EditorModal file={editingFile} onClose={() => setEditingFile(null)} onAddToChat={onInjectContentForChat} />}
+    {editingFile && <EditorModal file={editingFile} onClose={() => onSetEditingFile(null)} onAddToChat={onInjectContentForChat} />}
     <div className="p-4 sm:p-6 h-full overflow-y-auto bg-[--bg-secondary]">
       <div className="max-w-4xl mx-auto">
         <h1 className="flex items-center gap-3 text-3xl font-bold mb-8" style={{color: 'var(--accent-projects)'}}>

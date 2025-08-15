@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -419,6 +420,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
   const [isPersonaSelectorOpen, setIsPersonaSelectorOpen] = useState(false);
   const [isPromptsOpen, setIsPromptsOpen] = useState(false);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -547,9 +549,8 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
     }
   };
   
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+  const handleImageChange = (file: File | null) => {
+    if (file && file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onloadend = () => {
             setAttachedImage(reader.result as string);
@@ -576,9 +577,48 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
     setIsPromptsOpen(false);
     textareaRef.current?.focus();
   };
+  
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingOver(true);
+  };
+  
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // Use relatedTarget to prevent flickering when moving over child elements
+      if (e.relatedTarget && e.currentTarget.contains(e.relatedTarget as Node)) {
+        return;
+      }
+      setIsDraggingOver(false);
+  };
+  
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault(); // Necessary to allow dropping
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingOver(false);
+
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          const file = e.dataTransfer.files[0];
+          handleImageChange(file);
+          e.dataTransfer.clearData();
+      }
+  };
+
 
   return (
-    <div className="flex flex-col h-full bg-[--bg-primary]">
+    <div 
+        className="relative flex flex-col h-full bg-[--bg-primary]"
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+    >
      {saveModalState && isElectron && (
         <SaveToProjectModal 
             {...saveModalState}
@@ -785,7 +825,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
            <input
             type="file"
             ref={fileInputRef}
-            onChange={handleImageChange}
+            onChange={(e) => handleImageChange(e.target.files ? e.target.files[0] : null)}
             accept="image/*"
             className="hidden"
            />
@@ -794,7 +834,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Type your message, or attach an image..."
+            placeholder="Type your message, or drag & drop an image..."
             rows={1}
             disabled={isResponding}
             className="w-full pl-24 pr-14 py-3 bg-[--bg-tertiary] text-[--text-primary] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[--border-focus] disabled:cursor-not-allowed max-h-48 overflow-y-auto"
@@ -857,6 +897,13 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
           )}
         </div>
       </footer>
+       {isDraggingOver && (
+            <div className="absolute inset-0 bg-[--bg-backdrop] backdrop-blur-sm flex items-center justify-center pointer-events-none z-50">
+                <div className="p-8 border-2 border-dashed border-[--border-focus] rounded-xl bg-[--bg-secondary]">
+                    <p className="text-xl font-semibold text-[--text-primary]">Drop image to attach</p>
+                </div>
+            </div>
+        )}
     </div>
   );
 };

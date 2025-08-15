@@ -26,6 +26,8 @@ export interface IElectronAPI {
   readProjectFile: (filePath: string) => Promise<string>;
   writeProjectFile: (filePath: string, content: string) => Promise<void>;
   projectGetFileTree: (projectPath: string) => Promise<string>;
+  projectGetAllFiles: (projectPath: string) => Promise<{name: string, path: string}[]>;
+  projectAddFileFromPath: (args: {sourcePath: string, targetDir: string}) => Promise<void>;
 }
 
 declare global {

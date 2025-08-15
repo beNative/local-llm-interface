@@ -2,8 +2,10 @@
 
 
 
+
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt } from './types';
+import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, FileSystemEntry } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
 import { fetchModels, streamChatCompletion, LLMServiceError, generateTextCompletion } from './services/llmService';
 import { logger } from './services/logger';
@@ -22,6 +24,7 @@ import MessageSquareIcon from './components/icons/MessageSquareIcon';
 import CodeIcon from './components/icons/CodeIcon';
 import ServerIcon from './components/icons/ServerIcon';
 import SessionSidebar from './components/SessionSidebar';
+import CommandPalette from './components/CommandPalette';
 
 type View = 'chat' | 'projects' | 'api' | 'settings' | 'info';
 
@@ -98,6 +101,8 @@ const App: React.FC = () => {
   const [prefilledInput, setPrefilledInput] = useState('');
   const [runOutput, setRunOutput] = useState<{ title: string; stdout: string; stderr: string; } | null>(null);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [editingFile, setEditingFile] = useState<{ path: string; name: string } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(256);
   const isResizingRef = useRef(false);
@@ -217,6 +222,18 @@ const App: React.FC = () => {
     }
     logger.debug('Configuration persisted.');
   }, [config]);
+
+   // Effect for command palette shortcut
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+                event.preventDefault();
+                setIsCommandPaletteOpen(isOpen => !isOpen);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
 
   const handleConfigChange = useCallback((newConfig: Config) => {
@@ -609,6 +626,12 @@ const App: React.FC = () => {
     };
   }, [handleResizeMouseMove, handleResizeMouseUp]);
 
+  const handleOpenFileFromPalette = (file: { path: string; name: string }) => {
+    setView('projects');
+    setEditingFile(file);
+    // Note: This won't auto-expand the project tree, but it opens the file, which is the main goal.
+  };
+
 
   const renderContent = () => {
     if (!config) {
@@ -632,6 +655,8 @@ const App: React.FC = () => {
                 isElectron={isElectron}
                 onInjectContentForChat={handleInjectContentForChat}
                 onRunProject={handleRunProject}
+                editingFile={editingFile}
+                onSetEditingFile={setEditingFile}
               />;
         case 'api':
             return <ApiView
@@ -684,6 +709,15 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen font-sans bg-[--bg-primary]">
+      {config && <CommandPalette 
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        sessions={config.sessions || []}
+        projects={config.projects || []}
+        onNavigate={setView}
+        onSelectSession={handleSelectSession}
+        onOpenFile={handleOpenFileFromPalette}
+      />}
       {runOutput && <RunOutputModal runOutput={runOutput} onClose={() => setRunOutput(null)} />}
       <header className="flex items-center justify-between p-2 border-b border-[--border-primary] bg-[--bg-primary] sticky top-0 z-10 flex-shrink-0">
         <div className="flex items-center gap-4">
@@ -713,6 +747,9 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 pr-2">
+           <div className="hidden sm:block text-xs text-[--text-muted] border border-[--border-secondary] rounded-md px-2 py-1 font-mono">
+                Cmd/Ctrl + K
+           </div>
            <button
             onClick={() => setIsLogPanelVisible(!isLogPanelVisible)}
             className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-primary] focus:ring-[--border-focus]"

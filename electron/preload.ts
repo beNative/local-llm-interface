@@ -2,6 +2,8 @@
 
 
 
+
+
 const { contextBridge, ipcRenderer } = require('electron');
 import type { CodeProject } from '../src/types';
 
@@ -85,4 +87,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readProjectFile: (filePath: string) => ipcRenderer.invoke('project:read-file', filePath),
   writeProjectFile: (filePath: string, content: string) => ipcRenderer.invoke('project:write-file', { filePath, content }),
   projectGetFileTree: (projectPath: string) => ipcRenderer.invoke('project:get-file-tree', projectPath),
+  projectGetAllFiles: (projectPath: string) => ipcRenderer.invoke('project:get-all-files', projectPath),
+  projectAddFileFromPath: (args: {sourcePath: string, targetDir: string}) => ipcRenderer.invoke('project:add-file-from-path', args),
 });
