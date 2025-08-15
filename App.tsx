@@ -1,4 +1,6 @@
 
+
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, FileSystemEntry, SystemStats } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
@@ -346,7 +348,7 @@ const App: React.FC = () => {
           .map(m => {
             if (Array.isArray(m.content)) {
                 const textPart = m.content.find(p => p.type === 'text');
-                if (textPart && 'text' in textPart) {
+                if (textPart && textPart.type === 'text') {
                   return `${m.role}: ${textPart.text || '[image]'}`;
                 }
                 return `${m.role}: [image]`;
@@ -451,7 +453,7 @@ const App: React.FC = () => {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    const userMessageContent = Array.isArray(content) ? (content.find(p => p.type === 'text')?.text || '') : content;
+    const userMessageContent = Array.isArray(content) ? (content.find(p => p.type === 'text') as { type: 'text', text: string } | undefined)?.text || '' : content;
     const modificationRegex = /(?:refactor|modify|change|update|add to|edit|implement|create|write|delete)\s+(?:in\s+)?(?:the\s+file\s+)?([\w./\\-]+)/i;
     const match = modificationRegex.exec(userMessageContent);
     
@@ -607,9 +609,9 @@ ${originalContent}
             if (!c || !activeSessionId) return c;
             const newSessions = c.sessions.map(s => {
                 if (s.id !== activeSessionId) return s;
-                const newMessages = s.messages.map(m => {
+                const newMessages = s.messages.map((m): ChatMessage => {
                     if (m.fileModification && m.fileModification.filePath === filePath) {
-                        return { ...m, fileModification: { filePath: m.fileModification.filePath, status: 'accepted' } };
+                        return { ...m, fileModification: { ...m.fileModification, status: 'accepted' } };
                     }
                     return m;
                 });
@@ -629,9 +631,9 @@ ${originalContent}
           if (!c || !activeSessionId) return c;
           const newSessions = c.sessions.map(s => {
               if (s.id !== activeSessionId) return s;
-              const newMessages = s.messages.map(m => {
+              const newMessages = s.messages.map((m): ChatMessage => {
                   if (m.fileModification && m.fileModification.filePath === filePath) {
-                      return { ...m, fileModification: { filePath: m.fileModification.filePath, status: 'rejected' } };
+                      return { ...m, fileModification: { ...m.fileModification, status: 'rejected' } };
                   }
                   return m;
               });
