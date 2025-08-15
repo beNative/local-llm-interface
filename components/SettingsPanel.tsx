@@ -1,9 +1,11 @@
 
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import type { Config, LLMProvider, Theme, ThemeOverrides, PredefinedPrompt, ColorOverrides } from '../types';
+import type { Config, LLMProvider, Theme, ThemeOverrides, PredefinedPrompt, ColorOverrides, SystemPrompt } from '../types';
 import { PROVIDER_CONFIGS } from '../constants';
 import SettingsIcon from './icons/SettingsIcon';
 import TrashIcon from './icons/TrashIcon';
+import IdentityIcon from './icons/IdentityIcon';
 
 interface SettingsPanelProps {
   config: Config;
@@ -52,7 +54,12 @@ const PreviewBox: React.FC<{ label: string; bgColor: string; textColor: string;}
     </div>
 );
 
-const NewPromptForm: React.FC<{ onAdd: (title: string, content: string) => void }> = ({ onAdd }) => {
+const NewPromptForm: React.FC<{ 
+    onAdd: (title: string, content: string) => void;
+    heading: string;
+    titlePlaceholder: string;
+    contentPlaceholder: string;
+}> = ({ onAdd, heading, titlePlaceholder, contentPlaceholder }) => {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
 
@@ -65,7 +72,7 @@ const NewPromptForm: React.FC<{ onAdd: (title: string, content: string) => void 
 
     return (
       <form onSubmit={handleSubmit} className="pt-4 border-t border-[--border-primary] space-y-3">
-        <h4 className="text-md font-semibold text-[--text-secondary]">Add New Prompt</h4>
+        <h4 className="text-md font-semibold text-[--text-secondary]">{heading}</h4>
         <div>
           <label htmlFor="prompt-title" className="block text-sm font-medium text-[--text-muted] mb-1">Title</label>
           <input
@@ -74,7 +81,7 @@ const NewPromptForm: React.FC<{ onAdd: (title: string, content: string) => void 
             value={title}
             onChange={e => setTitle(e.target.value)}
             className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
-            placeholder="e.g., Refactor Python Code"
+            placeholder={titlePlaceholder}
             required
           />
         </div>
@@ -85,7 +92,7 @@ const NewPromptForm: React.FC<{ onAdd: (title: string, content: string) => void 
             value={content}
             onChange={e => setContent(e.target.value)}
             className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
-            placeholder="e.g., Please refactor the following Python code to be more idiomatic and efficient."
+            placeholder={contentPlaceholder}
             rows={3}
             required
           />
@@ -226,6 +233,26 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
       predefinedPrompts: (current.predefinedPrompts || []).filter(p => p.id !== promptId),
     }));
   };
+  
+  const handleAddSystemPrompt = (title: string, content: string) => {
+    if (!title.trim() || !content.trim()) return;
+    const newPrompt: SystemPrompt = {
+      id: `system_prompt_${Date.now()}`,
+      title: title.trim(),
+      content: content.trim(),
+    };
+    setLocalConfig(current => ({
+      ...current,
+      systemPrompts: [...(current.systemPrompts || []), newPrompt],
+    }));
+  };
+
+  const handleDeleteSystemPrompt = (promptId: string) => {
+    setLocalConfig(current => ({
+      ...current,
+      systemPrompts: (current.systemPrompts || []).filter(p => p.id !== promptId),
+    }));
+  };
 
   const providerDescriptions: Record<LLMProvider, string> = {
     Ollama: 'Connect to a running Ollama instance. The default URL is usually correct.',
@@ -304,7 +331,49 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                   <p className="text-sm text-center text-[--text-muted] py-4">You have no saved prompts yet.</p>
                 )}
 
-                <NewPromptForm onAdd={handleAddPrompt} />
+                <NewPromptForm 
+                    onAdd={handleAddPrompt}
+                    heading="Add New Prompt"
+                    titlePlaceholder="e.g., Refactor Python Code"
+                    contentPlaceholder="e.g., Please refactor the following Python code to be more idiomatic and efficient."
+                />
+              </div>
+            </div>
+
+            <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">
+                <IdentityIcon className="w-5 h-5" />
+                System Prompts (Personas)
+              </h3>
+              <div className="space-y-4">
+                {(localConfig.systemPrompts || []).length > 0 ? (
+                  <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                    {(localConfig.systemPrompts || []).map(prompt => (
+                      <div key={prompt.id} className="flex items-start justify-between gap-4 p-3 bg-[--bg-secondary] rounded-lg border border-[--border-secondary]">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-[--text-primary] truncate">{prompt.title}</p>
+                          <p className="text-sm text-[--text-muted] mt-1 whitespace-pre-wrap font-mono break-words">{prompt.content}</p>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteSystemPrompt(prompt.id)}
+                          className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full flex-shrink-0"
+                          aria-label="Delete system prompt"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-center text-[--text-muted] py-4">You have no saved system prompts yet.</p>
+                )}
+
+                 <NewPromptForm 
+                    onAdd={handleAddSystemPrompt}
+                    heading="Add New System Prompt"
+                    titlePlaceholder="e.g., Senior DevOps Engineer"
+                    contentPlaceholder="e.g., You are a senior DevOps engineer with 20 years of experience..."
+                />
               </div>
             </div>
             

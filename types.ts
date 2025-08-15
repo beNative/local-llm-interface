@@ -1,4 +1,5 @@
 
+
 export type Theme = 'light' | 'dark';
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
 
@@ -47,9 +48,16 @@ export interface ChatSession {
   name: string;
   modelId: string;
   messages: ChatMessage[];
+  systemPromptId?: string | null;
 }
 
 export interface PredefinedPrompt {
+  id: string;
+  title: string;
+  content: string;
+}
+
+export interface SystemPrompt {
   id: string;
   title: string;
   content: string;
@@ -72,6 +80,7 @@ export interface Config {
   sessions?: ChatSession[];
   activeSessionId?: string;
   predefinedPrompts?: PredefinedPrompt[];
+  systemPrompts?: SystemPrompt[];
 }
 
 export interface ModelDetails {

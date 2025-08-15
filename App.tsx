@@ -1,7 +1,8 @@
 
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata } from './types';
+import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
 import { fetchModels, streamChatCompletion, LLMServiceError, generateTextCompletion } from './services/llmService';
 import { logger } from './services/logger';
@@ -130,6 +131,7 @@ const App: React.FC = () => {
         apiRecentPrompts: [],
         sessions: [],
         predefinedPrompts: [],
+        systemPrompts: [],
       };
       
       let loadedConfig = defaultConfig;
@@ -360,6 +362,7 @@ const App: React.FC = () => {
         name: 'New Chat',
         modelId: modelId,
         messages: [{ role: 'system', content: DEFAULT_SYSTEM_PROMPT }],
+        systemPromptId: null,
     };
     setConfig(c => {
         if (!c) return null;
@@ -377,6 +380,37 @@ const App: React.FC = () => {
       logger.info('User requested to stop generation.');
     }
   };
+  
+  const handleSetSessionSystemPrompt = (systemPromptId: string | null) => {
+    setConfig(c => {
+        if (!c || !c.activeSessionId) return c;
+        
+        const activeSession = c.sessions?.find(s => s.id === c.activeSessionId);
+        if (!activeSession) return c;
+
+        const systemPrompt = c.systemPrompts?.find(sp => sp.id === systemPromptId);
+        const newSystemContent = systemPrompt ? systemPrompt.content : DEFAULT_SYSTEM_PROMPT;
+
+        const newMessages = [...activeSession.messages];
+        const systemMessageIndex = newMessages.findIndex(m => m.role === 'system');
+
+        if (systemMessageIndex > -1) {
+            newMessages[systemMessageIndex] = { ...newMessages[systemMessageIndex], content: newSystemContent };
+        } else {
+            newMessages.unshift({ role: 'system', content: newSystemContent });
+        }
+        
+        const updatedSession: ChatSession = { 
+            ...activeSession, 
+            messages: newMessages,
+            systemPromptId: systemPromptId,
+        };
+
+        const newSessions = c.sessions!.map(s => s.id === c.activeSessionId ? updatedSession : s);
+        logger.info(`Set system prompt for session ${c.activeSessionId} to "${systemPrompt?.title || 'Default'}".`);
+        return { ...c, sessions: newSessions };
+    });
+  };
 
   const handleSendMessage = async (content: string | ChatMessageContentPart[]) => {
     if (!activeSession || !config) return;
@@ -388,7 +422,12 @@ const App: React.FC = () => {
     abortControllerRef.current = controller;
 
     const userMessage: ChatMessage = { role: 'user', content: content };
-    const newMessages: ChatMessage[] = [...activeSession.messages, userMessage];
+    let newMessages: ChatMessage[] = [...activeSession.messages, userMessage];
+    
+    // Ensure there is a system message. If not, add the default one.
+    if (!newMessages.some(m => m.role === 'system')) {
+        newMessages.unshift({ role: 'system', content: DEFAULT_SYSTEM_PROMPT });
+    }
     
     const updatedSession: ChatSession = { ...activeSession, messages: [...newMessages, { role: 'assistant', content: '' }] };
     setConfig(c => ({ ...c!, sessions: c!.sessions!.map(s => s.id === activeSessionId ? updatedSession : s) }));
@@ -401,8 +440,17 @@ const App: React.FC = () => {
         if (activeProject) {
             try {
                 const fileTree = await window.electronAPI.projectGetFileTree(activeProject.path);
-                const contextSystemPrompt = `You are a helpful AI assistant. The user has provided context for a software project named "${activeProject.name}".\nThe project's file structure is as follows:\n\`\`\`\n${fileTree}\n\`\`\`\nAnswer the user's questions based on this project context.`;
-                messagesForApi[0] = { role: 'system', content: contextSystemPrompt };
+                const projectContext = `The user has provided context for a software project named "${activeProject.name}".\nThe project's file structure is as follows:\n\`\`\`\n${fileTree}\n\`\`\`\nAnswer the user's questions based on this project context.`;
+
+                const systemMessageIndex = messagesForApi.findIndex(m => m.role === 'system');
+                if (systemMessageIndex !== -1) {
+                    const originalSystemContent = messagesForApi[systemMessageIndex].content as string;
+                    messagesForApi[systemMessageIndex] = {
+                        role: 'system',
+                        content: `${originalSystemContent}\n\n${projectContext}`
+                    };
+                }
+                
                 logger.info(`Injected project context for "${activeProject.name}" into system prompt.`);
             } catch (e) {
                 logger.error(`Failed to get project file tree: ${e}`);
@@ -615,6 +663,8 @@ const App: React.FC = () => {
                         models={models}
                         onSelectModel={handleSelectModel}
                         predefinedPrompts={config.predefinedPrompts || []}
+                        systemPrompts={config.systemPrompts || []}
+                        onSetSessionSystemPrompt={handleSetSessionSystemPrompt}
                     />
                 );
              }

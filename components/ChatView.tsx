@@ -1,10 +1,11 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
-import type { ChatMessage, Theme, CodeProject, ProjectType, FileSystemEntry, ChatSession, Model, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata } from '../types';
+import type { ChatMessage, Theme, CodeProject, ProjectType, FileSystemEntry, ChatSession, Model, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt } from '../types';
 import SendIcon from './icons/SendIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
 import ModelIcon from './icons/ModelIcon';
@@ -20,6 +21,8 @@ import StopIcon from './icons/StopIcon';
 import PaperclipIcon from './icons/PaperclipIcon';
 import XIcon from './icons/XIcon';
 import BookmarkIcon from './icons/BookmarkIcon';
+import IdentityIcon from './icons/IdentityIcon';
+import { DEFAULT_SYSTEM_PROMPT } from '../constants';
 
 const MessageMetadata: React.FC<{ metadata: ChatMessageMetadata }> = ({ metadata }) => {
     const { usage, speed } = metadata;
@@ -403,25 +406,33 @@ interface ChatViewProps {
   models: Model[];
   onSelectModel: (modelId: string) => void;
   predefinedPrompts: PredefinedPrompt[];
+  systemPrompts: SystemPrompt[];
+  onSetSessionSystemPrompt: (systemPromptId: string | null) => void;
 }
 
-const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isResponding, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel, predefinedPrompts }) => {
+const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isResponding, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt }) => {
   const [input, setInput] = useState('');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [saveModalState, setSaveModalState] = useState<{ code: string; lang: string } | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(session.name);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
+  const [isPersonaSelectorOpen, setIsPersonaSelectorOpen] = useState(false);
   const [isPromptsOpen, setIsPromptsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const modelSelectorRef = useRef<HTMLDivElement>(null);
+  const personaSelectorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const promptsPopoverRef = useRef<HTMLDivElement>(null);
   const promptsButtonRef = useRef<HTMLButtonElement>(null);
 
   const { messages, name: sessionName } = session;
+  
+  const currentSystemPrompt = systemPrompts.find(p => p.id === session.systemPromptId);
+  const currentPersonaName = currentSystemPrompt ? currentSystemPrompt.title : 'Default Assistant';
+  const currentPersonaContent = currentSystemPrompt ? currentSystemPrompt.content : DEFAULT_SYSTEM_PROMPT;
 
   useEffect(() => {
     setEditedTitle(sessionName);
@@ -445,6 +456,18 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
         document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [modelSelectorRef]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+        if (personaSelectorRef.current && !personaSelectorRef.current.contains(event.target as Node)) {
+            setIsPersonaSelectorOpen(false);
+        }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [personaSelectorRef]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -585,32 +608,72 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
                 {session.name}
               </h2>
             )}
-            <div className="relative" ref={modelSelectorRef}>
+            <div className='flex items-center gap-3'>
+              <div className="relative" ref={modelSelectorRef}>
+                  <button 
+                      onClick={() => setIsModelSelectorOpen(prev => !prev)} 
+                      className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] px-2 -ml-2 py-0.5 rounded-lg hover:bg-[--bg-hover]"
+                      title="Start new chat with a different model"
+                  >
+                      <span className="truncate max-w-xs">Using: {session.modelId}</span>
+                      <ChevronDownIcon className={`w-3 h-3 transition-transform ${isModelSelectorOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {isModelSelectorOpen && (
+                      <div className="absolute top-full left-0 mt-1.5 w-64 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
+                          <div className="p-2 text-xs font-semibold text-[--text-muted] border-b border-[--border-primary]">Start new chat with:</div>
+                          {models.map(model => (
+                              <button 
+                                  key={model.id}
+                                  onClick={() => {
+                                      onSelectModel(model.id);
+                                      setIsModelSelectorOpen(false);
+                                  }}
+                                  className="w-full text-left block px-3 py-1.5 text-sm text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
+                              >
+                                  {model.id}
+                              </button>
+                          ))}
+                      </div>
+                  )}
+              </div>
+               <div className="relative" ref={personaSelectorRef}>
                 <button 
-                    onClick={() => setIsModelSelectorOpen(prev => !prev)} 
+                    onClick={() => setIsPersonaSelectorOpen(prev => !prev)} 
                     className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] px-2 -ml-2 py-0.5 rounded-lg hover:bg-[--bg-hover]"
-                    title="Start new chat with a different model"
+                    title={currentPersonaContent}
                 >
-                    <span className="truncate max-w-xs">Using: {session.modelId}</span>
-                    <ChevronDownIcon className={`w-3 h-3 transition-transform ${isModelSelectorOpen ? 'rotate-180' : ''}`} />
+                    <IdentityIcon className="w-3.5 h-3.5" />
+                    <span className="truncate max-w-xs">Persona: {currentPersonaName}</span>
+                    <ChevronDownIcon className={`w-3 h-3 transition-transform ${isPersonaSelectorOpen ? 'rotate-180' : ''}`} />
                 </button>
-                {isModelSelectorOpen && (
+                {isPersonaSelectorOpen && (
                     <div className="absolute top-full left-0 mt-1.5 w-64 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
-                        <div className="p-2 text-xs font-semibold text-[--text-muted] border-b border-[--border-primary]">Start new chat with:</div>
-                        {models.map(model => (
+                        <div className="p-2 text-xs font-semibold text-[--text-muted] border-b border-[--border-primary]">Select a Persona</div>
+                        <button 
+                            onClick={() => {
+                                onSetSessionSystemPrompt(null);
+                                setIsPersonaSelectorOpen(false);
+                            }}
+                            className="w-full text-left block px-3 py-1.5 text-sm text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
+                        >
+                            Default Assistant
+                        </button>
+                        {systemPrompts.map(prompt => (
                             <button 
-                                key={model.id}
+                                key={prompt.id}
                                 onClick={() => {
-                                    onSelectModel(model.id);
-                                    setIsModelSelectorOpen(false);
+                                    onSetSessionSystemPrompt(prompt.id);
+                                    setIsPersonaSelectorOpen(false);
                                 }}
                                 className="w-full text-left block px-3 py-1.5 text-sm text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
+                                title={prompt.content}
                             >
-                                {model.id}
+                                {prompt.title}
                             </button>
                         ))}
                     </div>
                 )}
+              </div>
             </div>
           </div>
         </div>
