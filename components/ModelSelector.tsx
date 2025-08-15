@@ -1,14 +1,15 @@
-
 import React from 'react';
 import type { Model } from '../types';
 import ModelIcon from './icons/ModelIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
+import SettingsIcon from './icons/SettingsIcon';
 
 interface ModelSelectorProps {
   models: Model[];
   onSelectModel: (modelId: string) => void;
   isLoading: boolean;
   error: string | null;
+  onGoToSettings: () => void;
 }
 
 const ModelCard: React.FC<{ model: Model; onSelect: () => void }> = ({ model, onSelect }) => {
@@ -33,7 +34,7 @@ const ModelCard: React.FC<{ model: Model; onSelect: () => void }> = ({ model, on
   );
 };
 
-const ModelSelector: React.FC<ModelSelectorProps> = ({ models, onSelectModel, isLoading, error }) => {
+const ModelSelector: React.FC<ModelSelectorProps> = ({ models, onSelectModel, isLoading, error, onGoToSettings }) => {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center text-[--text-muted]">
@@ -48,7 +49,13 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, onSelectModel, is
       <div className="flex flex-col items-center justify-center h-full text-center text-red-600 dark:text-red-400 p-8 bg-red-50 dark:bg-red-900/20 rounded-lg">
         <h2 className="text-2xl font-bold mb-2">Connection Error</h2>
         <p className="max-w-md">{error}</p>
-        <p className="mt-4 text-sm text-[--text-muted]">Please check your settings and try again.</p>
+        <button
+            onClick={onGoToSettings}
+            className="mt-6 flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-[--text-on-accent] bg-[--bg-accent] rounded-md hover:bg-[--bg-accent-hover] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-secondary] focus:ring-[--border-focus]"
+        >
+            <SettingsIcon className="w-5 h-5" />
+            Go to Settings
+        </button>
       </div>
     );
   }
@@ -58,6 +65,13 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, onSelectModel, is
         <div className="flex flex-col items-center justify-center h-full text-center text-[--text-muted] p-8 bg-[--bg-secondary]/50 rounded-lg">
             <h2 className="text-2xl font-bold mb-2 text-[--text-primary]">No Models Found</h2>
             <p className="max-w-md">The connected service reported zero available models. Make sure you have downloaded or configured models in Ollama or LMStudio.</p>
+            <button
+                onClick={onGoToSettings}
+                className="mt-6 flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-[--text-on-accent] bg-[--bg-accent] rounded-md hover:bg-[--bg-accent-hover] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-secondary] focus:ring-[--border-focus]"
+            >
+                <SettingsIcon className="w-5 h-5" />
+                Go to Settings
+            </button>
       </div>
     );
   }

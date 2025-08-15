@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -16,6 +15,7 @@ import CodeIcon from './icons/CodeIcon';
 import ChevronDownIcon from './icons/ChevronDownIcon';
 import { runPythonCode } from '../services/pyodideService';
 import { logger } from '../services/logger';
+import StopIcon from './icons/StopIcon';
 
 const getProjectTypeForLang = (lang: string): ProjectType | null => {
     if (lang === 'python') return 'python';
@@ -363,6 +363,7 @@ interface ChatViewProps {
   session: ChatSession;
   onSendMessage: (userInput: string) => void;
   isResponding: boolean;
+  onStopGeneration: () => void;
   onRenameSession: (newName: string) => void;
   theme: Theme;
   isElectron: boolean;
@@ -375,7 +376,7 @@ interface ChatViewProps {
   onSelectModel: (modelId: string) => void;
 }
 
-const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isResponding, onRenameSession, theme, isElectron, projects, prefilledInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel }) => {
+const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isResponding, onStopGeneration, onRenameSession, theme, isElectron, projects, prefilledInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel }) => {
   const [input, setInput] = useState('');
   const [saveModalState, setSaveModalState] = useState<{ code: string; lang: string } | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -431,6 +432,16 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
       textareaRef.current?.focus();
     }
   }, [isResponding, prefilledInput]);
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+        // We need to reset the height momentarily to get the correct scrollHeight.
+        textarea.style.height = 'auto';
+        const scrollHeight = textarea.scrollHeight;
+        textarea.style.height = `${scrollHeight}px`;
+    }
+  }, [input]);
 
   const handleSend = () => {
     if (input.trim() && !isResponding) {
@@ -596,16 +607,27 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
             placeholder="Type your message..."
             rows={1}
             disabled={isResponding}
-            className="w-full pl-4 pr-12 py-3 bg-[--bg-tertiary] text-[--text-primary] rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[--border-focus] disabled:cursor-not-allowed"
+            className="w-full pl-4 pr-12 py-3 bg-[--bg-tertiary] text-[--text-primary] rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[--border-focus] disabled:cursor-not-allowed max-h-48 overflow-y-auto"
             autoFocus
           />
-          <button
-            onClick={handleSend}
-            disabled={isResponding || !input.trim()}
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-[--bg-accent] text-[--text-on-accent] hover:bg-[--bg-accent-hover] disabled:bg-[--bg-accent-disabled] disabled:cursor-not-allowed transition-colors"
-          >
-            <SendIcon className="w-5 h-5" />
-          </button>
+          {isResponding ? (
+            <button
+              onClick={onStopGeneration}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors"
+              title="Stop generating"
+            >
+              <StopIcon className="w-5 h-5" />
+            </button>
+          ) : (
+            <button
+              onClick={handleSend}
+              disabled={!input.trim()}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-[--bg-accent] text-[--text-on-accent] hover:bg-[--bg-accent-hover] disabled:bg-[--bg-accent-disabled] disabled:cursor-not-allowed transition-colors"
+              title="Send message"
+            >
+              <SendIcon className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </footer>
     </div>

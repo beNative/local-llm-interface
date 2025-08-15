@@ -58,8 +58,6 @@ export const generateTextCompletion = async (
         model: modelId,
         messages: messages,
         stream: false,
-        // Ask for a JSON response if the model supports it
-        response_format: { type: 'json_object' }
       }),
     });
 
@@ -97,6 +95,7 @@ export const streamChatCompletion = async (
   baseUrl: string,
   modelId: string,
   messages: ChatMessage[],
+  signal: AbortSignal,
   onChunk: (text: string) => void,
   onError: (error: Error) => void,
   onDone: () => void
@@ -113,6 +112,7 @@ export const streamChatCompletion = async (
         messages: messages,
         stream: true,
       }),
+      signal,
     });
 
     if (!response.ok) {
@@ -161,6 +161,11 @@ export const streamChatCompletion = async (
       }
     }
   } catch (error) {
+     if (error instanceof Error && error.name === 'AbortError') {
+        logger.info('Chat stream aborted by user.');
+        onDone(); // Call onDone to clean up state
+        return;
+     }
      if (error instanceof Error) {
         logger.error(error);
         onError(error);

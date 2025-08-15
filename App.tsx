@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
 import { fetchModels, streamChatCompletion, LLMServiceError, generateTextCompletion } from './services/llmService';
@@ -85,6 +85,7 @@ const App: React.FC = () => {
   const [prefilledInput, setPrefilledInput] = useState('');
   const [runOutput, setRunOutput] = useState<{ title: string; stdout: string; stderr: string; } | null>(null);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Derived state from config
   const sessions = config?.sessions || [];
@@ -336,12 +337,24 @@ const App: React.FC = () => {
     });
     setView('chat');
   };
+  
+  const handleStopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setIsResponding(false);
+      logger.info('User requested to stop generation.');
+    }
+  };
 
   const handleSendMessage = async (userInput: string) => {
     if (!activeSession || !config) return;
 
     logger.info(`Sending message to model ${activeSession.modelId}.`);
     const isFirstUserMessage = activeSession.messages.filter(m => m.role === 'user').length === 0;
+    
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     const userMessage: ChatMessage = { role: 'user', content: userInput };
     const newMessages: ChatMessage[] = [...activeSession.messages, userMessage];
@@ -370,6 +383,7 @@ const App: React.FC = () => {
       config.baseUrl,
       activeSession.modelId,
       messagesForApi,
+      controller.signal,
       (chunk) => {
         setConfig(c => {
             if (!c) return c;
@@ -397,9 +411,11 @@ const App: React.FC = () => {
             return { ...c, sessions: c.sessions!.map(s => s.id === activeSessionId ? updatedS : s) };
         });
         setIsResponding(false);
+        abortControllerRef.current = null;
       },
       () => {
         setIsResponding(false);
+        abortControllerRef.current = null;
         logger.info('Message stream completed.');
         if (isFirstUserMessage && activeSessionId) {
             // Use setConfig's callback to ensure we get the final, updated state
@@ -459,6 +475,10 @@ const App: React.FC = () => {
         setRunOutput({ title: `Error running ${project.name}`, stdout: '', stderr: msg });
     }
   };
+  
+  const handleGoToSettings = () => {
+    setView('settings');
+  };
 
   const renderContent = () => {
     if (!config) {
@@ -505,6 +525,7 @@ const App: React.FC = () => {
                         session={activeSession}
                         onSendMessage={handleSendMessage}
                         isResponding={isResponding}
+                        onStopGeneration={handleStopGeneration}
                         onRenameSession={(newName) => handleRenameSession(activeSession.id, newName)}
                         theme={config.theme || 'dark'}
                         isElectron={isElectron}
@@ -525,6 +546,7 @@ const App: React.FC = () => {
                         onSelectModel={handleSelectModel}
                         isLoading={isLoadingModels}
                         error={error}
+                        onGoToSettings={handleGoToSettings}
                     />
                 </div>
             );
