@@ -161,12 +161,12 @@ const ProjectCard: React.FC<{
                         </button>
                     )}
                    
-                    <button onClick={onOpen} disabled={isBusy} className="text-xs px-3 py-1.5 rounded-lg bg-[--bg-tertiary] text-[--text-secondary] hover:bg-[--bg-hover] disabled:opacity-50 flex items-center justify-center gap-1.5" title="Open folder">
+                    <button onClick={onOpen} disabled={isBusy} className="text-xs px-3 py-1.5 rounded-lg bg-[--bg-tertiary] text-[--text-secondary] hover:bg-[--bg-hover] disabled:opacity-50 flex items-center justify-center gap-1.5" title="Open project folder in your file explorer">
                         <FolderOpenIcon className="w-4 h-4"/>
                         <span>Folder</span>
                     </button>
 
-                    <button onClick={onDelete} disabled={isBusy} className={`col-span-2 ${project.type !== 'webapp' && project.type !== 'delphi' ? '' : 'col-start-2'} mt-1 text-xs px-3 py-1 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900 disabled:opacity-50 flex items-center justify-center gap-1.5`} title="Delete project">
+                    <button onClick={onDelete} disabled={isBusy} className={`col-span-2 ${project.type !== 'webapp' && project.type !== 'delphi' ? '' : 'col-start-2'} mt-1 text-xs px-3 py-1 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900 disabled:opacity-50 flex items-center justify-center gap-1.5`} title="Permanently delete this project and all its files. This action cannot be undone.">
                         <TrashIcon className="w-4 h-4" />
                         <span>Delete</span>
                     </button>
@@ -209,7 +209,7 @@ const NewProjectForm: React.FC<{
                 className="flex-grow px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
                 disabled={isBusy}
             />
-            <button type="submit" disabled={!name.trim() || isBusy} className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed" title="Create a new project folder with boilerplate files">
+            <button type="submit" disabled={!name.trim() || isBusy} className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed" title={`Create a new ${projectType} project folder with appropriate boilerplate files`}>
                 {isBusy ? <SpinnerIcon className="w-5 h-5"/> : 'Create'}
             </button>
         </form>
@@ -370,7 +370,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
                                 value={path || 'Not set'}
                                 className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg"
                             />
-                            <button onClick={() => handleSetPath(type)} className="px-4 py-2 text-sm font-medium text-[--text-on-accent] bg-[--accent-chat] hover:brightness-95 rounded-lg" title="Select the base folder where your projects of this type are stored">
+                            <button onClick={() => handleSetPath(type)} className="px-4 py-2 text-sm font-medium text-[--text-on-accent] bg-[--accent-chat] hover:brightness-95 rounded-lg" title={`Select the base folder where your ${type} projects are, or will be, stored`}>
                                 Choose...
                             </button>
                         </div>

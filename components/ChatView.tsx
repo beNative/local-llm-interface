@@ -1,6 +1,6 @@
 
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -255,9 +255,8 @@ const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, on
     );
 };
 
-const CodeBlock = ({ node, inline, className, children, theme, isElectron, projects, onSaveRequest, activeProjectId }: any) => {
+const CodeBlock = React.memo(({ node, inline, className, children, theme, isElectron, projects, onSaveRequest, activeProjectId }: any) => {
   const [isCopied, setIsCopied] = useState(false);
-  const [selectedProjectId, setSelectedProjectId] = useState('standalone');
   const [runState, setRunState] = useState<{
     isLoading: boolean;
     output: string | null;
@@ -283,6 +282,11 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
   // Can save if we are in Electron and either a project context is active or there are relevant projects for this language
   const canSave = isElectron && (activeProjectId || relevantProjects.length > 0);
   const canRunCode = isPython || ((isNode || isWebApp) && isElectron);
+  
+  const activeProject = activeProjectId ? projects.find((p: CodeProject) => p.id === activeProjectId) : null;
+  const isRunnableInProject = activeProject && activeProject.type === getProjectTypeForLang(lang);
+  const executionContextName = isRunnableInProject ? activeProject.name : 'Standalone';
+
 
   const handleCopy = () => {
     navigator.clipboard.writeText(codeText);
@@ -293,15 +297,15 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
   const handleRun = async () => {
     setRunState({ isLoading: true, output: null, error: null });
 
-    const project = relevantProjects.find(p => p.id === selectedProjectId);
-    const isStandalone = selectedProjectId === 'standalone' || !project;
+    // WebApps can't run "in project", they are always "standalone" (opened in new browser window).
+    const runInProject = isRunnableInProject && !isWebApp;
 
     let executionEnv = '';
-    if (isStandalone) {
+    if (runInProject) {
+        executionEnv = `project: ${activeProject.name}`;
+    } else {
         if (isWebApp) executionEnv = 'new browser window';
         else executionEnv = isPython ? (isElectron ? 'standalone Python' : 'Pyodide (WASM)') : 'standalone Node.js';
-    } else {
-        executionEnv = `project: ${project?.name}`;
     }
     logger.info(`Running ${lang} code via ${executionEnv}`);
     logger.debug(`Code:\n---\n${codeText}\n---`);
@@ -323,7 +327,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
         }
 
         // Electron API is available
-        if (isStandalone) {
+        if (!runInProject) { // Standalone execution
             let result: { stdout: string; stderr: string };
             if (isWebApp) {
                 result = await window.electronAPI.runHtml(codeText);
@@ -334,16 +338,12 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
             } else {
                 return; // Should not be reached given canRunCode logic
             }
-             setRunState({ isLoading: false, output: result.stdout || '', error: result.stderr || null });
+             setRunState({ isLoading: false, output: result.stdout, error: result.stderr || null });
              logger.info(`Standalone execution stdout:\n${result.stdout}`);
              if(result.stderr) logger.warn(`Standalone execution stderr:\n${result.stderr}`);
         } else { // In-project execution
-            if (isWebApp) {
-                setRunState({ isLoading: false, output: null, error: "Running HTML snippets within a project context is not supported. Please save the file and run the project instead." });
-                return;
-            }
-            const result = await window.electronAPI.runScriptInProject({ project: project!, code: codeText });
-            setRunState({ isLoading: false, output: result.stdout || '', error: result.stderr || null });
+            const result = await window.electronAPI.runScriptInProject({ project: activeProject!, code: codeText });
+            setRunState({ isLoading: false, output: result.stdout, error: result.stderr || null });
             logger.info(`In-project execution stdout:\n${result.stdout}`);
             if(result.stderr) logger.warn(`In-project execution stderr:\n${result.stderr}`);
         }
@@ -354,7 +354,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
     }
   };
   
-  const RunIcon = isWebApp ? GlobeIcon : (isPython || isNode) && isElectron ? TerminalIcon : PlayIcon;
+  const RunIcon = isWebApp ? GlobeIcon : TerminalIcon;
   const runButtonText = runState.isLoading ? 'Running...' : isWebApp ? 'Open in Browser' : 'Run';
 
   return !inline && match ? (
@@ -364,25 +364,19 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
         <div className="flex items-center gap-2">
             {(canRunCode || canSave) && (
               <div className="flex items-center divide-x divide-gray-300 dark:divide-gray-600">
-                <div className="flex items-center gap-1 pr-2">
-                    {isElectron && (isPython || isNode) && relevantProjects.length > 0 && (
-                        <select 
-                            value={selectedProjectId} 
-                            onChange={e => setSelectedProjectId(e.target.value)}
-                            className="text-xs px-2 py-1 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-1 focus:ring-[--border-focus]"
-                            disabled={runState.isLoading}
-                            title="Choose execution environment"
-                        >
-                            <option value="standalone" title="Run this code in an isolated environment, without any project context or dependencies.">Standalone</option>
-                            {relevantProjects.map(p => <option key={p.id} value={p.id} title={`Run this code within the '${p.name}' project environment.`}>{p.name}</option>)}
-                        </select>
+                <div className="flex items-center gap-2 pr-2">
+                    {isElectron && (isPython || isNode) && (
+                       <div className="flex items-center gap-1.5 text-xs px-2 py-1 text-[--text-muted] bg-[--bg-tertiary]/80 border border-[--border-secondary]/50 rounded-md" title={`Execution context: ${executionContextName}`}>
+                           <TerminalIcon className="w-3 h-3" />
+                           <span>{executionContextName}</span>
+                       </div>
                     )}
                     {canRunCode && (
                         <button
                             onClick={handleRun}
                             disabled={runState.isLoading}
                             className="flex items-center gap-1.5 text-[--text-muted] hover:text-[--text-primary] px-2 py-1 rounded disabled:cursor-not-allowed disabled:opacity-50"
-                            title={isWebApp ? "Open HTML in a new browser window" : "Run code"}
+                            title={isWebApp ? "Open HTML in a new browser window" : `Run code in ${executionContextName} context`}
                         >
                             <RunIcon className="w-3 h-3"/>
                             {runButtonText}
@@ -428,7 +422,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
       {(runState.output !== null || runState.error !== null) && (
         <div className="border-t border-[--border-primary] p-4 font-mono text-xs bg-[--code-output-bg] rounded-b-lg">
            <h4 className="text-[--text-muted] font-sans font-semibold text-sm mb-2">Output</h4>
-           {runState.output && (
+           {runState.output !== null && runState.output !== '' && (
              <pre className="whitespace-pre-wrap text-[--text-secondary]">{runState.output}</pre>
            )}
            {runState.error && (
@@ -445,7 +439,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
       {children}
     </code>
   );
-};
+});
 
 interface ChatViewProps {
   session: ChatSession;
@@ -628,9 +622,9 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
     setIsEditingTitle(false);
   };
   
-  const handleSaveRequest = (code: string, lang: string) => {
+  const handleSaveRequest = useCallback((code: string, lang: string) => {
     setSaveModalState({ code, lang, activeProjectId });
-  };
+  }, [activeProjectId]);
 
   const handleSelectPrompt = (promptContent: string) => {
     setInput(promptContent);

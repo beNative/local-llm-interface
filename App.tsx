@@ -860,23 +860,23 @@ ${originalContent}
         <div className="flex items-center gap-4">
             <h1 className="text-xl font-bold px-2 text-[--text-primary]">{APP_NAME}</h1>
             <nav className="flex items-center gap-1 bg-[--bg-secondary] p-1 rounded-xl">
-              <NavButton active={view === 'chat'} onClick={() => setView('chat')} title="Chat View" ariaLabel="Chat View" view="chat">
+              <NavButton active={view === 'chat'} onClick={() => setView('chat')} title="Switch to the main chat interface" ariaLabel="Chat View" view="chat">
                 <MessageSquareIcon className="w-5 h-5" />
                 <span>Chat</span>
               </NavButton>
-              <NavButton active={view === 'projects'} onClick={() => setView('projects')} title="Projects View" ariaLabel="Projects View" view="projects">
+              <NavButton active={view === 'projects'} onClick={() => setView('projects')} title="Manage local code projects" ariaLabel="Projects View" view="projects">
                 <CodeIcon className="w-5 h-5" />
                 <span>Projects</span>
               </NavButton>
-               <NavButton active={view === 'api'} onClick={() => setView('api')} title="API Client View" ariaLabel="API Client View" view="api">
+               <NavButton active={view === 'api'} onClick={() => setView('api')} title="Test HTTP endpoints using natural language" ariaLabel="API Client View" view="api">
                 <ServerIcon className="w-5 h-5" />
                 <span>API Client</span>
               </NavButton>
-              <NavButton active={view === 'settings'} onClick={() => setView('settings')} title="Settings View" ariaLabel="Settings View" view="settings">
+              <NavButton active={view === 'settings'} onClick={() => setView('settings')} title="Configure application settings" ariaLabel="Settings View" view="settings">
                  <SettingsIcon className="w-5 h-5" />
                 <span>Settings</span>
               </NavButton>
-              <NavButton active={view === 'info'} onClick={() => setView('info')} title="Info View" ariaLabel="Info View" view="info">
+              <NavButton active={view === 'info'} onClick={() => setView('info')} title="View application documentation and manuals" ariaLabel="Info View" view="info">
                 <InfoIcon className="w-5 h-5" />
                 <span>Info</span>
               </NavButton>
@@ -891,7 +891,7 @@ ${originalContent}
             onClick={() => setIsLogPanelVisible(!isLogPanelVisible)}
             className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-primary] focus:ring-[--border-focus]"
             aria-label="Toggle logs panel"
-            title="Toggle Logs Panel"
+            title="Toggle the application logs panel for debugging"
             >
              <FileTextIcon className="w-5 h-5" />
             </button>
