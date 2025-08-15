@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
-import type { Config, Model, ChatMessage, Theme, CodeProject } from './types';
-import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT } from './constants';
-import { fetchModels, streamChatCompletion, LLMServiceError } from './services/llmService';
+import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession } from './types';
+import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
+import { fetchModels, streamChatCompletion, LLMServiceError, generateTextCompletion } from './services/llmService';
 import { logger } from './services/logger';
 import SettingsPanel from './components/SettingsPanel';
 import ModelSelector from './components/ModelSelector';
@@ -17,6 +18,7 @@ import InfoIcon from './components/icons/InfoIcon';
 import MessageSquareIcon from './components/icons/MessageSquareIcon';
 import CodeIcon from './components/icons/CodeIcon';
 import ServerIcon from './components/icons/ServerIcon';
+import SessionSidebar from './components/SessionSidebar';
 
 type View = 'chat' | 'settings' | 'info' | 'projects' | 'api';
 
@@ -78,8 +80,6 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [view, setView] = useState<View>('chat');
-  const [currentChatModelId, setCurrentChatModelId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isResponding, setIsResponding] = useState<boolean>(false);
   const [isElectron, setIsElectron] = useState(false);
   const [isLogPanelVisible, setIsLogPanelVisible] = useState(false);
@@ -87,6 +87,10 @@ const App: React.FC = () => {
   const [runOutput, setRunOutput] = useState<{ title: string; stdout: string; stderr: string; } | null>(null);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
 
+  // Derived state from config
+  const sessions = config?.sessions || [];
+  const activeSessionId = config?.activeSessionId;
+  const activeSession = sessions.find(s => s.id === activeSessionId) || null;
 
   // Effect for one-time app initialization and loading settings
   useEffect(() => {
@@ -106,6 +110,7 @@ const App: React.FC = () => {
         projects: [],
         pythonCommand: 'python',
         apiRecentPrompts: [],
+        sessions: [],
       };
       
       let loadedConfig = defaultConfig;
@@ -116,7 +121,7 @@ const App: React.FC = () => {
         const savedSettings = await window.electronAPI.getSettings();
         if (savedSettings) {
           logger.info('Loaded settings from file.');
-          loadedConfig = { ...defaultConfig, ...savedSettings, projects: savedSettings.projects || [] };
+          loadedConfig = { ...defaultConfig, ...savedSettings, projects: savedSettings.projects || [], sessions: savedSettings.sessions || [] };
         } else {
           logger.info('No settings file found, using defaults.');
         }
@@ -127,7 +132,7 @@ const App: React.FC = () => {
           try {
             const savedSettings = JSON.parse(localSettings);
             logger.info('Loaded settings from localStorage.');
-            loadedConfig = { ...defaultConfig, ...savedSettings, projects: savedSettings.projects || [] };
+            loadedConfig = { ...defaultConfig, ...savedSettings, projects: savedSettings.projects || [], sessions: savedSettings.sessions || [] };
           } catch (e) {
              logger.error("Failed to parse local settings, using defaults.");
           }
@@ -194,26 +199,20 @@ const App: React.FC = () => {
     if (!config) return;
     logger.info('Configuration change requested.');
     
-    // Create a stable reference for comparison
-    const previousConfig = { ...config };
+    const needsModelReload = newConfig.baseUrl !== config.baseUrl || newConfig.provider !== config.provider;
 
-    setConfig(currentConfig => {
-      if (!currentConfig) return newConfig; // Should not happen if config is not null
-      
-      // When settings are saved from the panel, we want to retain the theme.
-      // The theme is only changed by the theme toggler.
-      return { ...newConfig, theme: currentConfig.theme, apiRecentPrompts: currentConfig.apiRecentPrompts };
-    });
+    setConfig(currentConfig => ({
+        ...(currentConfig || {}),
+        ...newConfig,
+        theme: currentConfig?.theme || 'dark',
+        sessions: needsModelReload ? [] : currentConfig?.sessions,
+        activeSessionId: needsModelReload ? undefined : currentConfig?.activeSessionId,
+    }));
     
     logger.setConfig({ logToFile: newConfig.logToFile });
     
-    const needsModelReload = newConfig.baseUrl !== previousConfig.baseUrl || newConfig.provider !== previousConfig.provider;
-    
     if (needsModelReload) {
       logger.info('Provider or Base URL changed, resetting to model selection.');
-      setCurrentChatModelId(null); 
-      setMessages([]);
-      // The view change is handled by the component calling onConfigChange
     }
   };
 
@@ -248,59 +247,108 @@ const App: React.FC = () => {
   }, [config?.baseUrl]);
 
   useEffect(() => {
-    // Load models if config is ready and we are on a view that needs them
-    if (config?.baseUrl && (view === 'chat' || view === 'api') && !currentChatModelId) {
+    // Load models if config is ready and we are on a view that needs them (like model selector)
+    if (config?.baseUrl && (view === 'chat' && !activeSessionId) || view === 'api') {
       loadModels();
     }
-  }, [view, currentChatModelId, config?.baseUrl, loadModels]);
-
-  const handleSelectModel = (modelId: string) => {
-    logger.info(`Model selected: ${modelId}`);
-    setCurrentChatModelId(modelId);
-    setMessages([{ role: 'system', content: DEFAULT_SYSTEM_PROMPT }]);
+  }, [view, activeSessionId, config?.baseUrl, loadModels]);
+  
+  const handleSelectSession = (sessionId: string) => {
+    setConfig(c => c ? ({ ...c, activeSessionId: sessionId }) : null);
     setView('chat');
   };
 
-  const handleBackToSelection = () => {
-    logger.info('Returning to model selection screen.');
-    setCurrentChatModelId(null);
-    setMessages([]);
-    setView('chat'); // Stays on chat view to trigger model load
+  const handleNewChat = () => {
+    setConfig(c => c ? ({ ...c, activeSessionId: undefined }) : null);
+    setView('chat');
+  };
+
+  const handleDeleteSession = (sessionId: string) => {
+    setConfig(c => {
+      if (!c) return null;
+      const newSessions = c.sessions?.filter(s => s.id !== sessionId) || [];
+      let newActiveId = c.activeSessionId;
+      if (c.activeSessionId === sessionId) {
+        newActiveId = newSessions.length > 0 ? newSessions[0].id : undefined;
+      }
+      return { ...c, sessions: newSessions, activeSessionId: newActiveId };
+    });
+  };
+
+  const handleRenameSession = (sessionId: string, newName: string) => {
+    setConfig(c => {
+        if (!c) return null;
+        const newSessions = c.sessions?.map(s => s.id === sessionId ? { ...s, name: newName } : s) || [];
+        return { ...c, sessions: newSessions };
+    });
+  };
+
+  const handleSelectModel = (modelId: string) => {
+    logger.info(`Model selected for new chat: ${modelId}`);
+    const newSession: ChatSession = {
+        id: `session_${Date.now()}`,
+        name: 'New Chat',
+        modelId: modelId,
+        messages: [{ role: 'system', content: DEFAULT_SYSTEM_PROMPT }],
+    };
+    setConfig(c => {
+        if (!c) return null;
+        const newSessions = [...(c.sessions || []), newSession];
+        return { ...c, sessions: newSessions, activeSessionId: newSession.id };
+    });
+    setView('chat');
+  };
+
+  const generateSessionName = async (sessionId: string, newMessages: ChatMessage[]) => {
+      if (!config) return;
+      const session = newMessages ? { messages: newMessages } : sessions.find(s => s.id === sessionId);
+      const modelId = sessions.find(s => s.id === sessionId)?.modelId;
+
+      if (!session || !modelId) return;
+
+      const conversation = session.messages
+          .filter(m => ['user', 'assistant'].includes(m.role))
+          .slice(0, 2) // Base title on first exchange
+          .map(m => `${m.role}: ${m.content}`)
+          .join('\n');
+
+      const prompt = `${SESSION_NAME_PROMPT}\n\n---\n\nConversation:\n${conversation}`;
+      
+      try {
+          logger.info(`Generating session title for session ${sessionId}`);
+          const title = await generateTextCompletion(config.baseUrl, modelId, [{ role: 'user', content: prompt }]);
+          const cleanedTitle = title.trim().replace(/^"|"$/g, '');
+          if (cleanedTitle) {
+            handleRenameSession(sessionId, cleanedTitle);
+            logger.info(`Session ${sessionId} renamed to: "${cleanedTitle}"`);
+          }
+      } catch (e) {
+          logger.error(`Failed to generate session name: ${e}`);
+      }
   };
 
   const handleSendMessage = async (userInput: string) => {
-    if (!currentChatModelId || !config) return;
+    if (!activeSession || !config) return;
 
-    logger.info(`Sending message from user to model ${currentChatModelId}.`);
-    const newMessages: ChatMessage[] = [...messages, { role: 'user', content: userInput }];
-    setMessages(newMessages);
+    logger.info(`Sending message to model ${activeSession.modelId}.`);
+    const isFirstUserMessage = activeSession.messages.filter(m => m.role === 'user').length === 0;
+
+    const userMessage: ChatMessage = { role: 'user', content: userInput };
+    const newMessages: ChatMessage[] = [...activeSession.messages, userMessage];
+    
+    const updatedSession: ChatSession = { ...activeSession, messages: [...newMessages, { role: 'assistant', content: '' }] };
+    setConfig(c => ({ ...c!, sessions: c!.sessions!.map(s => s.id === activeSessionId ? updatedSession : s) }));
     setIsResponding(true);
 
-    let messagesForApi = [...newMessages];
-
-    const assistantMessage: ChatMessage = { role: 'assistant', content: '' };
-    setMessages(prev => [...prev, assistantMessage]);
+    let messagesForApi: ChatMessage[] = [...newMessages];
     
     if (activeProjectId && window.electronAPI) {
         const activeProject = config.projects?.find(p => p.id === activeProjectId);
         if (activeProject) {
             try {
-                logger.info(`Fetching file tree for active project: ${activeProject.name}`);
                 const fileTree = await window.electronAPI.projectGetFileTree(activeProject.path);
-                
-                const contextSystemPrompt = `You are a helpful AI assistant. The user has provided context for a software project named "${activeProject.name}".
-The project's file structure is as follows:
-\`\`\`
-${fileTree}
-\`\`\`
-Answer the user's questions based on this project context. If the user asks to modify a file, provide the full, updated content of that file.`;
-
-                const systemPromptIndex = messagesForApi.findIndex(m => m.role === 'system');
-                if (systemPromptIndex !== -1) {
-                    messagesForApi[systemPromptIndex] = { role: 'system', content: contextSystemPrompt };
-                } else {
-                    messagesForApi.unshift({ role: 'system', content: contextSystemPrompt });
-                }
+                const contextSystemPrompt = `You are a helpful AI assistant. The user has provided context for a software project named "${activeProject.name}".\nThe project's file structure is as follows:\n\`\`\`\n${fileTree}\n\`\`\`\nAnswer the user's questions based on this project context.`;
+                messagesForApi[0] = { role: 'system', content: contextSystemPrompt };
                 logger.info(`Injected project context for "${activeProject.name}" into system prompt.`);
             } catch (e) {
                 logger.error(`Failed to get project file tree: ${e}`);
@@ -308,30 +356,45 @@ Answer the user's questions based on this project context. If the user asks to m
         }
     }
 
-
     await streamChatCompletion(
       config.baseUrl,
-      currentChatModelId,
+      activeSession.modelId,
       messagesForApi,
       (chunk) => {
-        setMessages(prev => {
-            const lastMsg = prev[prev.length - 1];
+        setConfig(c => {
+            if (!c) return c;
+            const targetSession = c.sessions?.find(s => s.id === activeSessionId);
+            if (!targetSession) return c;
+            const lastMsg = targetSession.messages[targetSession.messages.length - 1];
             if (lastMsg && lastMsg.role === 'assistant') {
-                const updatedMsg = { ...lastMsg, content: lastMsg.content + chunk };
-                return [...prev.slice(0, -1), updatedMsg];
+                const updatedMsg: ChatMessage = { ...lastMsg, content: lastMsg.content + chunk };
+                const updatedMessages: ChatMessage[] = [...targetSession.messages.slice(0, -1), updatedMsg];
+                const updatedS: ChatSession = { ...targetSession, messages: updatedMessages };
+                return { ...c, sessions: c.sessions!.map(s => s.id === activeSessionId ? updatedS : s) };
             }
-            return prev;
+            return c;
         });
       },
       (err) => {
         const errorMsgContent = `Sorry, an error occurred: ${err.message}`;
         const errorMsg: ChatMessage = { role: 'assistant', content: errorMsgContent };
-        setMessages(prev => [...prev.slice(0,-1), errorMsg]);
+        setConfig(c => {
+            if (!c) return c;
+            const targetSession = c.sessions?.find(s => s.id === activeSessionId);
+            if (!targetSession) return c;
+            const updatedMessages: ChatMessage[] = [...targetSession.messages.slice(0,-1), errorMsg];
+            const updatedS: ChatSession = { ...targetSession, messages: updatedMessages };
+            return { ...c, sessions: c.sessions!.map(s => s.id === activeSessionId ? updatedS : s) };
+        });
         setIsResponding(false);
       },
       () => {
         setIsResponding(false);
         logger.info('Message stream completed.');
+        if (isFirstUserMessage) {
+            const finalMessages: ChatMessage[] = [...newMessages, { role: 'assistant', content: '...' }]; // content is not important here
+            generateSessionName(activeSessionId!, finalMessages);
+        }
       }
     );
   };
@@ -339,6 +402,9 @@ Answer the user's questions based on this project context. If the user asks to m
   const handleInjectContentForChat = (filename: string, content: string) => {
     const formattedContent = `Here is the content of \`${filename}\` for context:\n\n\`\`\`\n${content}\n\`\`\`\n\nI have a question about this file.`;
     setPrefilledInput(formattedContent);
+    if (!activeSession) {
+        handleNewChat(); // Go to model selection if no chat is active
+    }
     setView('chat');
     logger.info(`Injected content of ${filename} into chat input.`);
   };
@@ -348,20 +414,17 @@ Answer the user's questions based on this project context. If the user asks to m
   };
   
   const handleSaveApiPrompt = (prompt: string) => {
-    setConfig(currentConfig => {
-        if (!currentConfig) return null;
-        const recent = currentConfig.apiRecentPrompts || [];
-        const updatedRecent = [prompt, ...recent.filter(p => p !== prompt)].slice(0, 10); // Limit to 10
-        return { ...currentConfig, apiRecentPrompts: updatedRecent };
+    setConfig(c => {
+        if (!c) return null;
+        const recent = c.apiRecentPrompts || [];
+        const updatedRecent = [prompt, ...recent.filter(p => p !== prompt)].slice(0, 10);
+        return { ...c, apiRecentPrompts: updatedRecent };
     });
     logger.info(`Saved API prompt to history.`);
   };
 
   const handleClearApiPrompts = () => {
-      setConfig(currentConfig => {
-          if (!currentConfig) return null;
-          return { ...currentConfig, apiRecentPrompts: [] };
-      });
+      setConfig(c => c ? { ...c, apiRecentPrompts: [] } : null);
       logger.info('Cleared API prompt history.');
   };
 
@@ -381,7 +444,6 @@ Answer the user's questions based on this project context. If the user asks to m
 
   const renderContent = () => {
     if (!config) {
-        // Initial loading state before config is loaded from storage
         return <div className="flex items-center justify-center h-full text-[--text-muted]">Loading settings...</div>;
     }
 
@@ -417,14 +479,14 @@ Answer the user's questions based on this project context. If the user asks to m
               />;
         case 'chat':
         default:
-             if (currentChatModelId) {
+             if (activeSession) {
                  return (
                     <ChatView
-                        modelId={currentChatModelId}
-                        messages={messages.filter(m => m.role !== 'system')}
+                        key={activeSession.id}
+                        session={activeSession}
                         onSendMessage={handleSendMessage}
                         isResponding={isResponding}
-                        onBack={handleBackToSelection}
+                        onRenameSession={(newName) => handleRenameSession(activeSession.id, newName)}
                         theme={config.theme || 'dark'}
                         isElectron={isElectron}
                         projects={config.projects || []}
@@ -489,8 +551,19 @@ Answer the user's questions based on this project context. If the user asks to m
           <ThemeSwitcher theme={config?.theme || 'dark'} onToggle={handleThemeToggle} />
         </div>
       </header>
-      <main className="flex-1 overflow-hidden">
-        {renderContent()}
+      <main className="flex-1 flex overflow-hidden">
+        {view === 'chat' && activeSession && (
+          <SessionSidebar
+            sessions={sessions}
+            activeSessionId={activeSessionId || null}
+            onNewChat={handleNewChat}
+            onSelectSession={handleSelectSession}
+            onDeleteSession={handleDeleteSession}
+          />
+        )}
+        <div className="flex-1 overflow-hidden">
+            {renderContent()}
+        </div>
       </main>
       {isLogPanelVisible && <LoggingPanel onClose={() => setIsLogPanelVisible(false)} />}
     </div>

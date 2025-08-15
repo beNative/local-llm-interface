@@ -1,0 +1,59 @@
+
+import React from 'react';
+import type { ChatSession } from '../types';
+import PlusIcon from './icons/PlusIcon';
+import TrashIcon from './icons/TrashIcon';
+import MessageSquareIcon from './icons/MessageSquareIcon';
+
+interface SessionSidebarProps {
+  sessions: ChatSession[];
+  activeSessionId: string | null;
+  onNewChat: () => void;
+  onSelectSession: (sessionId: string) => void;
+  onDeleteSession: (sessionId: string) => void;
+}
+
+const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSessionId, onNewChat, onSelectSession, onDeleteSession }) => {
+  return (
+    <aside className="w-64 bg-[--bg-secondary] border-r border-[--border-primary] flex flex-col">
+      <div className="p-2 flex-shrink-0">
+        <button
+          onClick={onNewChat}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-dashed border-[--border-secondary] text-[--text-muted] hover:bg-[--bg-hover] hover:text-[--text-primary] transition-colors"
+        >
+          <PlusIcon className="w-4 h-4" />
+          New Chat
+        </button>
+      </div>
+      <nav className="flex-1 overflow-y-auto p-2 space-y-1">
+        {sessions.map((session) => (
+          <div
+            key={session.id}
+            className={`group w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors relative ${
+              activeSessionId === session.id
+                ? 'bg-blue-500/10 text-[--text-accent]'
+                : 'text-[--text-secondary] hover:bg-[--bg-hover]'
+            }`}
+          >
+            <button onClick={() => onSelectSession(session.id)} className="w-full h-full flex items-center gap-2 text-left truncate">
+                <MessageSquareIcon className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate flex-1">{session.name}</span>
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteSession(session.id);
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-gray-400 hover:bg-red-500/10 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+              title="Delete session"
+            >
+              <TrashIcon className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+      </nav>
+    </aside>
+  );
+};
+
+export default SessionSidebar;

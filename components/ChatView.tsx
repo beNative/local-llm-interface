@@ -1,9 +1,10 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
-import type { ChatMessage, Theme, CodeProject, ProjectType, FileSystemEntry } from '../types';
+import type { ChatMessage, Theme, CodeProject, ProjectType, FileSystemEntry, ChatSession } from '../types';
 import SendIcon from './icons/SendIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
 import ModelIcon from './icons/ModelIcon';
@@ -358,11 +359,10 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
 };
 
 interface ChatViewProps {
-  modelId: string;
+  session: ChatSession;
   onSendMessage: (userInput: string) => void;
-  messages: ChatMessage[];
   isResponding: boolean;
-  onBack: () => void;
+  onRenameSession: (newName: string) => void;
   theme: Theme;
   isElectron: boolean;
   projects: CodeProject[];
@@ -372,11 +372,27 @@ interface ChatViewProps {
   onSetActiveProject: (projectId: string | null) => void;
 }
 
-const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, isResponding, onBack, theme, isElectron, projects, prefilledInput, onPrefillConsumed, activeProjectId, onSetActiveProject }) => {
+const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isResponding, onRenameSession, theme, isElectron, projects, prefilledInput, onPrefillConsumed, activeProjectId, onSetActiveProject }) => {
   const [input, setInput] = useState('');
   const [saveModalState, setSaveModalState] = useState<{ code: string; lang: string } | null>(null);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(session.name);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  const { messages, name: sessionName } = session;
+
+  useEffect(() => {
+    setEditedTitle(sessionName);
+  }, [sessionName]);
+
+  useEffect(() => {
+    if (isEditingTitle) {
+      titleInputRef.current?.focus();
+      titleInputRef.current?.select();
+    }
+  }, [isEditingTitle]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -394,8 +410,6 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
   }, [prefilledInput, onPrefillConsumed]);
 
   useEffect(() => {
-    // Refocus the textarea when a response is finished, or when prefilled input is added.
-    // This ensures the user can immediately start typing again.
     if (!isResponding) {
       textareaRef.current?.focus();
     }
@@ -414,6 +428,15 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
       handleSend();
     }
   };
+
+  const handleTitleRename = () => {
+    if (editedTitle.trim() && editedTitle.trim() !== session.name) {
+      onRenameSession(editedTitle.trim());
+    } else {
+      setEditedTitle(session.name);
+    }
+    setIsEditingTitle(false);
+  };
   
   const handleSaveRequest = (code: string, lang: string) => {
     setSaveModalState({ code, lang });
@@ -429,36 +452,45 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
         />
      )}
       <header className="flex items-center justify-between p-4 bg-[--bg-secondary] border-b border-[--border-primary] gap-4">
-         <div className="flex items-center gap-3 flex-shrink-0">
-            <ModelIcon className="w-6 h-6 text-blue-500 dark:text-blue-400"/>
-            <h2 className="text-lg font-semibold text-[--text-primary] truncate" title={modelId}>{modelId}</h2>
-         </div>
-         {isElectron && projects.length > 0 && (
-            <div className="flex items-center gap-2 flex-grow justify-center min-w-0">
-                <label htmlFor="project-context-select" className="flex-shrink-0 text-sm text-[--text-muted] flex items-center gap-1.5">
-                    <CodeIcon className="w-5 h-5" />
-                    <span>Context:</span>
-                </label>
-                <select
-                    id="project-context-select"
-                    value={activeProjectId || ''}
-                    onChange={(e) => onSetActiveProject(e.target.value || null)}
-                    className="text-sm text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-2 focus:ring-[--border-focus] w-full max-w-xs truncate"
-                    aria-label="Select active project for context"
-                >
-                    <option value="">No Project Context</option>
-                    {projects.map(p => <option key={p.id} value={p.id} title={p.name}>{p.name}</option>)}
-                </select>
-            </div>
-        )}
-        <div className="flex-shrink-0">
-            <button
-            onClick={onBack}
-            className="px-3 py-1 text-sm font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-md hover:bg-[--bg-hover] focus:outline-none"
+        <div className="flex items-center gap-3 min-w-0">
+          <ModelIcon className="w-6 h-6 text-blue-500 dark:text-blue-400 flex-shrink-0"/>
+          {isEditingTitle ? (
+            <input
+              ref={titleInputRef}
+              value={editedTitle}
+              onChange={(e) => setEditedTitle(e.target.value)}
+              onBlur={handleTitleRename}
+              onKeyDown={(e) => e.key === 'Enter' && handleTitleRename()}
+              className="text-lg font-semibold bg-transparent border-b border-[--border-focus] focus:outline-none text-[--text-primary] w-full"
+            />
+          ) : (
+            <h2 
+              className="text-lg font-semibold text-[--text-primary] truncate cursor-pointer hover:bg-[--bg-hover] px-2 py-1 rounded-md"
+              title={`Click to rename. Using model: ${session.modelId}`}
+              onClick={() => setIsEditingTitle(true)}
             >
-            &larr; Change Model
-            </button>
+              {session.name}
+            </h2>
+          )}
         </div>
+        {isElectron && projects.length > 0 && (
+          <div className="flex items-center gap-2 flex-grow justify-end min-w-0">
+            <label htmlFor="project-context-select" className="flex-shrink-0 text-sm text-[--text-muted] flex items-center gap-1.5">
+              <CodeIcon className="w-5 h-5" />
+              <span>Context:</span>
+            </label>
+            <select
+              id="project-context-select"
+              value={activeProjectId || ''}
+              onChange={(e) => onSetActiveProject(e.target.value || null)}
+              className="text-sm text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-2 focus:ring-[--border-focus] w-full max-w-xs truncate"
+              aria-label="Select active project for context"
+            >
+              <option value="">No Project Context</option>
+              {projects.map(p => <option key={p.id} value={p.id} title={p.name}>{p.name}</option>)}
+            </select>
+          </div>
+        )}
       </header>
       <main
         className="flex-1 overflow-y-auto p-6 space-y-6"
@@ -468,7 +500,7 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
             fontSize: 'var(--chat-font-size)',
         }}
        >
-        {messages.map((msg, index) => (
+        {messages.filter(m => m.role !== 'system').map((msg, index) => (
           <div key={index} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
             {msg.role === 'assistant' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center"><ModelIcon className="w-5 h-5 text-blue-500 dark:text-blue-400" /></div>}
             <div
@@ -491,8 +523,6 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
                           code: (props) => (
                               <CodeBlock {...props} theme={theme} isElectron={isElectron} projects={projects} onSaveRequest={handleSaveRequest} />
                           ),
-                          // This fixes blurred text in code blocks by removing the outer <pre>
-                          // that react-markdown wraps around the custom component.
                           pre: ({ children }) => <>{children}</>,
                       }}
                     >

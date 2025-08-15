@@ -36,6 +36,13 @@ export interface ThemeOverrides {
   fontSize?: number;
 }
 
+export interface ChatSession {
+  id: string;
+  name: string;
+  modelId: string;
+  messages: ChatMessage[];
+}
+
 export interface Config {
   provider: LLMProvider;
   baseUrl: string;
@@ -49,6 +56,8 @@ export interface Config {
   projects?: CodeProject[];
   pythonCommand?: string;
   apiRecentPrompts?: string[];
+  sessions?: ChatSession[];
+  activeSessionId?: string;
 }
 
 export interface Model {

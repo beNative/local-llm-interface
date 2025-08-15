@@ -16,3 +16,5 @@ export const PROVIDER_CONFIGS: Record<LLMProvider, Omit<Config, 'provider'>> = {
 export const APP_NAME = "Local LLM Interface";
 
 export const DEFAULT_SYSTEM_PROMPT: string = "You are a helpful AI assistant. Answer the user's questions accurately and concisely.";
+
+export const SESSION_NAME_PROMPT: string = `Based on the following conversation, generate a short, descriptive title (5 words or less) for the chat session. Only output the title, with no extra text or quotation marks.`;
