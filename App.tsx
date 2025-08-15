@@ -1,8 +1,3 @@
-
-
-
-
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, FileSystemEntry, SystemStats } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
@@ -96,6 +91,7 @@ const App: React.FC = () => {
 
   const [view, setView] = useState<View>('chat');
   const [isResponding, setIsResponding] = useState<boolean>(false);
+  const [retrievalStatus, setRetrievalStatus] = useState<'idle' | 'retrieving'>('idle');
   const [isElectron, setIsElectron] = useState(false);
   const [isLogPanelVisible, setIsLogPanelVisible] = useState(false);
   const [prefilledInput, setPrefilledInput] = useState('');
@@ -411,6 +407,7 @@ const App: React.FC = () => {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
       setIsResponding(false);
+      setRetrievalStatus('idle');
       logger.info('User requested to stop generation.');
     }
   };
@@ -446,10 +443,10 @@ const App: React.FC = () => {
     });
   };
 
-  const handleSendMessage = async (content: string | ChatMessageContentPart[]) => {
+  const handleSendMessage = async (content: string | ChatMessageContentPart[], options?: { useRAG: boolean }) => {
     if (!activeSession || !config) return;
 
-    logger.info(`Sending message to model ${activeSession.modelId}.`);
+    logger.info(`Sending message to model ${activeSession.modelId}. RAG enabled: ${!!options?.useRAG}`);
     const isFirstUserMessage = activeSession.messages.filter(m => m.role === 'user').length === 0;
     
     const controller = new AbortController();
@@ -462,12 +459,13 @@ const App: React.FC = () => {
     let userMessage: ChatMessage = { role: 'user', content };
     let newMessages: ChatMessage[] = [...activeSession.messages, userMessage];
 
-    // Ensure there is a system message. If not, add the default one.
+    // Ensure there is a system message.
     if (!newMessages.some(m => m.role === 'system')) {
         newMessages.unshift({ role: 'system', content: DEFAULT_SYSTEM_PROMPT });
     }
 
     let messagesForApi: ChatMessage[] = [...newMessages];
+    let ragMetadata: ChatMessageMetadata['ragContext'] | undefined = undefined;
 
     // AI-Assisted File Modification Logic
     if (match && activeProjectId && window.electronAPI) {
@@ -487,8 +485,6 @@ Original content of "${fileName}":
 ${originalContent}
 \`\`\`
 `;
-                    // Temporarily prepend this special system message for this request only.
-                    // It won't be saved in the session history, but will be sent to the API.
                     const systemMessageIndex = messagesForApi.findIndex(m => m.role === 'system');
                     if (systemMessageIndex > -1) {
                       messagesForApi[systemMessageIndex] = {...messagesForApi[systemMessageIndex], content: `${messagesForApi[systemMessageIndex].content}\n\n${systemPrompt}`};
@@ -496,32 +492,64 @@ ${originalContent}
                        messagesForApi.unshift({ role: 'system', content: systemPrompt });
                     }
 
-                    // Tag the user message for our UI to handle rendering
                     userMessage.fileModification = { filePath, status: 'pending' };
                     logger.info(`Detected file modification request for "${fileName}" in project "${activeProject.name}".`);
                 } catch (e) {
                     logger.error(`Could not read file for modification task: ${e}`);
-                    // Fallback to normal message if file read fails
                 }
             } else {
                  logger.warn(`File modification requested for "${fileName}", but it was not found in project "${activeProject.name}". Proceeding as normal chat.`);
             }
         }
-    } else if (activeProjectId && window.electronAPI) {
-        // Standard Project Context Injection
+    } else if (options?.useRAG && activeProjectId && window.electronAPI) {
+        // RAG (Retrieval-Augmented Generation) Logic
         const activeProject = config.projects?.find(p => p.id === activeProjectId);
         if (activeProject) {
+            setRetrievalStatus('retrieving');
             try {
+                const fileTree = await window.electronAPI.projectGetFileTree(activeProject.path);
+                const retrievalSystemPrompt = `You are a file retrieval expert for a software project. Your task is to identify the most relevant files to answer a user's query. Based on the user's query and the project's file structure, return a JSON array containing the top 3-5 most relevant file paths. Example: ["src/components/Button.tsx", "src/styles/theme.css"]. Only output the JSON array.`;
+                const retrievalUserPrompt = `Query: "${userMessageContent}"\n\nFile tree:\n\`\`\`\n${fileTree}\n\`\`\``;
+                const retrievalResponse = await generateTextCompletion(config.baseUrl, activeSession.modelId, [
+                    { role: 'system', content: retrievalSystemPrompt },
+                    { role: 'user', content: retrievalUserPrompt }
+                ]);
+
+                const jsonMatch = retrievalResponse.match(/```(json)?\s*([\s\S]*?)\s*```/);
+                const jsonText = jsonMatch ? jsonMatch[2] : retrievalResponse;
+                
+                let relevantFiles: string[] = [];
+                try {
+                    relevantFiles = JSON.parse(jsonText);
+                } catch {
+                    logger.warn("RAG retrieval failed to parse JSON, falling back to file tree context.");
+                }
+                
+                if (relevantFiles.length > 0) {
+                    logger.info(`RAG retrieval identified relevant files: ${relevantFiles.join(', ')}`);
+                    let augmentedContext = "The user has provided context from relevant project files:\n\n";
+                    for (const relativePath of relevantFiles) {
+                        const fullPath = await window.electronAPI.projectFindFile({ projectPath: activeProject.path, fileName: relativePath });
+                        if (fullPath) {
+                            const fileContent = await window.electronAPI.readProjectFile(fullPath);
+                            augmentedContext += `--- File: ${relativePath} ---\n\`\`\`\n${fileContent.slice(0, 2000)}\n\`\`\`\n\n`;
+                        }
+                    }
+                    const systemMessageIndex = messagesForApi.findIndex(m => m.role === 'system');
+                    messagesForApi[systemMessageIndex] = { ...messagesForApi[systemMessageIndex], content: `${messagesForApi[systemMessageIndex].content}\n\n${augmentedContext}` };
+                    ragMetadata = { files: relevantFiles };
+                } else {
+                    throw new Error("Model did not return any relevant files.");
+                }
+
+            } catch (e) {
+                logger.error(`RAG retrieval failed: ${e}. Falling back to file tree context.`);
                 const fileTree = await window.electronAPI.projectGetFileTree(activeProject.path);
                 const projectContext = `The user has provided context for a software project named "${activeProject.name}".\nThe project's file structure is as follows:\n\`\`\`\n${fileTree}\n\`\`\`\nAnswer the user's questions based on this project context.`;
                 const systemMessageIndex = messagesForApi.findIndex(m => m.role === 'system');
-                if (systemMessageIndex !== -1) {
-                    const originalSystemContent = messagesForApi[systemMessageIndex].content as string;
-                    messagesForApi[systemMessageIndex] = { role: 'system', content: `${originalSystemContent}\n\n${projectContext}` };
-                }
-                logger.info(`Injected project context for "${activeProject.name}" into system prompt.`);
-            } catch (e) {
-                logger.error(`Failed to get project file tree: ${e}`);
+                messagesForApi[systemMessageIndex] = { ...messagesForApi[systemMessageIndex], content: `${messagesForApi[systemMessageIndex].content}\n\n${projectContext}` };
+            } finally {
+                setRetrievalStatus('idle');
             }
         }
     }
@@ -563,10 +591,12 @@ ${originalContent}
             return { ...c, sessions: c.sessions!.map(s => s.id === activeSessionId ? updatedS : s) };
         });
         setIsResponding(false);
+        setRetrievalStatus('idle');
         abortControllerRef.current = null;
       },
       (metadata: ChatMessageMetadata) => {
         setIsResponding(false);
+        setRetrievalStatus('idle');
         abortControllerRef.current = null;
         logger.info('Message stream completed.');
         
@@ -577,7 +607,8 @@ ${originalContent}
             if (!targetSession) return c;
             const lastMsg = targetSession.messages[targetSession.messages.length - 1];
             if (lastMsg && lastMsg.role === 'assistant') {
-                const updatedMsg: ChatMessage = { ...lastMsg, metadata };
+                const finalMetadata = { ...metadata, ragContext: ragMetadata };
+                const updatedMsg: ChatMessage = { ...lastMsg, metadata: finalMetadata };
                 const updatedMessages = [...targetSession.messages.slice(0, -1), updatedMsg];
                 const updatedS: ChatSession = { ...targetSession, messages: updatedMessages };
                 return { ...c, sessions: c.sessions!.map(s => s.id === activeSessionId ? updatedS : s) };
@@ -776,7 +807,8 @@ ${originalContent}
                         key={activeSession.id}
                         session={activeSession}
                         onSendMessage={handleSendMessage}
-                        isResponding={isResponding}
+                        isResponding={isResponding || retrievalStatus === 'retrieving'}
+                        retrievalStatus={retrievalStatus}
                         onStopGeneration={handleStopGeneration}
                         onRenameSession={(newName) => handleRenameSession(activeSession.id, newName)}
                         theme={config.theme || 'dark'}

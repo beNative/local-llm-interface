@@ -1,6 +1,7 @@
 
 
 
+
 export type Theme = 'light' | 'dark';
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
 
@@ -134,6 +135,9 @@ export interface ChatMessageUsage {
 export interface ChatMessageMetadata {
   usage?: ChatMessageUsage;
   speed?: number; // tokens per second
+  ragContext?: {
+    files: string[];
+  };
 }
 
 export interface ChatMessage {

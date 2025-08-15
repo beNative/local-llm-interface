@@ -4,6 +4,8 @@
 
 
 
+
+
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -30,6 +32,37 @@ import { DEFAULT_SYSTEM_PROMPT } from '../constants';
 import FileModificationView from './FileModificationView';
 import CheckIcon from './icons/CheckIcon';
 import XCircleIcon from './icons/XCircleIcon';
+import BrainCircuitIcon from './icons/BrainCircuitIcon';
+import FileCodeIcon from './icons/FileCodeIcon';
+
+const ContextSources: React.FC<{ files: string[] }> = ({ files }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    if (!files || files.length === 0) return null;
+
+    const fileNames = files.map(f => f.split(/[/\\]/).pop());
+
+    return (
+        <div className="mb-2 text-xs border border-[--assistant-message-text-color]/10 rounded-lg">
+            <button
+                onClick={() => setIsExpanded(prev => !prev)}
+                className="flex items-center w-full p-2 text-left opacity-80 hover:opacity-100"
+            >
+                <FileCodeIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+                <span className="font-semibold flex-grow">Context from {files.length} files</span>
+                <ChevronDownIcon className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+            </button>
+            {isExpanded && (
+                <div className="p-2 border-t border-[--assistant-message-text-color]/10 font-mono">
+                    {fileNames.map((name, index) => (
+                        <div key={index} className="truncate" title={files[index]}>{name}</div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
 
 const MessageMetadata: React.FC<{ metadata: ChatMessageMetadata }> = ({ metadata }) => {
     const { usage, speed } = metadata;
@@ -399,8 +432,9 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
 
 interface ChatViewProps {
   session: ChatSession;
-  onSendMessage: (content: string | ChatMessageContentPart[]) => void;
+  onSendMessage: (content: string | ChatMessageContentPart[], options?: { useRAG: boolean }) => void;
   isResponding: boolean;
+  retrievalStatus: 'idle' | 'retrieving';
   onStopGeneration: () => void;
   onRenameSession: (newName: string) => void;
   theme: Theme;
@@ -419,7 +453,7 @@ interface ChatViewProps {
   onRejectModification: (filePath: string) => void;
 }
 
-const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isResponding, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onAcceptModification, onRejectModification }) => {
+const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isResponding, retrievalStatus, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onAcceptModification, onRejectModification }) => {
   const [input, setInput] = useState('');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [saveModalState, setSaveModalState] = useState<{ code: string; lang: string } | null>(null);
@@ -429,6 +463,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
   const [isPersonaSelectorOpen, setIsPersonaSelectorOpen] = useState(false);
   const [isPromptsOpen, setIsPromptsOpen] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [isSmartContextEnabled, setIsSmartContextEnabled] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -541,9 +576,9 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
             contentParts.push({ type: 'text', text: input.trim() });
         }
         contentParts.push({ type: 'image_url', image_url: { url: attachedImage } });
-        onSendMessage(contentParts);
+        onSendMessage(contentParts, { useRAG: isSmartContextEnabled });
     } else {
-        onSendMessage(input.trim());
+        onSendMessage(input.trim(), { useRAG: isSmartContextEnabled });
     }
     
     setInput('');
@@ -745,6 +780,16 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
                 return <option key={p.id} value={p.id} title={optionText}>{optionText}</option>
               })}
             </select>
+            {activeProjectId && (
+                <label className="flex items-center gap-2 cursor-pointer" title="Enable smart context to automatically read relevant files based on your prompt.">
+                    <BrainCircuitIcon className={`w-5 h-5 ${isSmartContextEnabled ? 'text-[--accent-chat]' : 'text-[--text-muted]'}`} />
+                    <span className="text-sm text-[--text-muted] hidden lg:inline">Smart Context</span>
+                    <div className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" checked={isSmartContextEnabled} onChange={() => setIsSmartContextEnabled(s => !s)} className="sr-only peer" />
+                        <div className="w-11 h-6 bg-[--bg-tertiary] peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[--border-focus] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[--accent-chat]"></div>
+                    </div>
+                </label>
+            )}
           </div>
         )}
       </header>
@@ -814,6 +859,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
                     <SpinnerIcon className="w-5 h-5 text-gray-400"/>
                   ) : (
                     <>
+                      {msg.metadata?.ragContext && <ContextSources files={msg.metadata.ragContext.files} />}
                       <div className="prose prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2">
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm]}
@@ -854,6 +900,12 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
         <div ref={messagesEndRef} />
       </main>
       <footer className="p-4 bg-[--bg-primary] border-t border-[--border-primary]">
+        {retrievalStatus === 'retrieving' && (
+            <div className="flex items-center gap-2 text-xs text-[--text-muted] mb-2 px-1">
+                <SpinnerIcon className="w-4 h-4" />
+                <span>Finding relevant files...</span>
+            </div>
+        )}
         {attachedImage && (
             <div className="relative w-20 h-20 mb-2 border border-[--border-secondary] rounded-lg p-1">
                 <img src={attachedImage} className="w-full h-full object-cover rounded-md" alt="Attachment preview"/>
