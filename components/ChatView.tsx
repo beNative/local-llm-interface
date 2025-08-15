@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -333,7 +334,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
             } else {
                 return; // Should not be reached given canRunCode logic
             }
-             setRunState({ isLoading: false, output: result.stdout, error: result.stderr || null });
+             setRunState({ isLoading: false, output: result.stdout || '', error: result.stderr || null });
              logger.info(`Standalone execution stdout:\n${result.stdout}`);
              if(result.stderr) logger.warn(`Standalone execution stderr:\n${result.stderr}`);
         } else { // In-project execution
@@ -342,7 +343,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
                 return;
             }
             const result = await window.electronAPI.runScriptInProject({ project: project!, code: codeText });
-            setRunState({ isLoading: false, output: result.stdout, error: result.stderr || null });
+            setRunState({ isLoading: false, output: result.stdout || '', error: result.stderr || null });
             logger.info(`In-project execution stdout:\n${result.stdout}`);
             if(result.stderr) logger.warn(`In-project execution stderr:\n${result.stderr}`);
         }
@@ -368,10 +369,11 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
                         <select 
                             value={selectedProjectId} 
                             onChange={e => setSelectedProjectId(e.target.value)}
-                            className="text-xs bg-transparent border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:border-blue-500"
+                            className="text-xs px-2 py-1 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-1 focus:ring-[--border-focus]"
                             disabled={runState.isLoading}
+                            title="Choose execution environment"
                         >
-                            <option value="standalone" title="Run this code in an isolated environment, without any project context or dependencies.">Standalone Execution</option>
+                            <option value="standalone" title="Run this code in an isolated environment, without any project context or dependencies.">Standalone</option>
                             {relevantProjects.map(p => <option key={p.id} value={p.id} title={`Run this code within the '${p.name}' project environment.`}>{p.name}</option>)}
                         </select>
                     )}
@@ -397,6 +399,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
                     <button 
                       onClick={handleCopy}
                       className="text-[--text-muted] hover:text-[--text-primary] px-2 py-1 rounded"
+                      title="Copy code to clipboard"
                     >
                       {isCopied ? 'Copied!' : 'Copy code'}
                     </button>
@@ -407,6 +410,7 @@ const CodeBlock = ({ node, inline, className, children, theme, isElectron, proje
                 <button 
                   onClick={handleCopy}
                   className="text-[--text-muted] hover:text-[--text-primary] px-2 py-1 rounded"
+                  title="Copy code to clipboard"
                 >
                   {isCopied ? 'Copied!' : 'Copy code'}
                 </button>
@@ -785,6 +789,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
               onChange={(e) => onSetActiveProject(e.target.value || null)}
               className="text-sm text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus] w-full max-w-xs truncate"
               aria-label="Select active project for context"
+              title="Select a project to enable project-aware features like file modification and smart context."
             >
               <option value="">No Project Context</option>
               {projects.map(p => {

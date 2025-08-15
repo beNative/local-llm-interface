@@ -29,11 +29,13 @@ const NavButton: React.FC<{
   children: React.ReactNode;
   ariaLabel: string;
   view: View;
-}> = ({ active, onClick, children, ariaLabel, view }) => {
+  title: string;
+}> = ({ active, onClick, children, ariaLabel, view, title }) => {
     const accentVar = `var(--accent-${view})`;
     return (
         <button
             onClick={onClick}
+            title={title}
             aria-label={ariaLabel}
             className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                 active
@@ -858,23 +860,23 @@ ${originalContent}
         <div className="flex items-center gap-4">
             <h1 className="text-xl font-bold px-2 text-[--text-primary]">{APP_NAME}</h1>
             <nav className="flex items-center gap-1 bg-[--bg-secondary] p-1 rounded-xl">
-              <NavButton active={view === 'chat'} onClick={() => setView('chat')} ariaLabel="Chat View" view="chat">
+              <NavButton active={view === 'chat'} onClick={() => setView('chat')} title="Chat View" ariaLabel="Chat View" view="chat">
                 <MessageSquareIcon className="w-5 h-5" />
                 <span>Chat</span>
               </NavButton>
-              <NavButton active={view === 'projects'} onClick={() => setView('projects')} ariaLabel="Projects View" view="projects">
+              <NavButton active={view === 'projects'} onClick={() => setView('projects')} title="Projects View" ariaLabel="Projects View" view="projects">
                 <CodeIcon className="w-5 h-5" />
                 <span>Projects</span>
               </NavButton>
-               <NavButton active={view === 'api'} onClick={() => setView('api')} ariaLabel="API Client View" view="api">
+               <NavButton active={view === 'api'} onClick={() => setView('api')} title="API Client View" ariaLabel="API Client View" view="api">
                 <ServerIcon className="w-5 h-5" />
                 <span>API Client</span>
               </NavButton>
-              <NavButton active={view === 'settings'} onClick={() => setView('settings')} ariaLabel="Settings View" view="settings">
+              <NavButton active={view === 'settings'} onClick={() => setView('settings')} title="Settings View" ariaLabel="Settings View" view="settings">
                  <SettingsIcon className="w-5 h-5" />
                 <span>Settings</span>
               </NavButton>
-              <NavButton active={view === 'info'} onClick={() => setView('info')} ariaLabel="Info View" view="info">
+              <NavButton active={view === 'info'} onClick={() => setView('info')} title="Info View" ariaLabel="Info View" view="info">
                 <InfoIcon className="w-5 h-5" />
                 <span>Info</span>
               </NavButton>
@@ -889,6 +891,7 @@ ${originalContent}
             onClick={() => setIsLogPanelVisible(!isLogPanelVisible)}
             className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-primary] focus:ring-[--border-focus]"
             aria-label="Toggle logs panel"
+            title="Toggle Logs Panel"
             >
              <FileTextIcon className="w-5 h-5" />
             </button>

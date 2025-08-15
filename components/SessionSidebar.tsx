@@ -21,6 +21,7 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
         <button
           onClick={onNewChat}
           className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg text-white bg-[--accent-chat] hover:brightness-95 transition-all shadow-sm"
+          title="Start a new conversation"
         >
           <PlusIcon className="w-4 h-4" />
           New Chat

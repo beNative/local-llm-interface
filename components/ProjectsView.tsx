@@ -122,6 +122,18 @@ const ProjectCard: React.FC<{
                   : project.type === 'delphi' ? 'Build Project' 
                   : 'Run Project';
     
+    const runTitle = project.type === 'webapp' 
+        ? 'Open this web app in your default browser' 
+        : project.type === 'delphi' 
+            ? `Build ${project.name}.dpr and create an executable`
+            : `Run the main entry point for this project (e.g., main.py, app.js)`;
+
+    const installTitle = project.type === 'python' 
+        ? "Install dependencies from requirements.txt into the project's venv" 
+        : project.type === 'nodejs' 
+            ? 'Install dependencies from package.json using npm' 
+            : 'Download dependencies using Maven';
+
     return (
         <div className="bg-[--bg-primary] rounded-xl border border-[--border-primary] flex flex-col transition-shadow hover:shadow-md">
             <div className="p-4">
@@ -138,13 +150,13 @@ const ProjectCard: React.FC<{
                 <p className="text-xs text-[--text-muted] font-mono break-all">{project.path}</p>
             
                 <div className="grid grid-cols-2 gap-2 mt-4">
-                    <button onClick={onRun} disabled={isBusy} className="col-span-2 text-sm px-3 py-2 rounded-lg bg-[--accent-projects] text-white hover:brightness-95 disabled:opacity-60 disabled:cursor-wait flex items-center justify-center gap-2 font-semibold">
+                    <button onClick={onRun} disabled={isBusy} className="col-span-2 text-sm px-3 py-2 rounded-lg bg-[--accent-projects] text-white hover:brightness-95 disabled:opacity-60 disabled:cursor-wait flex items-center justify-center gap-2 font-semibold" title={runTitle}>
                         {isBusy ? <SpinnerIcon className="w-5 h-5"/> : <RunIcon className="w-5 h-5" />}
                         {isBusy ? 'Working...' : runText}
                     </button>
 
                     {project.type !== 'webapp' && project.type !== 'delphi' && (
-                         <button onClick={onInstall} disabled={isBusy} className="text-xs px-3 py-1.5 rounded-lg bg-[--bg-tertiary] text-[--text-secondary] hover:bg-[--bg-hover] disabled:opacity-50">
+                         <button onClick={onInstall} disabled={isBusy} className="text-xs px-3 py-1.5 rounded-lg bg-[--bg-tertiary] text-[--text-secondary] hover:bg-[--bg-hover] disabled:opacity-50" title={installTitle}>
                             Install Deps
                         </button>
                     )}
@@ -197,7 +209,7 @@ const NewProjectForm: React.FC<{
                 className="flex-grow px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
                 disabled={isBusy}
             />
-            <button type="submit" disabled={!name.trim() || isBusy} className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed">
+            <button type="submit" disabled={!name.trim() || isBusy} className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed" title="Create a new project folder with boilerplate files">
                 {isBusy ? <SpinnerIcon className="w-5 h-5"/> : 'Create'}
             </button>
         </form>
@@ -358,7 +370,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
                                 value={path || 'Not set'}
                                 className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg"
                             />
-                            <button onClick={() => handleSetPath(type)} className="px-4 py-2 text-sm font-medium text-[--text-on-accent] bg-[--accent-chat] hover:brightness-95 rounded-lg">
+                            <button onClick={() => handleSetPath(type)} className="px-4 py-2 text-sm font-medium text-[--text-on-accent] bg-[--accent-chat] hover:brightness-95 rounded-lg" title="Select the base folder where your projects of this type are stored">
                                 Choose...
                             </button>
                         </div>
