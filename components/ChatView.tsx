@@ -630,7 +630,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
                 color: msg.role === 'user' ? 'var(--user-message-text-color)' : 'var(--assistant-message-text-color)',
                 backgroundImage: msg.role === 'user' ? 'var(--user-message-bg-image)' : 'none',
               }}
-              className={`max-w-4xl p-4 rounded-2xl shadow-sm ${
+              className={`p-4 rounded-2xl shadow-sm ${
                 msg.role === 'user'
                   ? 'rounded-br-lg'
                   : 'rounded-bl-lg'
