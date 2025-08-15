@@ -640,7 +640,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
                 msg.content === '' && isResponding ? (
                   <SpinnerIcon className="w-5 h-5 text-gray-400"/>
                 ) : (
-                  <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2">
+                  <div className="prose prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
