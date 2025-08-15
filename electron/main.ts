@@ -247,47 +247,25 @@ const createWindow = () => {
     autoHideMenuBar: true,
   });
 
-  // System Stats Monitoring
-  let startCpuMeasure = os.cpus();
+  // Application Stats Monitoring
   const statsInterval = setInterval(() => {
     if (mainWindow.isDestroyed()) {
-        clearInterval(statsInterval);
-        return;
+      clearInterval(statsInterval);
+      return;
     }
 
-    const endCpuMeasure = os.cpus();
-    let totalIdle = 0;
-    let totalTick = 0;
-
-    startCpuMeasure.forEach((cpu, i) => {
-        const endCpu = endCpuMeasure[i];
-        const startTimes = cpu.times;
-        const endTimes = endCpu.times;
-
-        const idle = endTimes.idle - startTimes.idle;
-        const total = (endTimes.user - startTimes.user) + 
-                      (endTimes.nice - startTimes.nice) + 
-                      (endTimes.sys - startTimes.sys) + 
-                      (endTimes.irq - startTimes.irq) + 
-                      (endTimes.idle - startTimes.idle);
-        
-        totalIdle += idle;
-        totalTick += total;
-    });
-
-    const usage = totalTick > 0 ? 100 * (1 - totalIdle / totalTick) : 0;
-    startCpuMeasure = endCpuMeasure;
-
-    const totalMem = os.totalmem();
-    const freeMem = os.freemem();
-    const usedMem = totalMem - freeMem;
+    const metrics = app.getAppMetrics();
+    const appCpuUsage = metrics.reduce((acc, metric) => acc + metric.cpu.percentCPUUsage, 0);
+    // workingSetSize is in KB, convert to bytes for the UI component
+    const appMemoryUsage = metrics.reduce((acc, metric) => acc + metric.memory.workingSetSize, 0) * 1024;
+    const totalSystemMem = os.totalmem();
 
     mainWindow.webContents.send('system-stats-update', {
-        cpu: usage,
-        memory: {
-            used: usedMem,
-            total: totalMem
-        }
+      cpu: appCpuUsage,
+      memory: {
+        used: appMemoryUsage,
+        total: totalSystemMem,
+      },
     });
   }, 2000); // Send stats every 2 seconds
 
