@@ -85,6 +85,7 @@ const App: React.FC = () => {
   const [isLogPanelVisible, setIsLogPanelVisible] = useState(false);
   const [prefilledInput, setPrefilledInput] = useState('');
   const [runOutput, setRunOutput] = useState<{ title: string; stdout: string; stderr: string; } | null>(null);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
 
 
   // Effect for one-time app initialization and loading settings
@@ -247,13 +248,43 @@ const App: React.FC = () => {
     setMessages(newMessages);
     setIsResponding(true);
 
+    let messagesForApi = [...newMessages];
+
     const assistantMessage: ChatMessage = { role: 'assistant', content: '' };
     setMessages(prev => [...prev, assistantMessage]);
+    
+    if (activeProjectId && window.electronAPI) {
+        const activeProject = config.projects?.find(p => p.id === activeProjectId);
+        if (activeProject) {
+            try {
+                logger.info(`Fetching file tree for active project: ${activeProject.name}`);
+                const fileTree = await window.electronAPI.projectGetFileTree(activeProject.path);
+                
+                const contextSystemPrompt = `You are a helpful AI assistant. The user has provided context for a software project named "${activeProject.name}".
+The project's file structure is as follows:
+\`\`\`
+${fileTree}
+\`\`\`
+Answer the user's questions based on this project context. If the user asks to modify a file, provide the full, updated content of that file.`;
+
+                const systemPromptIndex = messagesForApi.findIndex(m => m.role === 'system');
+                if (systemPromptIndex !== -1) {
+                    messagesForApi[systemPromptIndex] = { role: 'system', content: contextSystemPrompt };
+                } else {
+                    messagesForApi.unshift({ role: 'system', content: contextSystemPrompt });
+                }
+                logger.info(`Injected project context for "${activeProject.name}" into system prompt.`);
+            } catch (e) {
+                logger.error(`Failed to get project file tree: ${e}`);
+            }
+        }
+    }
+
 
     await streamChatCompletion(
       config.baseUrl,
       currentChatModelId,
-      newMessages,
+      messagesForApi,
       (chunk) => {
         setMessages(prev => {
             const lastMsg = prev[prev.length - 1];
@@ -371,6 +402,8 @@ const App: React.FC = () => {
                         projects={config.projects || []}
                         prefilledInput={prefilledInput}
                         onPrefillConsumed={onPrefillConsumed}
+                        activeProjectId={activeProjectId}
+                        onSetActiveProject={setActiveProjectId}
                     />
                 );
              }

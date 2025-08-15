@@ -75,4 +75,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readProjectDir: (dirPath: string) => ipcRenderer.invoke('project:read-dir', dirPath),
   readProjectFile: (filePath: string) => ipcRenderer.invoke('project:read-file', filePath),
   writeProjectFile: (filePath: string, content: string) => ipcRenderer.invoke('project:write-file', { filePath, content }),
+  projectGetFileTree: (projectPath: string) => ipcRenderer.invoke('project:get-file-tree', projectPath),
 });

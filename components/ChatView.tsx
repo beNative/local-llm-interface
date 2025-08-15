@@ -11,6 +11,7 @@ import PlayIcon from './icons/PlayIcon';
 import FilePlusIcon from './icons/FilePlusIcon';
 import TerminalIcon from './icons/TerminalIcon';
 import GlobeIcon from './icons/GlobeIcon';
+import CodeIcon from './icons/CodeIcon';
 import { runPythonCode } from '../services/pyodideService';
 import { logger } from '../services/logger';
 
@@ -367,9 +368,11 @@ interface ChatViewProps {
   projects: CodeProject[];
   prefilledInput: string;
   onPrefillConsumed: () => void;
+  activeProjectId: string | null;
+  onSetActiveProject: (projectId: string | null) => void;
 }
 
-const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, isResponding, onBack, theme, isElectron, projects, prefilledInput, onPrefillConsumed }) => {
+const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, isResponding, onBack, theme, isElectron, projects, prefilledInput, onPrefillConsumed, activeProjectId, onSetActiveProject }) => {
   const [input, setInput] = useState('');
   const [saveModalState, setSaveModalState] = useState<{ code: string; lang: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -425,17 +428,37 @@ const ChatView: React.FC<ChatViewProps> = ({ modelId, onSendMessage, messages, i
             onClose={() => setSaveModalState(null)}
         />
      )}
-      <header className="flex items-center justify-between p-4 bg-[--bg-secondary] border-b border-[--border-primary]">
-         <div className="flex items-center gap-3">
+      <header className="flex items-center justify-between p-4 bg-[--bg-secondary] border-b border-[--border-primary] gap-4">
+         <div className="flex items-center gap-3 flex-shrink-0">
             <ModelIcon className="w-6 h-6 text-blue-500 dark:text-blue-400"/>
-            <h2 className="text-lg font-semibold text-[--text-primary]">{modelId}</h2>
+            <h2 className="text-lg font-semibold text-[--text-primary] truncate" title={modelId}>{modelId}</h2>
          </div>
-        <button
-          onClick={onBack}
-          className="px-3 py-1 text-sm font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-md hover:bg-[--bg-hover] focus:outline-none"
-        >
-          &larr; Change Model
-        </button>
+         {isElectron && projects.length > 0 && (
+            <div className="flex items-center gap-2 flex-grow justify-center min-w-0">
+                <label htmlFor="project-context-select" className="flex-shrink-0 text-sm text-[--text-muted] flex items-center gap-1.5">
+                    <CodeIcon className="w-5 h-5" />
+                    <span>Context:</span>
+                </label>
+                <select
+                    id="project-context-select"
+                    value={activeProjectId || ''}
+                    onChange={(e) => onSetActiveProject(e.target.value || null)}
+                    className="text-sm text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-md focus:outline-none focus:ring-2 focus:ring-[--border-focus] w-full max-w-xs truncate"
+                    aria-label="Select active project for context"
+                >
+                    <option value="">No Project Context</option>
+                    {projects.map(p => <option key={p.id} value={p.id} title={p.name}>{p.name}</option>)}
+                </select>
+            </div>
+        )}
+        <div className="flex-shrink-0">
+            <button
+            onClick={onBack}
+            className="px-3 py-1 text-sm font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-md hover:bg-[--bg-hover] focus:outline-none"
+            >
+            &larr; Change Model
+            </button>
+        </div>
       </header>
       <main className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.map((msg, index) => (

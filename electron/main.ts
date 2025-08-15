@@ -540,7 +540,7 @@ public class Main {
         
         const dirents = await readdir(dirPath, { withFileTypes: true });
         const files = await Promise.all(dirents.map(async (dirent) => {
-            if (dirent.name === '.git' || dirent.name === 'node_modules' || dirent.name === 'venv' || dirent.name.startsWith('.') || dirent.name === 'target') {
+            if (dirent.name === '.git' || dirent.name === 'node_modules' || dirent.name === 'venv' || dirent.name === 'target') {
                 return null;
             }
             return {
@@ -568,6 +568,45 @@ public class Main {
         await mkdir(dirPath, { recursive: true });
         await writeFile(filePath, content, 'utf-8');
     });
+    
+    const ignoredDirsAndFiles = new Set(['.git', 'node_modules', 'venv', 'target', '.DS_Store', 'dist', 'release']);
+
+    const generateFileTree = async (dirPath: string, prefix = ''): Promise<string> => {
+        let tree = '';
+        try {
+            const dirents = (await readdir(dirPath, { withFileTypes: true }))
+                .filter(d => !ignoredDirsAndFiles.has(d.name) && !d.name.startsWith('.'));
+                
+            dirents.sort((a, b) => {
+                if (a.isDirectory() !== b.isDirectory()) return a.isDirectory() ? -1 : 1;
+                return a.name.localeCompare(b.name);
+            });
+
+            for (let i = 0; i < dirents.length; i++) {
+                const dirent = dirents[i];
+                const isLast = i === dirents.length - 1;
+                const connector = isLast ? '└── ' : '├── ';
+                tree += `${prefix}${connector}${dirent.name}\n`;
+
+                if (dirent.isDirectory()) {
+                    const newPrefix = prefix + (isLast ? '    ' : '│   ');
+                    tree += await generateFileTree(path.join(dirPath, dirent.name), newPrefix);
+                }
+            }
+        } catch (error) {
+            console.error(`Error generating file tree for ${dirPath}:`, error);
+            return `[Error reading directory: ${dirPath}]`;
+        }
+        return tree;
+    };
+
+    ipcMain.handle('project:get-file-tree', async (_, projectPath: string) => {
+        if (!isPathInAllowedBase(projectPath)) throw new Error('Access denied to path.');
+        const projectName = path.basename(projectPath);
+        const tree = await generateFileTree(projectPath);
+        return `${projectName}/\n${tree}`;
+    });
+
 
     createWindow();
 
