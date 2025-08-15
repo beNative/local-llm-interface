@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
@@ -212,22 +213,21 @@ const App: React.FC = () => {
   const handleConfigChange = (newConfig: Config) => {
     if (!config) return;
     logger.info('Configuration change requested.');
-    
+
     const needsModelReload = newConfig.baseUrl !== config.baseUrl || newConfig.provider !== config.provider;
 
-    setConfig(currentConfig => ({
-        ...(currentConfig || {}),
-        ...newConfig,
-        theme: currentConfig?.theme || 'dark',
-        sessions: needsModelReload ? [] : currentConfig?.sessions,
-        activeSessionId: needsModelReload ? undefined : currentConfig?.activeSessionId,
-    }));
-    
-    logger.setConfig({ logToFile: newConfig.logToFile });
-    
     if (needsModelReload) {
-      logger.info('Provider or Base URL changed, resetting to model selection.');
+        logger.info('Provider or Base URL changed, resetting sessions and returning to model selection.');
+        setConfig({
+            ...newConfig,
+            sessions: [],
+            activeSessionId: undefined,
+        });
+    } else {
+        setConfig(newConfig);
     }
+
+    logger.setConfig({ logToFile: newConfig.logToFile });
   };
 
   const handleThemeToggle = () => {
@@ -544,10 +544,7 @@ const App: React.FC = () => {
         case 'settings':
             return <SettingsPanel 
                 config={config} 
-                onConfigChange={(newConfig) => {
-                  handleConfigChange(newConfig);
-                  setView('chat');
-                }} 
+                onConfigChange={handleConfigChange} 
                 isConnecting={isLoadingModels}
                 isElectron={isElectron}
                 theme={config.theme || 'dark'}

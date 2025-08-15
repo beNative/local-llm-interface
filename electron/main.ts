@@ -70,6 +70,42 @@ const runCommand = (command: string, args: string[], cwd: string): Promise<{ std
     });
 };
 
+const runInExternalConsole = (command: string, args: string[], cwd: string): Promise<{ stdout: string; stderr: string }> => {
+    const platform = os.platform();
+
+    if (platform !== 'win32') {
+        console.log(`External console only implemented for Windows. Falling back to integrated execution for ${platform}.`);
+        return runCommand(command, args, cwd);
+    }
+
+    return new Promise((resolve) => {
+        // The 'start' command in cmd.exe opens a new window.
+        // '/k' keeps the window open after the command finishes.
+        const spawnArgs = ['/c', 'start', 'cmd.exe', '/k', command, ...args];
+        const child = spawn('cmd.exe', spawnArgs, { cwd });
+
+        let stderr = '';
+        // We can't capture stdout/stderr from the new window, but we can see errors from spawn itself.
+        child.stderr.on('data', (data) => { stderr += data.toString(); });
+        
+        child.on('error', (error) => {
+            console.error(`Spawn error for external console:`, error);
+            resolve({ stdout: '', stderr: `Failed to start external console: ${error.message}` });
+        });
+
+        child.on('close', (code) => {
+            if (code === 0) {
+                resolve({ stdout: `Process started in a new console window.`, stderr: stderr });
+            } else {
+                const errorMsg = `Command to start external console exited with code ${code}. Stderr: ${stderr}`;
+                console.error(errorMsg);
+                resolve({ stdout: '', stderr: errorMsg });
+            }
+        });
+    });
+};
+
+
 const getPythonExecutable = (venvPath: string): string => {
     if (os.platform() === 'win32') {
         return path.join(venvPath, 'Scripts', 'python.exe');
@@ -447,7 +483,7 @@ public class Main {
                 return { stdout: '', stderr: `Could not find an entry point (e.g., ${entryPoints.join(', ')}) in project.` };
             }
             const pythonExec = getPythonExecutable(path.join(project.path, 'venv'));
-            return runCommand(pythonExec, [entryFile], project.path);
+            return runInExternalConsole(pythonExec, [entryFile], project.path);
         }
         
         if (project.type === 'nodejs') {
