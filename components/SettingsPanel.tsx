@@ -59,7 +59,9 @@ const NewPromptForm: React.FC<{
     heading: string;
     titlePlaceholder: string;
     contentPlaceholder: string;
-}> = ({ onAdd, heading, titlePlaceholder, contentPlaceholder }) => {
+    idPrefix: string;
+    buttonText: string;
+}> = ({ onAdd, heading, titlePlaceholder, contentPlaceholder, idPrefix, buttonText }) => {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
 
@@ -69,14 +71,17 @@ const NewPromptForm: React.FC<{
       setTitle('');
       setContent('');
     };
+    
+    const titleId = `${idPrefix}-title`;
+    const contentId = `${idPrefix}-content`;
 
     return (
       <form onSubmit={handleSubmit} className="pt-4 border-t border-[--border-primary] space-y-3">
         <h4 className="text-md font-semibold text-[--text-secondary]">{heading}</h4>
         <div>
-          <label htmlFor="prompt-title" className="block text-sm font-medium text-[--text-muted] mb-1">Title</label>
+          <label htmlFor={titleId} className="block text-sm font-medium text-[--text-muted] mb-1">Title</label>
           <input
-            id="prompt-title"
+            id={titleId}
             type="text"
             value={title}
             onChange={e => setTitle(e.target.value)}
@@ -86,9 +91,9 @@ const NewPromptForm: React.FC<{
           />
         </div>
         <div>
-          <label htmlFor="prompt-content" className="block text-sm font-medium text-[--text-muted] mb-1">Content</label>
+          <label htmlFor={contentId} className="block text-sm font-medium text-[--text-muted] mb-1">Content</label>
           <textarea
-            id="prompt-content"
+            id={contentId}
             value={content}
             onChange={e => setContent(e.target.value)}
             className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
@@ -103,7 +108,7 @@ const NewPromptForm: React.FC<{
             className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-green-400"
             disabled={!title.trim() || !content.trim()}
           >
-            Add Prompt
+            {buttonText}
           </button>
         </div>
       </form>
@@ -336,6 +341,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                     heading="Add New Prompt"
                     titlePlaceholder="e.g., Refactor Python Code"
                     contentPlaceholder="e.g., Please refactor the following Python code to be more idiomatic and efficient."
+                    idPrefix="predefined-prompt"
+                    buttonText="Add Prompt"
                 />
               </div>
             </div>
@@ -373,6 +380,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                     heading="Add New System Prompt"
                     titlePlaceholder="e.g., Senior DevOps Engineer"
                     contentPlaceholder="e.g., You are a senior DevOps engineer with 20 years of experience..."
+                    idPrefix="system-prompt"
+                    buttonText="Add System Prompt"
                 />
               </div>
             </div>
