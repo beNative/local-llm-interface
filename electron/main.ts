@@ -1,6 +1,7 @@
 
 
 
+
 const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 import * as path from 'path';
 import * as fs from 'fs';
@@ -77,18 +78,13 @@ const getPythonExecutable = (venvPath: string): string => {
 };
 
 const createWindow = () => {
-  // Logic to determine the correct base path for assets in both development and packaged states.
-  const appRoot = app.isPackaged
-    ? app.getAppPath()
-    : path.join(app.getAppPath(), 'dist');
-
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
-      // Attach the preload script
-      preload: path.join(appRoot, 'preload.js'),
+      // Attach the preload script. __dirname points to the 'dist' folder in both dev and packaged modes.
+      preload: path.join(__dirname, 'preload.js'),
       // Security best practices
       contextIsolation: true,
       nodeIntegration: false,
@@ -98,7 +94,7 @@ const createWindow = () => {
   });
 
   // Load the app's index.html file.
-  const indexPath = path.join(appRoot, 'index.html');
+  const indexPath = path.join(__dirname, 'index.html');
   mainWindow.loadFile(indexPath);
 
   // Open external links in the user's default browser instead of a new Electron window.
