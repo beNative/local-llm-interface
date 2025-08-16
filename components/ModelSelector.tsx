@@ -16,8 +16,13 @@ interface ModelDetailsModalProps {
 
 const ModelDetailsModal: React.FC<ModelDetailsModalProps> = ({ model, onClose, theme }) => {
     const syntaxTheme = theme === 'dark' ? atomDark : coy;
+    const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (e.target === e.currentTarget) {
+            onClose();
+        }
+    };
     return (
-         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[--bg-backdrop] backdrop-blur-sm" onClick={onClose}>
+         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[--bg-backdrop] backdrop-blur-sm" onClick={handleBackdropClick}>
             <div className="bg-[--bg-secondary] rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
                 <header className="p-4 border-b border-[--border-primary] flex-shrink-0 flex justify-between items-center">
                     <h2 className="text-lg font-bold text-[--text-primary]">Model Details: {model.name}</h2>

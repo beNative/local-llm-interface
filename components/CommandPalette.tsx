@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { ChatSession, CodeProject } from '../types';
 import SearchIcon from './icons/SearchIcon';
@@ -138,10 +137,16 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, sessio
         setSelectedIndex(0);
     }, [searchTerm]);
 
+    const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (e.target === e.currentTarget) {
+            onClose();
+        }
+    };
+
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 bg-[--bg-backdrop] backdrop-blur-sm" onClick={onClose}>
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 bg-[--bg-backdrop] backdrop-blur-sm" onClick={handleBackdropClick}>
             <div className="bg-[--bg-secondary] rounded-xl shadow-2xl w-full max-w-2xl border border-[--border-primary]" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center gap-3 p-4 border-b border-[--border-primary]">
                     <SearchIcon className="w-5 h-5 text-[--text-muted]" />

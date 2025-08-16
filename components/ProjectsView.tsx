@@ -1,7 +1,3 @@
-
-
-
-
 import React, { useState } from 'react';
 import type { Config, CodeProject, ProjectType, FileSystemEntry } from '../types';
 import CodeIcon from './icons/CodeIcon';
@@ -59,8 +55,14 @@ const EditorModal: React.FC<EditorModalProps> = ({ file, onClose, onAddToChat })
         }
     };
 
+    const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (e.target === e.currentTarget) {
+            onClose();
+        }
+    };
+
     return (
-         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[--bg-backdrop] backdrop-blur-sm" onClick={onClose}>
+         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[--bg-backdrop] backdrop-blur-sm" onClick={handleBackdropClick}>
             <div className="bg-[--bg-secondary] rounded-lg shadow-xl w-full max-w-4xl h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
                 <header className="p-4 border-b border-[--border-primary] flex-shrink-0 flex justify-between items-center">
                     <h2 className="text-lg font-bold text-[--text-primary] font-mono">{file.name}</h2>

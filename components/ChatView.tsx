@@ -195,8 +195,14 @@ const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, on
         }
     }
 
+    const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (e.target === e.currentTarget) {
+            onClose();
+        }
+    };
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[--bg-backdrop] backdrop-blur-sm" onClick={onClose}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[--bg-backdrop] backdrop-blur-sm" onClick={handleBackdropClick}>
             <div className="bg-[--bg-secondary] rounded-lg shadow-xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
                 <h2 className="text-xl font-bold text-[--text-primary] mb-4">Save Code to Project</h2>
                 <div className="space-y-4">

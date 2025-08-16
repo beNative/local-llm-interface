@@ -55,34 +55,41 @@ const NavButton: React.FC<{
 const RunOutputModal: React.FC<{
     runOutput: { title: string; stdout: string; stderr: string };
     onClose: () => void;
-}> = ({ runOutput, onClose }) => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[--bg-backdrop] backdrop-blur-sm" onClick={onClose}>
-        <div className="bg-[--bg-secondary] rounded-lg shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
-            <header className="p-4 border-b border-[--border-primary] flex-shrink-0 flex justify-between items-center">
-                <h2 className="text-lg font-bold text-[--text-primary]">{runOutput.title}</h2>
-                <button onClick={onClose} className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] leading-none text-2xl">&times;</button>
-            </header>
-            <main className="flex-1 overflow-y-auto p-4 font-mono text-xs">
-                {runOutput.stdout && (
-                    <div>
-                        <h3 className="text-[--text-muted] font-sans font-semibold text-sm mb-1 uppercase">Output (stdout)</h3>
-                        <pre className="whitespace-pre-wrap text-[--text-secondary] bg-[--bg-tertiary] p-3 rounded-lg">{runOutput.stdout}</pre>
-                    </div>
-                )}
-                {runOutput.stderr && (
-                    <div className="mt-4">
-                        <h3 className="text-red-500 font-sans font-semibold text-sm mb-1 uppercase">Error (stderr)</h3>
-                        <pre className="whitespace-pre-wrap text-red-500 bg-red-900/20 p-3 rounded-lg">{runOutput.stderr}</pre>
-                    </div>
-                )}
-                {!runOutput.stdout && !runOutput.stderr && <p className="text-[--text-muted] font-sans">The script produced no output.</p>}
-            </main>
-            <footer className="p-3 border-t border-[--border-primary] text-right">
-                <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-md hover:bg-[--bg-hover]">Close</button>
-            </footer>
+}> = ({ runOutput, onClose }) => {
+    const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (e.target === e.currentTarget) {
+            onClose();
+        }
+    };
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[--bg-backdrop] backdrop-blur-sm" onClick={handleBackdropClick}>
+            <div className="bg-[--bg-secondary] rounded-lg shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                <header className="p-4 border-b border-[--border-primary] flex-shrink-0 flex justify-between items-center">
+                    <h2 className="text-lg font-bold text-[--text-primary]">{runOutput.title}</h2>
+                    <button onClick={onClose} className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] leading-none text-2xl">&times;</button>
+                </header>
+                <main className="flex-1 overflow-y-auto p-4 font-mono text-xs">
+                    {runOutput.stdout && (
+                        <div>
+                            <h3 className="text-[--text-muted] font-sans font-semibold text-sm mb-1 uppercase">Output (stdout)</h3>
+                            <pre className="whitespace-pre-wrap text-[--text-secondary] bg-[--bg-tertiary] p-3 rounded-lg">{runOutput.stdout}</pre>
+                        </div>
+                    )}
+                    {runOutput.stderr && (
+                        <div className="mt-4">
+                            <h3 className="text-red-500 font-sans font-semibold text-sm mb-1 uppercase">Error (stderr)</h3>
+                            <pre className="whitespace-pre-wrap text-red-500 bg-red-900/20 p-3 rounded-lg">{runOutput.stderr}</pre>
+                        </div>
+                    )}
+                    {!runOutput.stdout && !runOutput.stderr && <p className="text-[--text-muted] font-sans">The script produced no output.</p>}
+                </main>
+                <footer className="p-3 border-t border-[--border-primary] text-right">
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-md hover:bg-[--bg-hover]">Close</button>
+                </footer>
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 
 const App: React.FC = () => {

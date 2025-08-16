@@ -1,10 +1,5 @@
-
-
-
-
-
-
-const { contextBridge, ipcRenderer } = require('electron');
+import * as electron from 'electron';
+const { contextBridge, ipcRenderer } = electron;
 import type { CodeProject } from '../src/types';
 
 /**

@@ -1,11 +1,5 @@
-
-
-
-
-
-
-
-const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
+import * as electron from 'electron';
+const { app, BrowserWindow, ipcMain, shell, dialog } = electron;
 import * as path from 'path';
 import * as fs from 'fs';
 import { readdir, stat, readFile, writeFile, mkdir, copyFile } from 'fs/promises';
@@ -562,7 +556,7 @@ end.
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale-1.0">
     <title>${name}</title>
 </head>
 <body>
