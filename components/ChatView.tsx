@@ -27,6 +27,7 @@ import XCircleIcon from './icons/XCircleIcon';
 import BrainCircuitIcon from './icons/BrainCircuitIcon';
 import FileCodeIcon from './icons/FileCodeIcon';
 import SlidersIcon from './icons/SlidersIcon';
+import SparklesIcon from './icons/SparklesIcon';
 
 const ContextSources: React.FC<{ files: string[] }> = ({ files }) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -254,7 +255,7 @@ const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, on
     );
 };
 
-const CodeBlock = React.memo(({ node, inline, className, children, theme, isElectron, projects, onSaveRequest, activeProjectId }: any) => {
+const CodeBlock = React.memo(({ node, inline, className, children, theme, isElectron, projects, onSaveRequest, activeProjectId, onFixRequest }: any) => {
   const [isCopied, setIsCopied] = useState(false);
   const [runState, setRunState] = useState<{
     isLoading: boolean;
@@ -419,17 +420,30 @@ const CodeBlock = React.memo(({ node, inline, className, children, theme, isElec
         {codeText}
       </SyntaxHighlighter>
       {(runState.output !== null || runState.error !== null) && (
-        <div className="border-t border-[--border-primary] p-4 font-mono text-xs bg-[--code-output-bg] rounded-b-lg">
-           <h4 className="text-[--text-muted] font-sans font-semibold text-sm mb-2">Output</h4>
-           {runState.output !== null && runState.output !== '' && (
+        <div className="border-t border-[--border-primary] bg-[--code-output-bg] rounded-b-lg">
+          <div className="p-4 font-mono text-xs">
+            <h4 className="text-[--text-muted] font-sans font-semibold text-sm mb-2">Output</h4>
+            {runState.output !== null && runState.output !== '' && (
              <pre className="whitespace-pre-wrap text-[--text-secondary]">{runState.output}</pre>
-           )}
-           {runState.error && (
+            )}
+            {runState.error && (
              <pre className="whitespace-pre-wrap text-red-500">{runState.error}</pre>
-           )}
-           {runState.output === '' && !runState.error && (
+            )}
+            {runState.output === '' && !runState.error && (
              <p className="text-[--text-muted] italic font-sans">Command executed successfully with no output.</p>
-           )}
+            )}
+          </div>
+          {runState.error && (
+            <div className="border-t border-[--border-primary] px-4 py-2 bg-black/5 dark:bg-black/10">
+                <button
+                    onClick={() => onFixRequest(codeText, lang, runState.error!)}
+                    className="flex items-center gap-1.5 text-sm text-[--text-muted] hover:text-[--text-primary] px-2 py-1 rounded transition-colors"
+                >
+                    <SparklesIcon className="w-4 h-4 text-purple-500" />
+                    <span className="font-sans font-medium">Ask AI to Fix</span>
+                </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -740,6 +754,11 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
     setSaveModalState({ code, lang, activeProjectId });
   }, [activeProjectId]);
 
+  const handleFixRequest = useCallback((code: string, lang: string, error: string) => {
+    const prompt = `The following ${lang} code failed to execute:\n\n\`\`\`${lang}\n${code}\n\`\`\`\n\nIt produced this error:\n\n\`\`\`\n${error}\n\`\`\`\n\nPlease provide the corrected, complete code block and explain the fix.`;
+    onSendMessage(prompt, { useRAG: isSmartContextEnabled });
+  }, [onSendMessage, isSmartContextEnabled]);
+
   const handleSelectPrompt = (promptContent: string) => {
     setInput(promptContent);
     setIsPromptsOpen(false);
@@ -800,10 +819,10 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
   
   const markdownComponents = useMemo(() => ({
     code: (props: any) => (
-        <CodeBlock {...props} theme={theme} isElectron={isElectron} projects={projects} onSaveRequest={handleSaveRequest} activeProjectId={activeProjectId} />
+        <CodeBlock {...props} theme={theme} isElectron={isElectron} projects={projects} onSaveRequest={handleSaveRequest} activeProjectId={activeProjectId} onFixRequest={handleFixRequest} />
     ),
     pre: ({ children }: any) => <>{children}</>,
-  }), [theme, isElectron, projects, handleSaveRequest, activeProjectId]);
+  }), [theme, isElectron, projects, handleSaveRequest, activeProjectId, handleFixRequest]);
 
   const filteredMessages = useMemo(() => messages.filter(m => m.role !== 'system'), [messages]);
 
