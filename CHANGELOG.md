@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - YYYY-MM-DD
+
+### Added
+- **Model Parameter Tuning**: A new "Parameters" popover in the chat header allows for adjusting Temperature, Top-K, and Top-P for the current session.
+- **Detailed Model Info**: An "Info" icon on Ollama model cards in the selection screen opens a modal with technical details, including context window size and the full Modelfile.
+
+### Changed
+- **Improved Session List**: The sidebar now displays the model used for each conversation under the session title for better clarity.
+
+### Fixed
+- **Chat Input Performance**: Resolved a major performance issue where the chat input box would become very slow in long conversations by memoizing message components.
+
 ## [1.4.0] - YYYY-MM-DD
 
 ### Added

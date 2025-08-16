@@ -6,7 +6,9 @@ A user-friendly desktop application to chat with locally installed LLMs serviced
 
 - **Multiple Provider Support**: Connect to Ollama, LMStudio, or a custom OpenAI-compatible server.
 - **Model Discovery**: Automatically fetches and displays a list of available models from the connected service.
+- **Detailed Model Info**: View technical details for Ollama models, including context window size and Modelfile content, before starting a chat.
 - **Intuitive Chat Interface**: A clean, modern chat view for interacting with your chosen model.
+- **Model Parameter Tuning**: Fine-tune model responses with adjustable parameters like Temperature, Top-K, and Top-P, right from the chat interface.
 - **AI-Assisted File Modifications**: Ask the AI to refactor or modify project files directly from the chat. Review the proposed changes in an interactive diff view and apply them with a single click.
 - **Smart Context (RAG)**: When a project is selected, the AI can automatically identify and read the most relevant files to answer your query, providing highly accurate, context-aware responses.
 - **API Client**: A dedicated view to generate, edit, and send HTTP requests using natural language prompts, perfect for testing APIs.

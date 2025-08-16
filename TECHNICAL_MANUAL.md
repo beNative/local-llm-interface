@@ -62,6 +62,12 @@ This workflow is also managed in `App.tsx`:
 4.  **Diff Rendering**: The AI's response (the new file content) is passed to the `FileModificationView.tsx` component. This component fetches the original file content again and uses the `diff-match-patch` library to compute and render a color-coded, line-by-line diff, which is presented to the user for review.
 5.  **Action Handling**: The user's "Accept" or "Reject" action updates the chat message's state and, if accepted, uses an IPC call (`project:write-file`) to save the new content to disk.
 
+### Ollama Model Introspection
+To provide users with more insight into the models they are using, a new function `fetchOllamaModelDetails` was added to `llmService.ts`. This function communicates with Ollama's non-standard `/api/show` endpoint to retrieve detailed information about a model, including its `Modelfile`, template, and parameter string. This information is then displayed in a modal in the `ModelSelector` view.
+
+### Chat Performance Optimization
+The chat view faced a performance degradation issue in long conversations, where input latency increased significantly. This was caused by the re-rendering of the entire message list on every keystroke in the input box. The issue was resolved by memoizing the individual chat message component (`MemoizedChatMessage` using `React.memo`). This ensures that only the message components whose props have changed (e.g., the last message being streamed) are re-rendered, while the rest of the conversation history is not, leading to a consistently smooth user experience regardless of conversation length.
+
 ### Services Deep Dive
 
 - **`llmService.ts`**: Handles all communication with the LLM server.

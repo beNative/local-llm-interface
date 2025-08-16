@@ -87,13 +87,21 @@ The "API Client" is a new view designed for testing and interacting with HTTP AP
 - **Edit Request**: You can manually edit any part of the generated request before sending it.
 - **Send & View Response**: Send the request and view the detailed response, including status code, headers, and a syntax-highlighted body.
 
-## 6. Chat View
+## 6. Model Selection
+
+When you start the app or create a new chat, you are presented with the Model Selection screen. This screen lists all models available from your configured LLM service.
+
+- **Model Cards**: Each model is displayed on a card with available details like its family, parameter size, and quantization level.
+- **Detailed Info (Ollama)**: For Ollama models, an **Info icon** is available on the card. Clicking this icon opens a modal displaying advanced technical details, including its context window size (`num_ctx`) and the full content of its `Modelfile`.
+- **Start Chat**: Click on any model card to start a new chat session with it.
+
+## 7. Chat View
 
 The chat view is the primary interface for interacting with the LLM.
 
 ### Session Management
 - **Resizable Sidebar**: Drag the vertical divider to adjust the sidebar width.
-- **Session List**: All your conversations are listed here.
+- **Session List**: All your conversations are listed here. Each entry now shows the session title and, in a smaller font, the model that was used for that conversation.
 - **Session Actions**: Hover over a session to reveal buttons for automatically generating a name or deleting the session.
 
 ### Advanced Context Tools (Desktop App Only)
@@ -106,6 +114,13 @@ The chat view is the primary interface for interacting with the LLM.
 
 ### Personas
 - A "Persona" dropdown in the header allows you to select one of your saved System Prompts. This will change the AI's behavior for the current chat session.
+
+### Model Parameters
+A "Parameters" dropdown in the header allows you to adjust generation parameters for the current chat session:
+- **Temperature**: Controls the randomness of the output. Higher values (e.g., 1.2) make the output more creative, while lower values (e.g., 0.5) make it more deterministic.
+- **Top-K**: Narrows the model's choices to the K most likely words at each step of generation.
+- **Top-P**: (Nucleus Sampling) Narrows the model's choices to a cumulative probability mass. For example, a Top-P of 0.9 means the model only considers words that make up the top 90% of the probability distribution.
+These settings are saved with the session.
 
 ### AI-Assisted File Modifications
 - When you have a project selected as context, you can ask the AI to modify a file (e.g., "refactor `utils.py` to be more efficient").
