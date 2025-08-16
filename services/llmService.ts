@@ -1,4 +1,4 @@
-import type { Model, ChatMessage, ChatMessageMetadata, ChatMessageUsage } from '../types';
+import type { Model, ChatMessage, ChatMessageMetadata, ChatMessageUsage, GenerationConfig, ModelDetails } from '../types';
 import { logger } from './logger';
 
 export class LLMServiceError extends Error {
@@ -49,13 +49,64 @@ export const fetchModels = async (baseUrl: string): Promise<Model[]> => {
   }
 };
 
+export const fetchOllamaModelDetails = async (baseUrl: string, modelName: string): Promise<ModelDetails> => {
+    // The baseUrl is for the v1 API, the /api/show is not. We need to construct the root URL.
+    const rootUrl = new URL(baseUrl);
+    rootUrl.pathname = ''; // remove /v1 path
+    const showUrl = new URL('/api/show', rootUrl.toString());
+
+    try {
+        logger.info(`Fetching details for model ${modelName} from ${showUrl.toString()}`);
+        const response = await fetch(showUrl.toString(), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: modelName }),
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Failed to fetch model details: ${response.status} ${response.statusText}. ${errorText}`);
+        }
+        const data = await response.json();
+        logger.debug(`Received model details: ${JSON.stringify(data)}`);
+        
+        // Parse context window from parameters string
+        let num_ctx;
+        if (data.parameters) {
+            const match = /num_ctx\s+(\d+)/.exec(data.parameters);
+            if (match) {
+                num_ctx = parseInt(match[1], 10);
+            }
+        }
+
+        return {
+            ...data.details,
+            modelfile: data.modelfile,
+            parameters: data.parameters,
+            template: data.template,
+            num_ctx,
+        };
+    } catch (error) {
+        logger.error(`Error fetching Ollama model details: ${error}`);
+        throw error;
+    }
+};
+
 export const generateTextCompletion = async (
   baseUrl: string,
   modelId: string,
-  messages: ChatMessage[]
+  messages: ChatMessage[],
+  generationConfig?: GenerationConfig
 ): Promise<string> => {
   try {
     logger.info(`Requesting non-streaming text completion from model ${modelId}`);
+
+    const options: Record<string, any> = {};
+    if (generationConfig) {
+        if (generationConfig.temperature !== undefined) options.temperature = generationConfig.temperature;
+        if (generationConfig.topK !== undefined) options.top_k = generationConfig.topK;
+        if (generationConfig.topP !== undefined) options.top_p = generationConfig.topP;
+    }
+
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -65,6 +116,7 @@ export const generateTextCompletion = async (
         model: modelId,
         messages: messages,
         stream: false,
+        ...options,
       }),
     });
 
@@ -105,13 +157,22 @@ export const streamChatCompletion = async (
   signal: AbortSignal,
   onChunk: (text: string) => void,
   onError: (error: Error) => void,
-  onDone: (metadata: ChatMessageMetadata) => void
+  onDone: (metadata: ChatMessageMetadata) => void,
+  generationConfig?: GenerationConfig
 ) => {
   const startTime = Date.now();
   let usage: ChatMessageUsage | undefined = undefined;
   
   try {
     logger.info(`Starting chat completion stream with model ${modelId}`);
+
+    const options: Record<string, any> = {};
+    if (generationConfig) {
+        if (generationConfig.temperature !== undefined) options.temperature = generationConfig.temperature;
+        if (generationConfig.topK !== undefined) options.top_k = generationConfig.topK;
+        if (generationConfig.topP !== undefined) options.top_p = generationConfig.topP;
+    }
+
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -121,6 +182,7 @@ export const streamChatCompletion = async (
         model: modelId,
         messages: messages,
         stream: true,
+        ...options,
       }),
       signal,
     });

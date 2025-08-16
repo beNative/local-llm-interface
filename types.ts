@@ -44,6 +44,11 @@ export interface ThemeOverrides {
   fontSize?: number;
 }
 
+export interface GenerationConfig {
+  temperature?: number;
+  topK?: number;
+  topP?: number;
+}
 
 export interface ChatSession {
   id: string;
@@ -51,6 +56,7 @@ export interface ChatSession {
   modelId: string;
   messages: ChatMessage[];
   systemPromptId?: string | null;
+  generationConfig?: GenerationConfig;
 }
 
 export interface PredefinedPrompt {
@@ -107,6 +113,11 @@ export interface ModelDetails {
   families: string[] | null;
   parameter_size: string;
   quantization_level: string;
+  // Ollama specific details from /api/show
+  modelfile?: string;
+  parameters?: string;
+  template?: string;
+  num_ctx?: number;
 }
 
 export interface Model {

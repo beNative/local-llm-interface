@@ -1,11 +1,12 @@
 
 
+
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
-import type { ChatMessage, Theme, CodeProject, ProjectType, FileSystemEntry, ChatSession, Model, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt } from '../types';
+import type { ChatMessage, Theme, CodeProject, ProjectType, FileSystemEntry, ChatSession, Model, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, GenerationConfig } from '../types';
 import SendIcon from './icons/SendIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
 import ModelIcon from './icons/ModelIcon';
@@ -28,6 +29,7 @@ import CheckIcon from './icons/CheckIcon';
 import XCircleIcon from './icons/XCircleIcon';
 import BrainCircuitIcon from './icons/BrainCircuitIcon';
 import FileCodeIcon from './icons/FileCodeIcon';
+import SlidersIcon from './icons/SlidersIcon';
 
 const ContextSources: React.FC<{ files: string[] }> = ({ files }) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -460,11 +462,12 @@ interface ChatViewProps {
   predefinedPrompts: PredefinedPrompt[];
   systemPrompts: SystemPrompt[];
   onSetSessionSystemPrompt: (systemPromptId: string | null) => void;
+  onSetSessionGenerationConfig: (generationConfig: GenerationConfig) => void;
   onAcceptModification: (filePath: string, newContent: string) => void;
   onRejectModification: (filePath: string) => void;
 }
 
-const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isResponding, retrievalStatus, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onAcceptModification, onRejectModification }) => {
+const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isResponding, retrievalStatus, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onSetSessionGenerationConfig, onAcceptModification, onRejectModification }) => {
   const [input, setInput] = useState('');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [saveModalState, setSaveModalState] = useState<{ code: string; lang: string; activeProjectId: string | null } | null>(null);
@@ -472,6 +475,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
   const [editedTitle, setEditedTitle] = useState(session.name);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
   const [isPersonaSelectorOpen, setIsPersonaSelectorOpen] = useState(false);
+  const [isParamsOpen, setIsParamsOpen] = useState(false);
   const [isPromptsOpen, setIsPromptsOpen] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [isSmartContextEnabled, setIsSmartContextEnabled] = useState(true);
@@ -480,6 +484,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
   const titleInputRef = useRef<HTMLInputElement>(null);
   const modelSelectorRef = useRef<HTMLDivElement>(null);
   const personaSelectorRef = useRef<HTMLDivElement>(null);
+  const paramsSelectorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const promptsPopoverRef = useRef<HTMLDivElement>(null);
   const promptsButtonRef = useRef<HTMLButtonElement>(null);
@@ -524,6 +529,18 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
         document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [personaSelectorRef]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+        if (paramsSelectorRef.current && !paramsSelectorRef.current.contains(event.target as Node)) {
+            setIsParamsOpen(false);
+        }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [paramsSelectorRef]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -663,6 +680,26 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
           e.dataTransfer.clearData();
       }
   };
+
+  const handleParamChange = (param: keyof GenerationConfig, value: string) => {
+    const numValue = parseFloat(value);
+    if (isNaN(numValue)) return;
+    
+    const newConfig = {
+        ...session.generationConfig,
+        [param]: numValue
+    };
+    onSetSessionGenerationConfig(newConfig);
+  };
+  
+  const handleResetParams = () => {
+    onSetSessionGenerationConfig({
+        temperature: 0.8,
+        topK: 40,
+        topP: 0.9,
+    });
+    setIsParamsOpen(false);
+  };
   
   const markdownComponents = useMemo(() => ({
     code: (props: any) => (
@@ -772,6 +809,73 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
                                 {prompt.title}
                             </button>
                         ))}
+                    </div>
+                )}
+              </div>
+               <div className="relative" ref={paramsSelectorRef}>
+                <button 
+                    onClick={() => setIsParamsOpen(prev => !prev)} 
+                    className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] px-2 -ml-2 py-0.5 rounded-lg hover:bg-[--bg-hover]"
+                    title="Adjust model parameters"
+                >
+                    <SlidersIcon className="w-3.5 h-3.5" />
+                    <span>Parameters</span>
+                    <ChevronDownIcon className={`w-3 h-3 transition-transform ${isParamsOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isParamsOpen && (
+                    <div className="absolute top-full left-0 mt-1.5 w-72 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-lg z-20 p-4 space-y-4">
+                        <div className="flex justify-between items-center">
+                            <h4 className="text-sm font-semibold text-[--text-secondary]">Generation Parameters</h4>
+                            <button onClick={handleResetParams} className="text-xs text-[--text-muted] hover:underline">Reset</button>
+                        </div>
+                        
+                        <div>
+                            <label htmlFor="temperature" className="flex justify-between text-xs text-[--text-muted] mb-1">
+                                <span>Temperature</span>
+                                <span className="font-mono">{session.generationConfig?.temperature?.toFixed(2) ?? 'N/A'}</span>
+                            </label>
+                            <input
+                                type="range"
+                                id="temperature"
+                                min="0" max="2" step="0.01"
+                                value={session.generationConfig?.temperature ?? 0.8}
+                                onChange={e => handleParamChange('temperature', e.target.value)}
+                                className="w-full h-2 bg-[--bg-tertiary] rounded-lg appearance-none cursor-pointer"
+                            />
+                             <p className="text-xs text-[--text-muted]/70 mt-1">Controls randomness. Lower is more deterministic.</p>
+                        </div>
+                        
+                        <div>
+                            <label htmlFor="topK" className="flex justify-between text-xs text-[--text-muted] mb-1">
+                                <span>Top-K</span>
+                                <span className="font-mono">{session.generationConfig?.topK ?? 'N/A'}</span>
+                            </label>
+                            <input
+                                type="range"
+                                id="topK"
+                                min="1" max="100" step="1"
+                                value={session.generationConfig?.topK ?? 40}
+                                onChange={e => handleParamChange('topK', e.target.value)}
+                                className="w-full h-2 bg-[--bg-tertiary] rounded-lg appearance-none cursor-pointer"
+                            />
+                             <p className="text-xs text-[--text-muted]/70 mt-1">Considers the top K most likely tokens.</p>
+                        </div>
+
+                        <div>
+                            <label htmlFor="topP" className="flex justify-between text-xs text-[--text-muted] mb-1">
+                                <span>Top-P</span>
+                                <span className="font-mono">{session.generationConfig?.topP?.toFixed(2) ?? 'N/A'}</span>
+                            </label>
+                            <input
+                                type="range"
+                                id="topP"
+                                min="0" max="1" step="0.01"
+                                value={session.generationConfig?.topP ?? 0.9}
+                                onChange={e => handleParamChange('topP', e.target.value)}
+                                className="w-full h-2 bg-[--bg-tertiary] rounded-lg appearance-none cursor-pointer"
+                            />
+                             <p className="text-xs text-[--text-muted]/70 mt-1">Nucleus sampling. Considers tokens with probability mass up to this value.</p>
+                        </div>
                     </div>
                 )}
               </div>

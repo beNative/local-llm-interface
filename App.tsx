@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, FileSystemEntry, SystemStats } from './types';
+import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, FileSystemEntry, SystemStats, GenerationConfig } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
 import { fetchModels, streamChatCompletion, LLMServiceError, generateTextCompletion } from './services/llmService';
 import { logger } from './services/logger';
@@ -395,6 +395,11 @@ const App: React.FC = () => {
         modelId: modelId,
         messages: [{ role: 'system', content: DEFAULT_SYSTEM_PROMPT }],
         systemPromptId: null,
+        generationConfig: {
+            temperature: 0.8,
+            topK: 40,
+            topP: 0.9,
+        },
     };
     setConfig(c => {
         if (!c) return null;
@@ -441,6 +446,15 @@ const App: React.FC = () => {
 
         const newSessions = c.sessions!.map(s => s.id === c.activeSessionId ? updatedSession : s);
         logger.info(`Set system prompt for session ${c.activeSessionId} to "${systemPrompt?.title || 'Default'}".`);
+        return { ...c, sessions: newSessions };
+    });
+  };
+
+  const handleSetSessionGenerationConfig = (generationConfig: GenerationConfig) => {
+    if (!activeSessionId) return;
+    setConfig(c => {
+        if (!c) return null;
+        const newSessions = c.sessions?.map(s => s.id === activeSessionId ? { ...s, generationConfig } : s) || [];
         return { ...c, sessions: newSessions };
     });
   };
@@ -630,7 +644,8 @@ ${originalContent}
                 return currentConfig; // No actual state change needed here
             });
         }
-      }
+      },
+      activeSession.generationConfig
     );
   };
 
@@ -825,6 +840,7 @@ ${originalContent}
                         predefinedPrompts={config.predefinedPrompts || []}
                         systemPrompts={config.systemPrompts || []}
                         onSetSessionSystemPrompt={handleSetSessionSystemPrompt}
+                        onSetSessionGenerationConfig={handleSetSessionGenerationConfig}
                         onAcceptModification={handleAcceptModification}
                         onRejectModification={handleRejectModification}
                     />
@@ -838,6 +854,9 @@ ${originalContent}
                         isLoading={isLoadingModels}
                         error={error}
                         onGoToSettings={handleGoToSettings}
+                        provider={config.provider}
+                        baseUrl={config.baseUrl}
+                        theme={config.theme || 'dark'}
                     />
                 </div>
             );
