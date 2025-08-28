@@ -53,16 +53,25 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({ entry, onFileClick, level }
   };
   
   // Drag and Drop Handlers for adding files
+  const handleDragEnter = (e: React.DragEvent) => {
+    if (entry.isDirectory) {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragOver(true);
+    }
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     if (entry.isDirectory) {
         e.preventDefault();
-        setIsDragOver(true);
+        e.stopPropagation();
     }
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
     if (entry.isDirectory) {
         e.preventDefault();
+        e.stopPropagation();
         setIsDragOver(false);
     }
   };
@@ -71,6 +80,7 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({ entry, onFileClick, level }
     if (!entry.isDirectory || !window.electronAPI) return;
     
     e.preventDefault();
+    e.stopPropagation();
     setIsDragOver(false);
 
     const files = e.dataTransfer.files;
@@ -112,11 +122,16 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({ entry, onFileClick, level }
     <div>
       <div
         onClick={handleClick}
+        onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         style={{ paddingLeft: `${level * 1.25}rem` }}
-        className={`flex items-center gap-2 py-1 px-2 rounded-md cursor-pointer hover:bg-[--bg-hover] text-sm transition-colors ${isDragOver ? 'bg-[--accent-projects]/20' : ''}`}
+        className={`flex items-center gap-2 py-1 px-2 rounded-md hover:bg-[--bg-hover] text-sm transition-colors ${
+          isDragOver
+            ? 'bg-[--accent-projects]/20 ring-2 ring-inset ring-[--accent-projects] cursor-copy'
+            : 'cursor-pointer'
+        }`}
       >
         {entry.isDirectory ? (
             isLoading ? <SpinnerIcon className="w-4 h-4 flex-shrink-0" /> : <ExpanderIcon className="w-4 h-4 flex-shrink-0" />
