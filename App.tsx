@@ -338,15 +338,15 @@ const App: React.FC = () => {
     });
   };
 
-  const handleRenameSession = (sessionId: string, newName: string) => {
+  const handleRenameSession = useCallback((sessionId: string, newName: string) => {
     setConfig(c => {
         if (!c) return null;
         const newSessions = c.sessions?.map(s => s.id === sessionId ? { ...s, name: newName } : s) || [];
         return { ...c, sessions: newSessions };
     });
-  };
+  }, []);
 
-  const generateSessionName = async (session: ChatSession) => {
+  const generateSessionName = useCallback(async (session: ChatSession) => {
       if (!config) return;
 
       const conversation = session.messages
@@ -382,7 +382,7 @@ const App: React.FC = () => {
       } catch (e) {
           logger.error(`Failed to generate session name: ${e}`);
       }
-  };
+  }, [config, handleRenameSession]);
 
   const handleManualGenerateSessionName = (sessionId: string) => {
     const sessionToRename = sessions.find(s => s.id === sessionId);
@@ -466,7 +466,7 @@ const App: React.FC = () => {
     });
   };
 
-  const handleSendMessage = async (content: string | ChatMessageContentPart[], options?: { useRAG: boolean }) => {
+  const handleSendMessage = useCallback(async (content: string | ChatMessageContentPart[], options?: { useRAG: boolean }) => {
     if (!activeSession || !config) return;
 
     logger.info(`Sending message to model ${activeSession.modelId}. RAG enabled: ${!!options?.useRAG}`);
@@ -654,7 +654,7 @@ ${originalContent}
       },
       activeSession.generationConfig
     );
-  };
+  }, [config, activeSession, activeSessionId, activeProjectId, generateSessionName]);
 
   const handleAcceptModification = async (filePath: string, newContent: string) => {
     if (!window.electronAPI) return;

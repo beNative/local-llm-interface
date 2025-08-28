@@ -1,5 +1,5 @@
-import * as electron from 'electron';
-const { contextBridge, ipcRenderer } = electron;
+
+import { contextBridge, ipcRenderer } from 'electron';
 import type { CodeProject } from '../src/types';
 
 /**

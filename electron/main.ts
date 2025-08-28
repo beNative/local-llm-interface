@@ -1,5 +1,5 @@
-import * as electron from 'electron';
-const { app, BrowserWindow, ipcMain, shell, dialog } = electron;
+
+import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import { readdir, stat, readFile, writeFile, mkdir, copyFile } from 'fs/promises';
@@ -232,8 +232,9 @@ const createWindow = () => {
     width: 1200,
     height: 800,
     webPreferences: {
-      // Attach the preload script. __dirname points to the 'dist' folder in both dev and packaged modes.
-      preload: path.join(__dirname, 'preload.js'),
+      // FIX: Replace __dirname with a robust pathing solution using app.getAppPath()
+      // Attach the preload script.
+      preload: path.join(app.getAppPath(), app.isPackaged ? '' : 'dist', 'preload.js'),
       // Security best practices
       contextIsolation: true,
       nodeIntegration: false,
@@ -264,8 +265,9 @@ const createWindow = () => {
     });
   }, 2000); // Send stats every 2 seconds
 
+  // FIX: Replace __dirname with a robust pathing solution using app.getAppPath()
   // Load the app's index.html file.
-  const indexPath = path.join(__dirname, 'index.html');
+  const indexPath = path.join(app.getAppPath(), app.isPackaged ? '' : 'dist', 'index.html');
   mainWindow.loadFile(indexPath);
 
   // Open external links in the user's default browser instead of a new Electron window.
