@@ -75,25 +75,32 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({ entry, onFileClick, level }
 
     const files = e.dataTransfer.files;
     if (files.length > 0) {
-        logger.info(`Dropping ${files.length} file(s) into ${entry.path}`);
-        try {
-            const dropPromises = Array.from(files).map(file => 
-                window.electronAPI!.projectAddFileFromPath({
-                    sourcePath: (file as any).path, // Electron provides the full path
-                    targetDir: entry.path,
-                })
-            );
-            await Promise.all(dropPromises);
-            logger.info('All files dropped successfully.');
-            // Refresh the directory view
-            if (isExpanded) {
-                await fetchChildren();
-            } else {
-                await handleToggle();
+        const fileNames = Array.from(files).map(f => f.name).join('\n - ');
+        const confirmationMessage = `Are you sure you want to add ${files.length} file(s) to the "${entry.name}" folder?\n\n- ${fileNames}`;
+
+        if (window.confirm(confirmationMessage)) {
+            logger.info(`User confirmed dropping ${files.length} file(s) into ${entry.path}`);
+            try {
+                const dropPromises = Array.from(files).map(file => 
+                    window.electronAPI!.projectAddFileFromPath({
+                        sourcePath: (file as any).path, // Electron provides the full path
+                        targetDir: entry.path,
+                    })
+                );
+                await Promise.all(dropPromises);
+                logger.info('All files dropped successfully.');
+                // Refresh the directory view
+                if (isExpanded) {
+                    await fetchChildren();
+                } else {
+                    await handleToggle();
+                }
+            } catch (err) {
+                logger.error(`Error dropping files: ${err}`);
+                alert(`Could not add files: ${err instanceof Error ? err.message : String(err)}`);
             }
-        } catch (err) {
-            logger.error(`Error dropping files: ${err}`);
-            alert(`Could not add files: ${err instanceof Error ? err.message : String(err)}`);
+        } else {
+            logger.info('User canceled file drop operation.');
         }
     }
   };
