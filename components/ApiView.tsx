@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -10,6 +8,8 @@ import ServerIcon from './icons/ServerIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
 import SendIcon from './icons/SendIcon';
 import TrashIcon from './icons/TrashIcon';
+import FileTextIcon from './icons/FileTextIcon';
+import LightbulbIcon from './icons/LightbulbIcon';
 
 interface ApiViewProps {
     isElectron: boolean;
@@ -20,9 +20,19 @@ interface ApiViewProps {
     onClearApiPrompts: () => void;
 }
 
+const EmptyState: React.FC<{ icon: React.ReactNode; title: string; children: React.ReactNode; }> = ({ icon, title, children }) => (
+    <div className="flex flex-col items-center justify-center h-full text-center text-[--text-muted] p-4">
+        <div className="w-12 h-12 mb-4 flex items-center justify-center bg-[--bg-tertiary] rounded-full">{icon}</div>
+        <h4 className="font-semibold text-lg text-[--text-secondary] mb-1">{title}</h4>
+        <p className="text-sm">{children}</p>
+    </div>
+);
+
+
 const ApiView: React.FC<ApiViewProps> = ({ isElectron, theme, config, models, onSaveApiPrompt, onClearApiPrompts }) => {
     const [prompt, setPrompt] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [loadingMessage, setLoadingMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [apiRequest, setApiRequest] = useState<ApiRequest | null>(null);
     const [apiResponse, setApiResponse] = useState<ApiResponse | null>(null);
@@ -30,9 +40,13 @@ const ApiView: React.FC<ApiViewProps> = ({ isElectron, theme, config, models, on
     
     const syntaxTheme = theme === 'dark' ? atomDark : coy;
     const recentPrompts = config?.apiRecentPrompts || [];
+    const examplePrompts = [
+        "Get a random fact about cats from the catfact.ninja API",
+        "Fetch the public repositories for the user 'microsoft' from the GitHub API",
+        "Post a new comment on post ID 1 on JSONPlaceholder with a random body",
+    ];
 
     useEffect(() => {
-        // Pre-select the first model if available and none is selected
         if (models.length > 0 && !selectedModelId) {
             setSelectedModelId(models[0].id);
         }
@@ -54,6 +68,7 @@ const ApiView: React.FC<ApiViewProps> = ({ isElectron, theme, config, models, on
         }
         onSaveApiPrompt(prompt);
         setIsLoading(true);
+        setLoadingMessage(`Generating with ${selectedModelId}...`);
         setError(null);
         setApiRequest(null);
         setApiResponse(null);
@@ -78,7 +93,6 @@ Description: "${prompt}"`;
         try {
             const responseText = await generateTextCompletion(config.baseUrl, selectedModelId, messages);
             
-            // The model might still wrap the JSON in markdown, so we need to extract it.
             const jsonMatch = responseText.match(/```(json)?\s*([\s\S]*?)\s*```/);
             const jsonText = jsonMatch ? jsonMatch[2] : responseText;
 
@@ -109,12 +123,14 @@ Description: "${prompt}"`;
             setError(`Failed to generate request. The model may have returned an invalid format. Details: ${msg}`);
         } finally {
             setIsLoading(false);
+            setLoadingMessage('');
         }
     };
     
     const handleSendRequest = async () => {
         if (!apiRequest) return;
         setIsLoading(true);
+        setLoadingMessage(`Sending request to ${apiRequest.url}...`);
         setError(null);
         setApiResponse(null);
 
@@ -129,6 +145,7 @@ Description: "${prompt}"`;
             setError(`Request failed: ${msg}`);
         } finally {
             setIsLoading(false);
+            setLoadingMessage('');
         }
     };
 
@@ -157,14 +174,25 @@ Description: "${prompt}"`;
 
     const getStatusColor = (status: number) => {
         if (status >= 200 && status < 300) return 'text-green-500';
+        if (status >= 300 && status < 400) return 'text-blue-500';
         if (status >= 400 && status < 500) return 'text-yellow-500';
         if (status >= 500) return 'text-red-500';
         return 'text-gray-500';
     };
 
+    const getLanguageFromContentType = (contentType: string | string[] | undefined): string => {
+        const type = Array.isArray(contentType) ? contentType[0] : contentType;
+        if (!type) return 'text';
+        if (type.includes('json')) return 'json';
+        if (type.includes('html')) return 'html';
+        if (type.includes('xml')) return 'xml';
+        if (type.includes('javascript')) return 'javascript';
+        return 'text';
+    };
+    
     const formatResponseBody = (body: string, contentType: string | string[] | undefined) => {
-        contentType = Array.isArray(contentType) ? contentType[0] : contentType;
-        if (contentType && contentType.includes('application/json')) {
+        const lang = getLanguageFromContentType(contentType);
+        if (lang === 'json') {
             try {
                 return JSON.stringify(JSON.parse(body), null, 2);
             } catch (e) {
@@ -175,60 +203,34 @@ Description: "${prompt}"`;
     }
 
   return (
-    <div className="p-4 sm:p-6 h-full overflow-y-auto bg-[--bg-secondary]">
-        <div className="max-w-4xl mx-auto">
-            <h1 className="flex items-center gap-3 text-3xl font-bold mb-8" style={{color: 'var(--accent-api)'}}>
+    <div className="p-4 sm:p-6 h-full flex flex-col bg-[--bg-secondary]">
+        <header className="flex-shrink-0">
+             <h1 className="flex items-center gap-3 text-3xl font-bold mb-4" style={{color: 'var(--accent-api)'}}>
                 <ServerIcon className="w-8 h-8"/>
                 API Client
             </h1>
-            
-            {/* Prompt Section */}
-            <div className="space-y-4 bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
-                <label htmlFor="api-prompt" className="block text-lg font-semibold text-[--text-secondary]">Describe the request you want to make</label>
-                <textarea
-                    id="api-prompt"
-                    value={prompt}
-                    onChange={e => setPrompt(e.target.value)}
-                    placeholder="e.g., Send a GET request to the GitHub API to fetch the repos for the user 'torvalds'"
-                    className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
-                    rows={3}
-                />
-                
-                {recentPrompts.length > 0 && (
-                    <div className="mt-4">
-                        <div className="flex justify-between items-center mb-2">
-                            <h4 className="text-sm font-semibold text-[--text-muted]">Recent Prompts</h4>
-                            <button 
-                                onClick={onClearApiPrompts} 
-                                className="text-xs text-red-500 hover:underline flex items-center gap-1"
-                                title="Clear history"
-                            >
-                                <TrashIcon className="w-3 h-3" /> Clear
-                            </button>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            {recentPrompts.map((p, i) => (
-                                <button 
-                                    key={i}
-                                    onClick={() => setPrompt(p)}
-                                    className="px-2.5 py-1.5 text-xs font-mono text-[--text-secondary] bg-[--bg-tertiary] rounded-lg hover:bg-[--bg-hover] hover:text-[--text-primary] transition-colors truncate max-w-xs"
-                                    title={p}
-                                >
-                                    {p}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                )}
-                
-                <div className="flex justify-between items-center pt-2">
-                    <div className="flex-grow">
+            {error && <div className="mb-4 text-red-500 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg text-sm">{error}</div>}
+        </header>
+
+        <div className="flex-grow grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-0">
+            {/* Prompt Panel */}
+            <div className="lg:col-span-4 xl:col-span-3 flex flex-col gap-4 min-h-0">
+                <div className="flex flex-col gap-4 bg-[--bg-primary] p-4 rounded-xl border border-[--border-primary] shadow-sm">
+                    <label htmlFor="api-prompt" className="block text-md font-semibold text-[--text-secondary]">1. Describe Request</label>
+                    <textarea
+                        id="api-prompt"
+                        value={prompt}
+                        onChange={e => setPrompt(e.target.value)}
+                        placeholder="e.g., Send a GET request to the GitHub API..."
+                        className="w-full h-24 px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus] resize-y"
+                    />
+                    <div>
                         <label htmlFor="api-model-select" className="sr-only">Model</label>
                         <select
                             id="api-model-select"
                             value={selectedModelId}
                             onChange={e => setSelectedModelId(e.target.value)}
-                            className="w-full max-w-xs px-3 py-2 text-sm text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
+                            className="w-full px-3 py-2 text-sm text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
                             disabled={isLoading || models.length === 0}
                         >
                             {models.length > 0 ? (
@@ -238,96 +240,118 @@ Description: "${prompt}"`;
                             )}
                         </select>
                     </div>
-                    <button onClick={handleGenerateRequest} disabled={!prompt || !selectedModelId || isLoading} className="flex items-center justify-center px-6 py-2.5 text-sm font-medium text-[--text-on-accent] bg-[--accent-api] rounded-lg hover:brightness-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-primary] focus:ring-[--border-focus] disabled:opacity-60 disabled:cursor-not-allowed" title="Use the selected LLM to generate an HTTP request from your description">
-                        {isLoading ? <SpinnerIcon className="w-5 h-5"/> : 'Generate Request'}
+                    <button onClick={handleGenerateRequest} disabled={!prompt || !selectedModelId || isLoading} className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-[--text-on-accent] bg-[--accent-api] rounded-lg hover:brightness-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-primary] focus:ring-[--border-focus] disabled:opacity-60 disabled:cursor-not-allowed">
+                        {isLoading && !apiRequest ? <SpinnerIcon className="w-5 h-5"/> : 'Generate Request'}
                     </button>
+                </div>
+
+                <div className="flex-grow flex flex-col gap-2 bg-[--bg-primary] p-4 rounded-xl border border-[--border-primary] shadow-sm min-h-0">
+                    <h4 className="text-sm font-semibold text-[--text-muted] flex items-center gap-2"><LightbulbIcon className="w-4 h-4" /> Examples & History</h4>
+                    <div className="flex-grow overflow-y-auto space-y-3 text-xs">
+                        {examplePrompts.map((p, i) => (
+                            <button key={i} onClick={() => setPrompt(p)} className="w-full text-left p-2 rounded-lg bg-[--bg-tertiary] hover:bg-[--bg-hover] text-[--text-secondary] hover:text-[--text-primary]">
+                                {p}
+                            </button>
+                        ))}
+                         {recentPrompts.length > 0 && (
+                            <>
+                                <div className="flex justify-between items-center pt-2 border-t border-[--border-primary]">
+                                    <h5 className="text-xs font-semibold text-[--text-muted]">Recent</h5>
+                                    <button onClick={onClearApiPrompts} className="text-red-500 hover:underline" title="Clear history"><TrashIcon className="w-3 h-3" /></button>
+                                </div>
+                                {recentPrompts.map((p, i) => (
+                                    <button key={`recent-${i}`} onClick={() => setPrompt(p)} className="w-full text-left p-2 rounded-lg bg-[--bg-tertiary]/50 hover:bg-[--bg-hover] text-[--text-muted] hover:text-[--text-primary] truncate" title={p}>
+                                        {p}
+                                    </button>
+                                ))}
+                            </>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            {error && <div className="mt-4 text-red-500 bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">{error}</div>}
+            {/* Request Panel */}
+            <div className="lg:col-span-8 xl:col-span-4 bg-[--bg-primary] p-4 rounded-xl border border-[--border-primary] shadow-sm flex flex-col min-h-0">
+                <h3 className="text-md font-semibold text-[--text-secondary] mb-3 flex-shrink-0">2. Edit & Send Request</h3>
+                {isLoading && !apiRequest && <EmptyState icon={<SpinnerIcon className="w-6 h-6"/>} title="Generating Request">{loadingMessage}</EmptyState>}
+                {!isLoading && !apiRequest && <EmptyState icon={<ServerIcon className="w-6 h-6"/>} title="Request Panel">Your generated request will appear here. Start by describing it on the left.</EmptyState>}
 
-            {/* Request Editor Section */}
-            {apiRequest && (
-                <div className="mt-6 space-y-4 bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
-                    <h3 className="text-lg font-semibold text-[--text-secondary]">Generated Request</h3>
-                    <div className="flex gap-2">
-                        <select
-                            value={apiRequest.method}
-                            onChange={e => setApiRequest({...apiRequest, method: e.target.value as ApiHttpMethod})}
-                            className="px-3 py-2 font-mono text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
-                        >
-                           {['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].map(m => <option key={m} value={m}>{m}</option>)}
-                        </select>
-                         <input
-                            type="text"
-                            value={apiRequest.url}
-                            onChange={e => setApiRequest({...apiRequest, url: e.target.value})}
-                            placeholder="https://api.example.com/data"
-                            className="flex-grow px-3 py-2 font-mono text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
-                        />
-                         <button onClick={handleSendRequest} disabled={isLoading} className="flex items-center justify-center w-12 h-10 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-green-400" title="Send the configured HTTP request">
-                            {isLoading ? <SpinnerIcon className="w-5 h-5"/> : <SendIcon className="w-5 h-5" />}
-                        </button>
-                    </div>
+                {apiRequest && (
+                    <div className="flex-grow flex flex-col gap-3 min-h-0">
+                        <div className="flex gap-2 flex-shrink-0">
+                            <select value={apiRequest.method} onChange={e => setApiRequest({...apiRequest, method: e.target.value as ApiHttpMethod})} className="px-3 py-2 font-mono text-sm text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]">
+                               {['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].map(m => <option key={m} value={m}>{m}</option>)}
+                            </select>
+                            <input type="text" value={apiRequest.url} onChange={e => setApiRequest({...apiRequest, url: e.target.value})} placeholder="https://api.example.com/data" className="flex-grow px-3 py-2 font-mono text-sm text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"/>
+                            <button onClick={handleSendRequest} disabled={isLoading} className="flex items-center justify-center w-12 h-10 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-green-400" title="Send the configured HTTP request">
+                                {isLoading ? <SpinnerIcon className="w-5 h-5"/> : <SendIcon className="w-5 h-5" />}
+                            </button>
+                        </div>
+                        
+                        <div className="flex flex-col gap-2 min-h-0">
+                            <h4 className="text-sm font-medium text-[--text-muted]">Headers</h4>
+                            <div className="space-y-2 overflow-y-auto pr-1">
+                                {Object.entries(apiRequest.headers).map(([key, value], index) => (
+                                   <div key={index} className="flex gap-2 items-center">
+                                       <input type="text" value={key} onChange={e => handleHeaderChange(index, e.target.value, value)} placeholder="Key" className="w-1/3 px-2 py-1 font-mono text-xs text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg"/>
+                                       <input type="text" value={value} onChange={e => handleHeaderChange(index, key, e.target.value)} placeholder="Value" className="flex-grow px-2 py-1 font-mono text-xs text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg"/>
+                                       <button onClick={() => handleRemoveHeader(key)} className="p-1 text-gray-400 hover:text-red-500"><TrashIcon className="w-4 h-4"/></button>
+                                   </div>
+                                ))}
+                            </div>
+                             <button onClick={handleAddHeader} className="text-xs text-[--accent-chat] hover:underline self-start">+ Add Header</button>
+                        </div>
 
-                    {/* Headers */}
-                    <div className="space-y-2">
-                         <h4 className="text-sm font-medium text-[--text-muted]">Headers</h4>
-                        {Object.entries(apiRequest.headers).map(([key, value], index) => (
-                           <div key={index} className="flex gap-2 items-center">
-                               <input type="text" value={key} onChange={e => handleHeaderChange(index, e.target.value, value)} placeholder="Key" className="w-1/3 px-2 py-1 font-mono text-sm text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg"/>
-                               <input type="text" value={value} onChange={e => handleHeaderChange(index, key, e.target.value)} placeholder="Value" className="flex-grow px-2 py-1 font-mono text-sm text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg"/>
-                               <button onClick={() => handleRemoveHeader(key)} className="p-1 text-gray-400 hover:text-red-500"><TrashIcon className="w-4 h-4"/></button>
-                           </div>
-                        ))}
-                        <button onClick={handleAddHeader} className="text-xs text-[--accent-chat] hover:underline">+ Add Header</button>
+                        {apiRequest.method !== 'GET' && apiRequest.method !== 'HEAD' && (
+                            <div className="flex flex-col flex-grow min-h-0">
+                                 <h4 className="text-sm font-medium text-[--text-muted] mb-1">Body</h4>
+                                 <textarea
+                                    value={apiRequest.body || ''}
+                                    onChange={e => setApiRequest({...apiRequest, body: e.target.value})}
+                                    placeholder="Request body..."
+                                    className="w-full flex-grow p-2 font-mono text-sm bg-[--bg-tertiary] rounded-lg resize-none focus:outline-none border border-[--border-secondary]"
+                                    spellCheck="false"
+                                />
+                            </div>
+                        )}
                     </div>
-                    
-                    {/* Body */}
-                    {apiRequest.method !== 'GET' && apiRequest.method !== 'HEAD' && (
-                        <div>
-                             <h4 className="text-sm font-medium text-[--text-muted]">Body</h4>
-                             <textarea
-                                value={apiRequest.body || ''}
-                                onChange={e => setApiRequest({...apiRequest, body: e.target.value})}
-                                placeholder="Request body..."
-                                className="w-full h-40 p-2 font-mono text-sm bg-[--bg-tertiary] dark:bg-[--code-output-bg] rounded-lg resize-y focus:outline-none border border-[--border-secondary]"
-                                spellCheck="false"
-                            />
-                        </div>
-                    )}
-                </div>
-            )}
-            
-            {/* Response Section */}
-            {apiResponse && (
-                 <div className="mt-6 space-y-4 bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
-                     <h3 className="text-lg font-semibold text-[--text-secondary]">Response</h3>
-                     <p className="text-sm font-semibold">Status: <span className={`${getStatusColor(apiResponse.status)} font-bold`}>{apiResponse.status} {apiResponse.statusText}</span></p>
-                     <div>
-                        <h4 className="text-sm font-medium text-[--text-muted] mb-1">Headers</h4>
-                        <div className="p-2 bg-[--bg-tertiary] rounded-lg font-mono text-xs max-h-40 overflow-y-auto">
-                            {Object.entries(apiResponse.headers).map(([key, value]) => (
-                                <p key={key}><span className="font-bold text-[--text-muted]">{key}:</span> {value}</p>
-                            ))}
-                        </div>
+                )}
+            </div>
+
+            {/* Response Panel */}
+            <div className="lg:col-span-12 xl:col-span-5 bg-[--bg-primary] p-4 rounded-xl border border-[--border-primary] shadow-sm flex flex-col min-h-0">
+                 <h3 className="text-md font-semibold text-[--text-secondary] mb-3 flex-shrink-0">3. View Response</h3>
+                 {isLoading && apiRequest && <EmptyState icon={<SpinnerIcon className="w-6 h-6"/>} title="Sending Request">{loadingMessage}</EmptyState>}
+                 {!isLoading && !apiResponse && <EmptyState icon={<FileTextIcon className="w-6 h-6"/>} title="Response Panel">The server's response will appear here after you send a request.</EmptyState>}
+
+                 {apiResponse && (
+                     <div className="flex-grow flex flex-col gap-3 min-h-0">
+                         <p className="text-sm font-semibold flex-shrink-0">Status: <span className={`${getStatusColor(apiResponse.status)} font-bold font-mono`}>{apiResponse.status} {apiResponse.statusText}</span></p>
+                         <div className="flex flex-col gap-1 min-h-0">
+                            <h4 className="text-sm font-medium text-[--text-muted]">Headers</h4>
+                            <div className="p-2 bg-[--bg-tertiary] rounded-lg font-mono text-xs max-h-32 overflow-y-auto">
+                                {Object.entries(apiResponse.headers).map(([key, value]) => (
+                                    <p key={key} className="truncate"><span className="font-bold text-[--text-muted]">{key}:</span> {value}</p>
+                                ))}
+                            </div>
+                         </div>
+                         <div className="flex flex-col flex-grow min-h-0">
+                            <h4 className="text-sm font-medium text-[--text-muted] mb-1">Body</h4>
+                            <div className="relative flex-grow bg-[--code-bg] rounded-lg">
+                                 <SyntaxHighlighter
+                                    language={getLanguageFromContentType(apiResponse.headers['content-type'])}
+                                    style={syntaxTheme}
+                                    customStyle={{ background: 'transparent', margin: 0, height: '100%', overflow: 'auto' }}
+                                    wrapLines={true}
+                                    PreTag="div"
+                                >
+                                    {formatResponseBody(apiResponse.body, apiResponse.headers['content-type'])}
+                                </SyntaxHighlighter>
+                            </div>
+                         </div>
                      </div>
-                     <div>
-                        <h4 className="text-sm font-medium text-[--text-muted] mb-1">Body</h4>
-                        <div className="relative bg-[--code-bg] rounded-lg">
-                            <SyntaxHighlighter
-                                language={apiResponse.headers['content-type']?.includes('json') ? 'json' : 'text'}
-                                style={syntaxTheme}
-                                customStyle={{ background: 'transparent', margin: 0, maxHeight: '400px', overflowY: 'auto' }}
-                                wrapLines={true}
-                                PreTag="div"
-                            >
-                                {formatResponseBody(apiResponse.body, apiResponse.headers['content-type'])}
-                            </SyntaxHighlighter>
-                        </div>
-                     </div>
-                 </div>
-            )}
+                 )}
+            </div>
         </div>
     </div>
   );
