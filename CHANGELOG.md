@@ -2,7 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.5.0] - YYYY-MM-DD
+## [1.6.0] - 2024-06-15
+
+### Added
+- **Drag & Drop File Import**: Users can now drag files from their operating system and drop them directly onto a folder in the Project view's file tree. A confirmation dialog appears before the file is copied into the project.
+
+## [1.5.0] - 2024-06-01
 
 ### Added
 - **Model Parameter Tuning**: A new "Parameters" popover in the chat header allows for adjusting Temperature, Top-K, and Top-P for the current session.
@@ -14,7 +19,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - **Chat Input Performance**: Resolved a major performance issue where the chat input box would become very slow in long conversations by memoizing message components.
 
-## [1.4.0] - YYYY-MM-DD
+## [1.4.0] - 2024-05-20
 
 ### Added
 - **AI-Assisted File Modifications**: Empower the AI to propose changes directly to project files. Users can review these changes in an interactive diff view and accept or reject them with a single click.
@@ -27,7 +32,7 @@ All notable changes to this project will be documented in this file.
 - **Toolchain Detection**: The application now automatically detects installed development toolchains (Python, JDK, Node.js, Delphi) and allows users to select a specific version in Settings.
 - **Status Bar**: A new status bar at the bottom of the window displays real-time application CPU and Memory usage (Electron app only).
 
-## [1.3.0] - YYYY-MM-DD
+## [1.3.0] - 2024-05-10
 
 ### Added
 - **Resizable Sidebar**: The session list sidebar can now be resized by dragging its edge, allowing for more flexible layout customization.
@@ -42,19 +47,19 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - **Session Renaming**: Fixed an issue where the smart session renaming feature was not working correctly due to an incorrect API call.
 
-## [1.2.0] - YYYY-MM-DD
+## [1.2.0] - 2024-05-01
 
 ### Added
 - **Project Context Awareness**: In the Chat view, you can now select an active project from a dropdown menu. When a project is selected, its entire file tree is automatically sent to the LLM as context with your prompt. This enables more intelligent, project-aware questions like "Where is the database logic?" or "Refactor the `ProductCard` component."
 
-## [1.1.0] - YYYY-MM-DD
+## [1.1.0] - 2024-04-25
 
 ### Added
 - **In-App Documentation Viewer**: A new "Info" tab in the header opens a view to read application documentation directly.
 - **Documentation Files**: Added `README.md`, `FUNCTIONAL_MANUAL.md`, `TECHNICAL_MANUAL.md`, and this `CHANGELOG.md`.
 - **Packaging**: The build process now includes all documentation files in the packaged application, making them available offline.
 
-## [1.0.0] - YYYY-MM-DD
+## [1.0.0] - 2024-04-15
 
 ### Initial Release
 

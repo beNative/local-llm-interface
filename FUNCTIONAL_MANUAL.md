@@ -78,6 +78,7 @@ The "Projects" tab is a powerful feature for managing local code projects and in
 - **Expand Project**: Click the project name on a card to expand it and reveal an interactive file tree.
 - **Edit Files**: Click on any file in the tree to open it in a built-in code editor. You can make changes and save them directly back to the file.
 - **Add to Chat**: From the editor, click "Add to Chat Context" to inject the file's content directly into the chat input, making it easy to ask questions about specific code.
+- **Add Files via Drag and Drop**: You can add external files to your project by dragging them from your computer's file explorer and dropping them onto any folder in the file tree. When you hover over a valid folder, it will be highlighted. Upon dropping the files, a confirmation dialog will appear, listing the files to be added. Confirming will copy the files into that project folder.
 
 ## 5. API Client View (Desktop App Only)
 

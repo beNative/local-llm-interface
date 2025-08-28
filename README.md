@@ -13,6 +13,7 @@ A user-friendly desktop application to chat with locally installed LLMs serviced
 - **Smart Context (RAG)**: When a project is selected, the AI can automatically identify and read the most relevant files to answer your query, providing highly accurate, context-aware responses.
 - **API Client**: A dedicated view to generate, edit, and send HTTP requests using natural language prompts, perfect for testing APIs.
 - **Advanced Project Management**: Full support for Python (venv), Node.js (npm), Java (Maven), Delphi, and static Web App projects.
+- **Drag-and-Drop File Adding**: Easily add files to your projects by dragging them from your file explorer onto a folder in the project tree.
 - **In-App File Editor**: A built-in file viewer and editor to browse and modify your project files without leaving the application.
 - **Code Execution**: Run Python/Node.js code snippets or entire projects directly from the interface.
 - **System Prompts (Personas)**: Create and switch between different AI personas (e.g., "Senior DevOps Engineer") to tailor responses for specific tasks.
