@@ -232,9 +232,8 @@ const createWindow = () => {
     width: 1200,
     height: 800,
     webPreferences: {
-      // FIX: Replace __dirname with a robust pathing solution using app.getAppPath()
       // Attach the preload script.
-      preload: path.join(app.getAppPath(), app.isPackaged ? '' : 'dist', 'preload.js'),
+      preload: path.join(__dirname, 'preload.js'),
       // Security best practices
       contextIsolation: true,
       nodeIntegration: false,
@@ -265,9 +264,8 @@ const createWindow = () => {
     });
   }, 2000); // Send stats every 2 seconds
 
-  // FIX: Replace __dirname with a robust pathing solution using app.getAppPath()
   // Load the app's index.html file.
-  const indexPath = path.join(app.getAppPath(), app.isPackaged ? '' : 'dist', 'index.html');
+  const indexPath = path.join(__dirname, 'index.html');
   mainWindow.loadFile(indexPath);
 
   // Open external links in the user's default browser instead of a new Electron window.
