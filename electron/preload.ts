@@ -1,8 +1,8 @@
 
 
 
-import electron = require('electron');
-const { contextBridge, ipcRenderer } = electron;
+
+const { contextBridge, ipcRenderer } = require('electron');
 import type { CodeProject } from '../src/types';
 
 /**

@@ -1,8 +1,8 @@
 
 
 
-import electron = require('electron');
-const { app, BrowserWindow, ipcMain, shell, dialog } = electron;
+
+const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 import * as path from 'path';
 import * as fs from 'fs';
 import { readdir, stat, readFile, writeFile, mkdir, copyFile } from 'fs/promises';
@@ -236,8 +236,7 @@ const createWindow = () => {
     height: 800,
     webPreferences: {
       // Attach the preload script.
-      // FIX: Replace __dirname with a robust path calculation to avoid compile-time errors.
-      preload: path.join(app.getAppPath(), app.isPackaged ? 'preload.js' : 'dist/preload.js'),
+      preload: path.join(__dirname, 'preload.js'),
       // Security best practices
       contextIsolation: true,
       nodeIntegration: false,
@@ -269,8 +268,7 @@ const createWindow = () => {
   }, 2000); // Send stats every 2 seconds
 
   // Load the app's index.html file.
-  // FIX: Replace __dirname with a robust path calculation to avoid compile-time errors.
-  const indexPath = path.join(app.getAppPath(), app.isPackaged ? 'index.html' : 'dist/index.html');
+  const indexPath = path.join(__dirname, 'index.html');
   mainWindow.loadFile(indexPath);
 
   // Open external links in the user's default browser instead of a new Electron window.
@@ -561,7 +559,7 @@ end.
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale-1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${name}</title>
 </head>
 <body>
