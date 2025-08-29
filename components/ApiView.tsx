@@ -78,7 +78,7 @@ const ApiView: React.FC<ApiViewProps> = ({ isElectron, theme, config, models, on
   "method": "string (one of GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS)",
   "url": "string (a full, valid URL)",
   "headers": [{"key": "string", "value": "string"}],
-  "body": "string (this should be a minified JSON string if the content-type is JSON, otherwise it's a raw string. For GET requests, this should be an empty string.)"
+  "body": "object | string (For JSON content-types, provide a valid JSON object. For other content-types, provide a string. For GET requests, this should be null.)"
 }
 Only output the raw JSON object. Do not include any other text, explanations, or markdown code fences. Just the JSON.`;
         
@@ -103,11 +103,20 @@ Description: "${prompt}"`;
                 return acc;
             }, {});
 
+            let bodyString: string | null = null;
+            if (jsonResponse.body !== undefined && jsonResponse.body !== null) {
+                if (typeof jsonResponse.body === 'object') {
+                    bodyString = JSON.stringify(jsonResponse.body);
+                } else {
+                    bodyString = String(jsonResponse.body);
+                }
+            }
+
             const newRequest: ApiRequest = {
                 method: jsonResponse.method || 'GET',
                 url: jsonResponse.url || '',
                 headers: headersObject,
-                body: jsonResponse.body || null,
+                body: bodyString,
             };
 
             if (!newRequest.url || !['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].includes(newRequest.method)) {
