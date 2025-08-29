@@ -261,6 +261,39 @@ const SaveToProjectModal: React.FC<SaveModalProps> = ({ code, lang, projects, on
     );
 };
 
+const detectLang = (code: string): string => {
+    // Check for explicit filename comments first as a strong signal
+    const firstLine = code.split('\n')[0].toLowerCase();
+    if (firstLine.includes('filename:')) {
+        if (firstLine.endsWith('.py')) return 'python';
+        if (firstLine.endsWith('.js') || firstLine.endsWith('.ts')) return 'javascript';
+        if (firstLine.endsWith('.html') || firstLine.endsWith('.htm')) return 'html';
+        if (firstLine.endsWith('.java')) return 'java';
+        if (firstLine.endsWith('.dpr') || firstLine.endsWith('.pas')) return 'delphi';
+    }
+    
+    const lowerCaseCode = code.toLowerCase();
+
+    // High-confidence checks for languages with distinct keywords
+    if (lowerCaseCode.match(/\b(public class|public static void main|system\.out\.println|import java\.)/)) return 'java';
+    if (lowerCaseCode.match(/\b(program|unit|interface|implementation|uses|begin|end\.|procedure|function)\b/)) return 'delphi';
+    if (lowerCaseCode.match(/<!doctype html>|<html|<head|<body|<div|<p|<span|<a\s+href/)) return 'html';
+    
+    // Python is very common, so check for its unique constructs
+    if (lowerCaseCode.match(/if __name__ == "__main__":/)) return 'python';
+    if (lowerCaseCode.match(/\b(def|import|from|class|elif|lambda|yield|async def)\s/)) return 'python';
+
+    // JavaScript is also common
+    if (lowerCaseCode.match(/\b(const|let|var|function|return|import|export|async|await|document\.get|console\.log)\b/)) return 'javascript';
+    if (lowerCaseCode.includes('=>')) return 'javascript'; // Arrow functions are a strong signal
+
+    // If we find `print()`, it's likely python but could be others.
+    // This is a lower-confidence check.
+    if (lowerCaseCode.includes('print(') && !lowerCaseCode.includes('system.out.println')) return 'python';
+
+    return ''; // Fallback for no detection
+};
+
 const CodeBlock = React.memo(({ node, inline, className, children, theme, isElectron, projects, onSaveRequest, activeProjectId, onFixRequest }: any) => {
   const [isCopied, setIsCopied] = useState(false);
   const [runState, setRunState] = useState<{
@@ -273,13 +306,19 @@ const CodeBlock = React.memo(({ node, inline, className, children, theme, isElec
     error: null,
   });
 
+  const codeText = String(children).replace(/\n$/, '');
   const match = /language-(\w+)/.exec(className || '');
-  const lang = match ? match[1].toLowerCase() : '';
+  
+  // UseMemo will prevent re-detecting on every render unless the code itself changes.
+  const lang = useMemo(() => {
+    if (match) return match[1].toLowerCase();
+    return detectLang(codeText);
+  }, [className, codeText, match]);
+
   const isPython = lang === 'python';
   const isNode = ['javascript', 'js', 'nodejs'].includes(lang);
   const isWebApp = ['html', 'html5'].includes(lang);
   
-  const codeText = String(children).replace(/\n$/, '');
   const syntaxTheme = theme === 'dark' ? atomDark : coy;
   
   const projectType = getProjectTypeForLang(lang);
@@ -308,7 +347,7 @@ const CodeBlock = React.memo(({ node, inline, className, children, theme, isElec
 
     let executionEnv = '';
     if (runInProject) {
-        executionEnv = `project: ${activeProject.name}`;
+        executionEnv = `project: ${activeProject!.name}`;
     } else {
         if (isWebApp) executionEnv = 'new browser window';
         else executionEnv = isPython ? (isElectron ? 'standalone Python' : 'Pyodide (WASM)') : 'standalone Node.js';
@@ -363,10 +402,18 @@ const CodeBlock = React.memo(({ node, inline, className, children, theme, isElec
   const RunIcon = isWebApp ? GlobeIcon : TerminalIcon;
   const runButtonText = runState.isLoading ? 'Running...' : isWebApp ? 'Open in Browser' : 'Run';
 
-  return !inline && match ? (
+  if (inline) {
+    return (
+        <code className="not-prose px-1.5 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-md text-sm font-mono">
+          {children}
+        </code>
+      );
+  }
+
+  return (
     <div className="not-prose relative bg-[--code-bg] my-2 rounded-lg border border-[--border-primary]">
       <div className="flex items-center justify-between px-4 py-1.5 bg-black/5 dark:bg-white/5 rounded-t-lg text-xs">
-        <span className="font-sans text-[--text-muted]">{match[1]}</span>
+        <span className="font-sans text-[--text-muted]">{lang || 'code'}</span>
         <div className="flex items-center gap-2">
             {(canRunCode || canSave) && (
               <div className="flex items-center divide-x divide-gray-300 dark:divide-gray-600">
@@ -419,7 +466,7 @@ const CodeBlock = React.memo(({ node, inline, className, children, theme, isElec
       </div>
       <SyntaxHighlighter
         style={syntaxTheme}
-        language={match[1]}
+        language={lang || 'text'}
         PreTag="div"
         customStyle={{ margin: 0, padding: '1rem', background: 'transparent', overflowX: 'auto' }}
       >
@@ -453,10 +500,6 @@ const CodeBlock = React.memo(({ node, inline, className, children, theme, isElec
         </div>
       )}
     </div>
-  ) : (
-    <code className="not-prose px-1.5 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-md text-sm font-mono">
-      {children}
-    </code>
   );
 });
 
