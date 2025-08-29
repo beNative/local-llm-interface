@@ -476,7 +476,6 @@ const App: React.FC = () => {
     
     const controller = new AbortController();
     abortControllerRef.current = controller;
-    setThinkingText(''); // Initialize thinking state
 
     const userMessageContent = Array.isArray(content) ? (content.find(p => p.type === 'text') as { type: 'text', text: string } | undefined)?.text || '' : content;
     const modificationRegex = /(?:refactor|modify|change|update|add to|edit|implement|create|write|delete)\s+(?:in\s+)?(?:the\s+file\s+)?([\w./\\-]+)/i;
@@ -592,11 +591,17 @@ ${originalContent}
       controller.signal,
       (chunk: StreamChunk) => {
         if (chunk.type === 'reasoning') {
-            setThinkingText(prev => (prev ?? '') + chunk.text);
+            setThinkingText(prev => (prev === null ? chunk.text : prev + chunk.text));
         } else if (chunk.type === 'content') {
-            if (thinkingText !== null) {
-                setThinkingText(null); // Clear thinking state as soon as content arrives
-            }
+            // Use functional update to ensure we get the latest state and clear thinking text
+            // atomically with the first content chunk.
+            setThinkingText(prevThinkingText => {
+                if (prevThinkingText !== null) {
+                    return null;
+                }
+                return prevThinkingText;
+            });
+            
             setConfig(c => {
                 if (!c) return c;
                 const targetSession = c.sessions?.find(s => s.id === activeSessionId);
@@ -666,7 +671,7 @@ ${originalContent}
       },
       activeSession.generationConfig
     );
-  }, [config, activeSession, activeSessionId, activeProjectId, generateSessionName, thinkingText]);
+  }, [config, activeSession, activeSessionId, activeProjectId, generateSessionName]);
 
   const handleAcceptModification = async (filePath: string, newContent: string) => {
     if (!window.electronAPI) return;

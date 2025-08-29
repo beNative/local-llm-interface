@@ -77,34 +77,39 @@ const InfoView: React.FC<{ theme: Theme }> = ({ theme }) => {
             <p>{error}</p>
           </div>
         ) : (
-          <article className="prose prose-sm md:prose-base max-w-none">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={{
-                code({ node, inline, className, children, ...props }: any) {
-                  const match = /language-(\w+)/.exec(className || '');
-                  return !inline && match ? (
-                    <div className="not-prose bg-[--code-bg] rounded-lg my-2 border border-[--border-primary]">
-                      <SyntaxHighlighter
-                        style={syntaxTheme}
-                        language={match[1]}
-                        PreTag="div"
-                        customStyle={{ background: 'transparent', margin: 0 }}
-                      >
-                        {String(children).replace(/\n$/, '')}
-                      </SyntaxHighlighter>
-                    </div>
-                  ) : (
-                    <code className="not-prose bg-blue-500/10 text-blue-600 dark:text-blue-400 px-1 py-0.5 rounded-sm" {...props}>
-                      {children}
-                    </code>
-                  );
-                },
-              }}
-            >
-              {content}
-            </ReactMarkdown>
-          </article>
+          <>
+            <article className="prose prose-sm md:prose-base max-w-none">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  code({ node, inline, className, children, ...props }: any) {
+                    const match = /language-(\w+)/.exec(className || '');
+                    return !inline && match ? (
+                      <div className="not-prose bg-[--code-bg] rounded-lg my-2 border border-[--border-primary]">
+                        <SyntaxHighlighter
+                          style={syntaxTheme}
+                          language={match[1]}
+                          PreTag="div"
+                          customStyle={{ background: 'transparent', margin: 0 }}
+                        >
+                          {String(children).replace(/\n$/, '')}
+                        </SyntaxHighlighter>
+                      </div>
+                    ) : (
+                      <code className="not-prose bg-blue-500/10 text-blue-600 dark:text-blue-400 px-1 py-0.5 rounded-sm" {...props}>
+                        {children}
+                      </code>
+                    );
+                  },
+                }}
+              >
+                {content}
+              </ReactMarkdown>
+            </article>
+            <footer className="mt-8 pt-4 border-t border-[--border-primary] text-center text-xs text-[--text-muted]">
+              <p>Designed by Tim Sinaeve</p>
+            </footer>
+          </>
         )}
       </main>
     </div>
