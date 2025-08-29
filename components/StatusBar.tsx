@@ -5,6 +5,7 @@ import OllamaIcon from './icons/OllamaIcon';
 import LMStudioIcon from './icons/LMStudioIcon';
 import ModelIcon from './icons/ModelIcon';
 import CodeIcon from './icons/CodeIcon';
+import GpuIcon from './icons/GpuIcon';
 import type { LLMProvider, SystemStats } from '../types';
 
 
@@ -70,7 +71,11 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
             
             {/* Right Side */}
             <div className="flex items-center gap-6">
-                <div className="flex items-center gap-2" title="Application RAM Usage (vs. System Total)">
+                <div className="flex items-center gap-2" title="System-wide GPU Usage (Not yet implemented)">
+                    <GpuIcon className="w-4 h-4" />
+                    <span>{stats?.gpu !== undefined && stats.gpu >= 0 ? `${stats.gpu.toFixed(0)}%` : '--%'}</span>
+                </div>
+                <div className="flex items-center gap-2" title="System-wide RAM Usage">
                     <RamIcon className="w-4 h-4" />
                     {stats ? (
                         <>
@@ -83,7 +88,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
                         <span>-- MB / -- GB</span>
                     )}
                 </div>
-                <div className="flex items-center gap-2" title="Application CPU Usage">
+                <div className="flex items-center gap-2" title="System-wide CPU Usage">
                     <CpuIcon className="w-4 h-4" />
                      {stats ? (
                         <>

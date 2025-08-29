@@ -229,6 +229,14 @@ async function detectDelphiCompilers(): Promise<Toolchain[]> {
 
 const ignoredDirsAndFiles = new Set(['.git', 'node_modules', 'venv', 'target', '.DS_Store', 'dist', 'release']);
 
+let previousCpuTimes = os.cpus().map(cpu => {
+    let total = 0;
+    for (const type in cpu.times) {
+        total += cpu.times[type as keyof typeof cpu.times];
+    }
+    return { total, idle: cpu.times.idle };
+});
+
 const createWindow = () => {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -245,25 +253,44 @@ const createWindow = () => {
     autoHideMenuBar: true,
   });
 
-  // Application Stats Monitoring
+  // System-wide Stats Monitoring
   const statsInterval = setInterval(() => {
     if (mainWindow.isDestroyed()) {
       clearInterval(statsInterval);
       return;
     }
 
-    const metrics = app.getAppMetrics();
-    const appCpuUsage = metrics.reduce((acc, metric) => acc + metric.cpu.percentCPUUsage, 0);
-    // workingSetSize is in KB, convert to bytes for the UI component
-    const appMemoryUsage = metrics.reduce((acc, metric) => acc + metric.memory.workingSetSize, 0) * 1024;
+    const cpus = os.cpus();
+    let totalCpuUsage = 0;
+    for (let i = 0; i < cpus.length; i++) {
+        const cpu = cpus[i];
+        const prevCpu = previousCpuTimes[i];
+        let total = 0;
+        for (const type in cpu.times) {
+            total += cpu.times[type as keyof typeof cpu.times];
+        }
+        const idle = cpu.times.idle;
+
+        const totalDiff = total - prevCpu.total;
+        const idleDiff = idle - prevCpu.idle;
+        
+        const usage = (totalDiff > 0) ? (1 - idleDiff / totalDiff) * 100 : 0;
+        totalCpuUsage += usage;
+
+        previousCpuTimes[i] = { total, idle };
+    }
+
+    const avgCpuUsage = totalCpuUsage / cpus.length;
     const totalSystemMem = os.totalmem();
+    const usedSystemMem = totalSystemMem - os.freemem();
 
     mainWindow.webContents.send('system-stats-update', {
-      cpu: appCpuUsage,
+      cpu: avgCpuUsage,
       memory: {
-        used: appMemoryUsage,
+        used: usedSystemMem,
         total: totalSystemMem,
       },
+      gpu: -1, // Placeholder for GPU
     });
   }, 2000); // Send stats every 2 seconds
 

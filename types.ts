@@ -183,4 +183,5 @@ export interface SystemStats {
     used: number;
     total: number;
   };
+  gpu?: number;
 }
