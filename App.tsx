@@ -882,6 +882,23 @@ ${originalContent}
             );
     }
   };
+  
+  const connectionStatus: 'connected' | 'connecting' | 'error' = isLoadingModels
+      ? 'connecting'
+      : error
+      ? 'error'
+      : 'connected';
+
+  const statusText =
+      connectionStatus === 'connecting'
+      ? 'Connecting to LLM provider...'
+      : connectionStatus === 'error'
+      ? `Connection Error: ${error}`
+      : `Connected to ${config?.provider}. ${models.length} model(s) available.`;
+
+  const activeProjectName = activeProjectId
+      ? config?.projects?.find(p => p.id === activeProjectId)?.name || null
+      : null;
 
   return (
     <div className="flex flex-col h-screen font-sans bg-[--bg-primary]">
@@ -963,7 +980,16 @@ ${originalContent}
               {renderContent()}
           </div>
         </main>
-        {isElectron && <StatusBar stats={systemStats} />}
+        {isElectron && config && (
+            <StatusBar
+                stats={systemStats}
+                connectionStatus={connectionStatus}
+                statusText={statusText}
+                provider={config.provider}
+                activeModel={activeSession?.modelId || null}
+                activeProject={activeProjectName}
+            />
+        )}
       </div>
       {isLogPanelVisible && <LoggingPanel onClose={() => setIsLogPanelVisible(false)} />}
     </div>
