@@ -91,7 +91,7 @@ const FileModificationView: React.FC<FileModificationViewProps> = ({ filePath, n
   };
 
   return (
-    <div className="w-full bg-[--bg-primary] border border-[--border-primary] rounded-xl shadow-sm">
+    <div className="w-full bg-[--bg-primary] border border-[--border-primary] rounded-[--border-radius] shadow-sm">
       <header className="p-3 border-b border-[--border-primary] flex justify-between items-center">
         <div>
             <h3 className="font-semibold text-[--text-primary]">AI-Suggested Changes</h3>

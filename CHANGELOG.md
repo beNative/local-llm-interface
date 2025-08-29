@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0] - 2024-06-30
+
+### Changed
+- **UI/UX Overhaul**: Performed a comprehensive visual polish across the entire application. All views, components, and controls have been refined for a cleaner, more modern, and more intuitive user experience. This includes improved component styling, consistent spacing and shadows, and more responsive visual feedback on interactions.
+- **Code Refinement**: Conducted a general cleanup across the codebase to improve readability and ensure best practices are followed.
+- **Documentation Sync**: Updated the functional manual, README, and changelog to accurately reflect the polished interface and its features.
+
 ## [1.7.0] - 2024-06-22
 
 ### Improved

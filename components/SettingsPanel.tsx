@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { Config, LLMProvider, Theme, ThemeOverrides, PredefinedPrompt, ColorOverrides, SystemPrompt, ToolchainStatus, Toolchain } from '../types';
 import { PROVIDER_CONFIGS } from '../constants';
@@ -350,7 +348,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
           case 'general':
               return (
                 <div className="space-y-8">
-                  <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
+                  <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
                     <h3 className="text-xl font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">Connection</h3>
                     <div className="space-y-4">
                         <div>
@@ -369,7 +367,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                     </div>
                   </div>
                   {isElectron && (
-                     <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
+                     <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
                         <h3 className="text-xl font-semibold text-[--text-secondary] mb-4">Logging</h3>
                         <label className="flex items-center gap-3 cursor-pointer mt-2">
                             <input type="checkbox" checked={!!localConfig.logToFile} onChange={handleLogToFileChange} className="w-4 h-4 rounded text-indigo-600 bg-[--bg-tertiary] border-[--border-secondary] focus:ring-indigo-500" />
@@ -382,7 +380,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
               );
           case 'personalization':
               return (
-                 <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
+                 <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
                     <div className="flex justify-between items-center mb-4 border-b border-[--border-primary] pb-3">
                         <h3 className="text-xl font-semibold text-[--text-secondary]">Appearance</h3>
                         <button onClick={handleResetThemeOverrides} className="px-3 py-1 text-xs font-medium text-red-600 bg-red-100 dark:bg-red-900/50 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-800">
@@ -434,7 +432,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
           case 'content':
               return (
                  <div className="space-y-8">
-                    <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
+                    <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
                         <h3 className="text-xl font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">Predefined Prompts</h3>
                         <div className="space-y-4">
                             {(localConfig.predefinedPrompts || []).length > 0 ? (
@@ -453,7 +451,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                             <NewPromptForm onAdd={handleAddPrompt} heading="Add New Prompt" titlePlaceholder="e.g., Refactor Python Code" contentPlaceholder="e.g., Please refactor the following Python code to be more idiomatic and efficient." idPrefix="predefined-prompt" buttonText="Add Prompt" />
                         </div>
                     </div>
-                    <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
+                    <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
                         <h3 className="flex items-center gap-2 text-xl font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3"><IdentityIcon className="w-5 h-5" /> System Prompts (Personas)</h3>
                         <div className="space-y-4">
                             {(localConfig.systemPrompts || []).length > 0 ? (
@@ -476,7 +474,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
               );
           case 'advanced':
               return (
-                  <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
+                  <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
                       <h3 className="text-xl font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">Toolchains</h3>
                       <div className="space-y-6">
                         <p className="text-sm text-[--text-muted] -mt-2">Configure the specific compilers and interpreters to use for creating and running projects.</p>

@@ -11,16 +11,16 @@ The application window is composed of a header, a main content area, a status ba
 The header is always visible and contains the primary navigation and control elements:
 
 - **App Name**: Displays "Local LLM Interface".
-- **Navigation Tabs**: Switch between the main application views: "Chat", "Projects", "API Client", "Settings", and "Info".
+- **Navigation Bar**: A sleek, pill-shaped bar to switch between the main application views: "Chat", "Projects", "API Client", "Settings", and "Info". The active view is highlighted with a color accent.
 - **Command Palette Shortcut**: A `Cmd/Ctrl + K` hint is displayed. Pressing this key combination opens the command palette for quick navigation.
 - **Logs Button**: (File icon) Toggles the visibility of the logging panel at the bottom of the screen.
 - **Theme Switcher**: (Sun/Moon icon) Toggles between light and dark mode instantly.
 
 ### Status Bar (Desktop App Only)
 
-At the very bottom of the window, the status bar provides real-time feedback on the application's performance:
-- **RAM Usage**: Shows how much memory the application is currently using compared to the system's total memory.
-- **CPU Usage**: Shows the application's current CPU consumption.
+At the very bottom of the window, the status bar provides real-time feedback on the application's health and context:
+- **Left Side (Context)**: Shows the current LLM provider (e.g., Ollama), connection status, active model, and active project context.
+- **Right Side (Performance)**: Displays real-time, system-wide CPU and Memory usage.
 
 ## 2. Command Palette
 
@@ -33,26 +33,22 @@ Just start typing to filter the list and press `Enter` to execute the selected c
 
 ## 3. Settings Panel
 
-The "Settings" tab allows you to configure every aspect of the application.
+The "Settings" tab allows you to configure every aspect of the application. The view is organized with a clean navigation sidebar on the left and content cards on the right.
 
-### Connection
-- **LLM Provider**: A dropdown to quickly select a pre-configured profile (Ollama, LMStudio, Custom).
-- **Base URL**: The full URL for the API endpoint.
+### General
+- **Connection**: A dropdown to quickly select a pre-configured profile (Ollama, LMStudio, Custom) and edit the Base URL.
+- **Logging**: Enable or disable saving logs to a file.
 
-### Predefined Prompts
-- Create and manage a list of frequently used prompts that you can quickly insert into the chat input.
-
-### System Prompts (Personas)
-- Create and manage different "personas" for the AI. A persona is a detailed system prompt that instructs the AI on how to behave (e.g., "You are a senior DevOps engineer with 20 years of experience..."). You can switch between these personas in the Chat view.
-
-### Appearance
-- **Theme Tabs**: Configure colors separately for Light and Dark themes.
-- **Color Customization**: Use a color picker to change the default colors for the chat background, user messages, and assistant messages.
+### Personalization
+- **Appearance**: Configure colors separately for Light and Dark themes. Use a palette of predefined colors or input custom hex codes for the chat background, user messages, and assistant messages. Preview your changes in real-time.
 - **Font Settings**: Change the global font family (Sans-serif, Serif, Monospace) and font size for the chat interface.
+
+### Content
+- **Predefined Prompts**: Create and manage a list of frequently used prompts that you can quickly insert into the chat input.
+- **System Prompts (Personas)**: Create and manage different "personas" for the AI. A persona is a detailed system prompt that instructs the AI on how to behave (e.g., "You are a senior DevOps engineer with 20 years of experience..."). You can switch between these personas in the Chat view.
 
 ### Advanced (Desktop App Only)
 - **Toolchains**: The app automatically detects installed development tools. You can select a specific Python interpreter, Java Development Kit (JDK), Node.js executable, or Delphi compiler to be used for creating and running projects. If none is selected, the system's default (from the PATH) will be used.
-- **Logging**: Enable the "Automatically save logs to file" option to keep a persistent record of application activity for debugging.
 
 ## 4. Projects View
 
@@ -68,9 +64,9 @@ The "Projects" tab is a powerful feature for managing local code projects and in
 ### Managing Projects
 - **Base Directory**: For each project type, you must first choose a "base directory" where all your projects of that type will be stored.
 - **Creating Projects**: Once a base directory is set, you can create new projects. The application will create the necessary folder and boilerplate files.
-- **Project Actions**: Each project appears as a card with several actions:
+- **Project Cards**: Each project appears as a polished card with several actions:
+  - **Run Project**: The primary action button, which runs the project using its standard entry mechanism.
   - **Install Deps**: Installs dependencies from `requirements.txt`, `package.json`, or `pom.xml`.
-  - **Run Project**: Runs the project using its standard entry mechanism.
   - **Open Folder**: Opens the project's folder in your system's file explorer.
   - **Delete**: Permanently deletes the project folder and all its contents.
 
@@ -85,16 +81,16 @@ The "Projects" tab is a powerful feature for managing local code projects and in
 The "API Client" is a new view designed for testing and interacting with HTTP APIs.
 - **Natural Language Prompt**: Describe the request you want to make (e.g., "get all users from the jsonplaceholder api").
 - **Generate Request**: The application uses the selected LLM to automatically generate the full HTTP request, including the correct method, URL, headers, and body.
-- **Edit Request**: You can manually edit any part of the generated request before sending it.
+- **Edit Request**: You can manually edit any part of the generated request before sending it. The UI is cleanly organized into Request and Response panels.
 - **Send & View Response**: Send the request and view the detailed response, including status code, headers, and a syntax-highlighted body.
 
 ## 6. Model Selection
 
 When you start the app or create a new chat, you are presented with the Model Selection screen. This screen lists all models available from your configured LLM service.
 
-- **Model Cards**: Each model is displayed on a card with available details like its family, parameter size, and quantization level.
+- **Model Cards**: Each model is displayed on a polished card with available details like its family, parameter size, and quantization level.
 - **Detailed Info (Ollama)**: For Ollama models, an **Info icon** is available on the card. Clicking this icon opens a modal displaying advanced technical details, including its context window size (`num_ctx`) and the full content of its `Modelfile`.
-- **Start Chat**: Click on any model card to start a new chat session with it.
+- **Start Chat**: Click the "Chat with this model" button on any model card to start a new chat session.
 
 ## 7. Chat View
 

@@ -137,19 +137,21 @@ const ProjectCard: React.FC<{
             : 'Download dependencies using Maven';
 
     return (
-        <div className="bg-[--bg-primary] rounded-xl border border-[--border-primary] flex flex-col transition-shadow hover:shadow-md">
+        <div className="bg-[--bg-primary] rounded-[--border-radius] border border-[--border-primary] flex flex-col transition-shadow hover:shadow-md">
             <div className="p-4">
                 <div 
-                    className="flex items-center gap-3 mb-2 cursor-pointer"
+                    className="flex items-start gap-3 mb-2 cursor-pointer"
                     onClick={onToggleExpand}
                 >
-                    <CodeIcon className={`w-6 h-6 ${typeColor}`} />
-                    <h4 className="text-lg font-semibold text-[--text-primary] truncate">{project.name}</h4>
-                    <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-[--bg-tertiary] text-[--text-secondary]">
+                    <CodeIcon className={`w-6 h-6 ${typeColor} flex-shrink-0 mt-0.5`} />
+                    <div className="flex-grow min-w-0">
+                      <h4 className="text-lg font-semibold text-[--text-primary] truncate">{project.name}</h4>
+                      <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-[--bg-tertiary] text-[--text-secondary]">
                         {project.type}
-                    </span>
+                      </span>
+                    </div>
                 </div>
-                <p className="text-xs text-[--text-muted] font-mono break-all">{project.path}</p>
+                <p className="text-xs text-[--text-muted] font-mono break-all mt-2">{project.path}</p>
             
                 <div className="grid grid-cols-2 gap-2 mt-4">
                     <button onClick={onRun} disabled={isBusy} className="col-span-2 text-sm px-3 py-2 rounded-lg bg-[--accent-projects] text-white hover:brightness-95 disabled:opacity-60 disabled:cursor-wait flex items-center justify-center gap-2 font-semibold" title={runTitle}>
@@ -358,7 +360,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
         const projects = config.projects?.filter(p => p.type === type) || [];
         
         return (
-             <div className="bg-[--bg-primary] p-6 rounded-xl border border-[--border-primary] shadow-sm">
+             <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
                 <h3 className="text-lg font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">{title}</h3>
                 <div className="space-y-4">
                     <div>

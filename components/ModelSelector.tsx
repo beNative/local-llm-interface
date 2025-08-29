@@ -85,7 +85,7 @@ const ModelCard: React.FC<{ model: Model; onSelect: () => void; onShowDetails: (
   return (
     <div
       onClick={onSelect}
-      className="flex flex-col justify-between p-4 bg-[--bg-primary] border border-[--border-primary] rounded-xl cursor-pointer hover:bg-[--bg-hover] hover:border-[--accent-chat] transition-all duration-200 shadow-sm hover:shadow-lg"
+      className="flex flex-col justify-between p-4 bg-[--bg-primary] border border-[--border-primary] rounded-[--border-radius] cursor-pointer hover:bg-[--bg-hover] hover:border-[--accent-chat] transition-all duration-200 shadow-sm hover:shadow-lg"
     >
       <div>
         <div className="flex items-center justify-between gap-3 mb-3">

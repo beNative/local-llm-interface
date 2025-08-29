@@ -232,7 +232,7 @@ Description: "${prompt}"`;
         <div className="flex-grow grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-0">
             {/* Prompt Panel */}
             <div className="lg:col-span-4 xl:col-span-3 flex flex-col gap-4 min-h-0">
-                <div className="flex flex-col gap-4 bg-[--bg-primary] p-4 rounded-xl border border-[--border-primary] shadow-sm">
+                <div className="flex flex-col gap-4 bg-[--bg-primary] p-4 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
                     <label htmlFor="api-prompt" className="block text-md font-semibold text-[--text-secondary]">1. Describe Request</label>
                     <textarea
                         id="api-prompt"
@@ -262,7 +262,7 @@ Description: "${prompt}"`;
                     </button>
                 </div>
 
-                <div className="flex-grow flex flex-col gap-2 bg-[--bg-primary] p-4 rounded-xl border border-[--border-primary] shadow-sm min-h-0">
+                <div className="flex-grow flex flex-col gap-2 bg-[--bg-primary] p-4 rounded-[--border-radius] border border-[--border-primary] shadow-sm min-h-0">
                     <h4 className="text-sm font-semibold text-[--text-muted] flex items-center gap-2"><LightbulbIcon className="w-4 h-4" /> Examples & History</h4>
                     <div className="flex-grow overflow-y-auto space-y-3 text-xs">
                         {examplePrompts.map((p, i) => (
@@ -288,7 +288,7 @@ Description: "${prompt}"`;
             </div>
 
             {/* Request Panel */}
-            <div className="lg:col-span-8 xl:col-span-4 bg-[--bg-primary] p-4 rounded-xl border border-[--border-primary] shadow-sm flex flex-col min-h-0">
+            <div className="lg:col-span-8 xl:col-span-4 bg-[--bg-primary] p-4 rounded-[--border-radius] border border-[--border-primary] shadow-sm flex flex-col min-h-0">
                 <h3 className="text-md font-semibold text-[--text-secondary] mb-3 flex-shrink-0">2. Edit & Send Request</h3>
                 {isLoading && !apiRequest && <EmptyState icon={<SpinnerIcon className="w-6 h-6"/>} title="Generating Request">{loadingMessage}</EmptyState>}
                 {!isLoading && !apiRequest && <EmptyState icon={<ServerIcon className="w-6 h-6"/>} title="Request Panel">Your generated request will appear here. Start by describing it on the left.</EmptyState>}
@@ -336,7 +336,7 @@ Description: "${prompt}"`;
             </div>
 
             {/* Response Panel */}
-            <div className="lg:col-span-12 xl:col-span-5 bg-[--bg-primary] p-4 rounded-xl border border-[--border-primary] shadow-sm flex flex-col min-h-0">
+            <div className="lg:col-span-12 xl:col-span-5 bg-[--bg-primary] p-4 rounded-[--border-radius] border border-[--border-primary] shadow-sm flex flex-col min-h-0">
                  <h3 className="text-md font-semibold text-[--text-secondary] mb-3 flex-shrink-0">3. View Response</h3>
                  {isLoading && apiRequest && <EmptyState icon={<SpinnerIcon className="w-6 h-6"/>} title="Sending Request">{loadingMessage}</EmptyState>}
                  {!isLoading && !apiResponse && <EmptyState icon={<FileTextIcon className="w-6 h-6"/>} title="Response Panel">The server's response will appear here after you send a request.</EmptyState>}

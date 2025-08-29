@@ -415,53 +415,38 @@ const CodeBlock = React.memo(({ node, inline, className, children, theme, isElec
       <div className="flex items-center justify-between px-4 py-1.5 bg-black/5 dark:bg-white/5 rounded-t-lg text-xs">
         <span className="font-sans text-[--text-muted]">{lang || 'code'}</span>
         <div className="flex items-center gap-2">
-            {(canRunCode || canSave) && (
-              <div className="flex items-center divide-x divide-gray-300 dark:divide-gray-600">
-                <div className="flex items-center gap-2 pr-2">
-                    {isElectron && (isPython || isNode) && (
-                       <div className="flex items-center gap-1.5 text-xs px-2 py-1 text-[--text-muted] bg-[--bg-tertiary]/80 border border-[--border-secondary]/50 rounded-md" title={`Execution context: ${executionContextName}`}>
-                           <TerminalIcon className="w-3 h-3" />
-                           <span>{executionContextName}</span>
-                       </div>
-                    )}
-                    {canRunCode && (
-                        <button
-                            onClick={handleRun}
-                            disabled={runState.isLoading}
-                            className="flex items-center gap-1.5 text-[--text-muted] hover:text-[--text-primary] px-2 py-1 rounded disabled:cursor-not-allowed disabled:opacity-50"
-                            title={isWebApp ? "Open HTML in a new browser window" : `Run code in ${executionContextName} context`}
-                        >
-                            <RunIcon className="w-3 h-3"/>
-                            {runButtonText}
-                        </button>
-                    )}
+          <button 
+            onClick={handleCopy}
+            className="text-[--text-muted] hover:text-[--text-primary] px-2 py-1 rounded"
+            title="Copy code to clipboard"
+          >
+            {isCopied ? 'Copied!' : 'Copy code'}
+          </button>
+          {canSave && (
+            <button onClick={() => onSaveRequest(codeText, lang)} className="flex items-center gap-1.5 text-[--text-muted] hover:text-[--text-primary] px-2 py-1 rounded" title="Save to Project">
+              <FilePlusIcon className="w-3.5 h-3.5" />
+              Save
+            </button>
+          )}
+          {canRunCode && (
+            <div className="flex items-center gap-2 pl-2 border-l border-gray-300 dark:border-gray-600">
+              {isElectron && (isPython || isNode) && (
+                <div className="flex items-center gap-1.5 text-xs px-2 py-1 text-[--text-muted] bg-[--bg-tertiary]/80 border border-[--border-secondary]/50 rounded-md" title={`Execution context: ${executionContextName}`}>
+                    <TerminalIcon className="w-3 h-3" />
+                    <span>{executionContextName}</span>
                 </div>
-                <div className="pl-2 flex items-center gap-2">
-                    {canSave && (
-                         <button onClick={() => onSaveRequest(codeText, lang)} className="flex items-center gap-1.5 text-[--text-muted] hover:text-[--text-primary] px-2 py-1 rounded" title="Save to Project">
-                            <FilePlusIcon className="w-3.5 h-3.5" />
-                            Save
-                        </button>
-                    )}
-                    <button 
-                      onClick={handleCopy}
-                      className="text-[--text-muted] hover:text-[--text-primary] px-2 py-1 rounded"
-                      title="Copy code to clipboard"
-                    >
-                      {isCopied ? 'Copied!' : 'Copy code'}
-                    </button>
-                </div>
-              </div>
-            )}
-            {!(canRunCode || canSave) && (
-                <button 
-                  onClick={handleCopy}
-                  className="text-[--text-muted] hover:text-[--text-primary] px-2 py-1 rounded"
-                  title="Copy code to clipboard"
-                >
-                  {isCopied ? 'Copied!' : 'Copy code'}
-                </button>
-            )}
+              )}
+              <button
+                  onClick={handleRun}
+                  disabled={runState.isLoading}
+                  className="flex items-center gap-1.5 text-[--text-muted] hover:text-[--text-primary] px-2 py-1 rounded disabled:cursor-not-allowed disabled:opacity-50"
+                  title={isWebApp ? "Open HTML in a new browser window" : `Run code in ${executionContextName} context`}
+              >
+                  <RunIcon className="w-3 h-3"/>
+                  {runButtonText}
+              </button>
+            </div>
+          )}
         </div>
       </div>
       <SyntaxHighlighter
@@ -1168,43 +1153,45 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
             disabled={isResponding}
             className="w-full pl-24 pr-14 py-3 bg-[--bg-tertiary] text-[--text-primary] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[--border-focus] disabled:cursor-not-allowed max-h-48 overflow-y-auto"
           />
-          <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isResponding}
-              className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] hover:text-[--text-primary] disabled:opacity-50"
-              title="Attach image"
-          >
-              <PaperclipIcon className="w-5 h-5" />
-          </button>
-          <div className="absolute left-12 top-1/2 -translate-y-1/2">
-            <button
-                ref={promptsButtonRef}
-                onClick={() => setIsPromptsOpen(prev => !prev)}
-                disabled={isResponding || predefinedPrompts.length === 0}
-                className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] hover:text-[--text-primary] disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Use a predefined prompt"
-            >
-                <BookmarkIcon className="w-5 h-5" />
-            </button>
-            {isPromptsOpen && predefinedPrompts.length > 0 && (
-              <div 
-                ref={promptsPopoverRef}
-                className="absolute bottom-full mb-2 w-72 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto"
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center divide-x divide-[--border-secondary]">
+              <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isResponding}
+                  className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] hover:text-[--text-primary] disabled:opacity-50"
+                  title="Attach image"
               >
-                <div className="p-2 text-xs font-semibold text-[--text-muted] border-b border-[--border-primary]">Select a prompt</div>
-                {predefinedPrompts.map(prompt => (
-                  <button 
-                    key={prompt.id}
-                    onClick={() => handleSelectPrompt(prompt.content)}
-                    className="w-full text-left block px-3 py-2 text-sm text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
-                    title={prompt.content}
+                  <PaperclipIcon className="w-5 h-5" />
+              </button>
+              <div className="pl-2">
+                <button
+                    ref={promptsButtonRef}
+                    onClick={() => setIsPromptsOpen(prev => !prev)}
+                    disabled={isResponding || predefinedPrompts.length === 0}
+                    className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] hover:text-[--text-primary] disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Use a predefined prompt"
+                >
+                    <BookmarkIcon className="w-5 h-5" />
+                </button>
+                {isPromptsOpen && predefinedPrompts.length > 0 && (
+                  <div 
+                    ref={promptsPopoverRef}
+                    className="absolute bottom-full mb-2 w-72 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto"
                   >
-                    <p className="font-semibold truncate">{prompt.title}</p>
-                    <p className="text-xs text-[--text-muted] truncate mt-0.5">{prompt.content}</p>
-                  </button>
-                ))}
+                    <div className="p-2 text-xs font-semibold text-[--text-muted] border-b border-[--border-primary]">Select a prompt</div>
+                    {predefinedPrompts.map(prompt => (
+                      <button 
+                        key={prompt.id}
+                        onClick={() => handleSelectPrompt(prompt.content)}
+                        className="w-full text-left block px-3 py-2 text-sm text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
+                        title={prompt.content}
+                      >
+                        <p className="font-semibold truncate">{prompt.title}</p>
+                        <p className="text-xs text-[--text-muted] truncate mt-0.5">{prompt.content}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
           </div>
           {isResponding ? (
             <button

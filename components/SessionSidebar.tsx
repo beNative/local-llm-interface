@@ -33,14 +33,17 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
             key={session.id}
             className={`group w-full text-left rounded-lg text-sm font-medium transition-colors relative ${
               activeSessionId === session.id
-                ? 'bg-[--accent-chat]/10 dark:bg-[--accent-chat]/20 text-[--accent-chat]'
+                ? 'bg-[--bg-hover]'
                 : 'text-[--text-secondary] hover:bg-[--bg-hover]'
             }`}
           >
+            {activeSessionId === session.id && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 bg-[--accent-chat] rounded-r-full" />
+            )}
             <button onClick={() => onSelectSession(session.id)} className="w-full flex items-start gap-2.5 text-left truncate px-3 py-2">
                 <MessageSquareIcon className="w-4 h-4 flex-shrink-0 mt-1" />
                 <div className="flex-1 truncate pr-14">
-                    <span className="block truncate">{session.name}</span>
+                    <span className={`block truncate ${activeSessionId === session.id ? 'text-[--text-primary]' : ''}`}>{session.name}</span>
                     <span className="block text-xs opacity-70 truncate font-normal">{session.modelId}</span>
                 </div>
             </button>

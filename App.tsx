@@ -37,17 +37,19 @@ const NavButton: React.FC<{
             onClick={onClick}
             title={title}
             aria-label={ariaLabel}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+            className={`relative flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
                 active
-                    ? 'shadow-sm text-white'
+                    ? `text-[--accent-${view}]`
                     : 'text-[--text-muted] hover:bg-[--bg-hover] hover:text-[--text-primary]'
             }`}
-            style={{
-                backgroundColor: active ? accentVar : 'transparent',
-                color: active ? 'var(--text-on-accent)' : '',
-            }}
         >
             {children}
+            {active && (
+                 <span
+                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1/2 h-0.5 rounded-full"
+                    style={{ backgroundColor: accentVar }}
+                />
+            )}
         </button>
     );
 };
@@ -920,7 +922,7 @@ ${originalContent}
       <header className="flex items-center justify-between p-2 border-b border-[--border-primary] bg-[--bg-primary] sticky top-0 z-10 flex-shrink-0">
         <div className="flex items-center gap-4">
             <h1 className="text-xl font-bold px-2 text-[--text-primary]">{APP_NAME}</h1>
-            <nav className="flex items-center gap-1 bg-[--bg-secondary] p-1 rounded-xl">
+            <nav className="flex items-center gap-1">
               <NavButton active={view === 'chat'} onClick={() => setView('chat')} title="Switch to the main chat interface" ariaLabel="Chat View" view="chat">
                 <MessageSquareIcon className="w-5 h-5" />
                 <span>Chat</span>
