@@ -603,11 +603,33 @@ const MemoizedChatMessage = React.memo<{
   );
 });
 
+const ThinkingIndicator: React.FC<{ content: string }> = ({ content }) => {
+  return (
+    <div className="flex items-start gap-4">
+      <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center">
+        <BrainCircuitIcon className="w-5 h-5 text-[--accent-chat] animate-pulse" />
+      </div>
+      <div className="p-4 rounded-2xl rounded-bl-lg shadow-sm w-full bg-[--assistant-message-bg-color] border border-[--border-primary]">
+        <h4 className="font-semibold text-sm text-[--assistant-message-text-color]/80 mb-2 flex items-center gap-2">
+          <SpinnerIcon className="w-4 h-4" />
+          Thinking...
+        </h4>
+        <div className="prose prose-sm max-w-none text-[--assistant-message-text-color]/90 max-h-48 overflow-y-auto">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {content}
+          </ReactMarkdown>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface ChatViewProps {
   session: ChatSession;
   onSendMessage: (content: string | ChatMessageContentPart[], options?: { useRAG: boolean }) => void;
   isResponding: boolean;
   retrievalStatus: 'idle' | 'retrieving';
+  thinkingText: string | null;
   onStopGeneration: () => void;
   onRenameSession: (newName: string) => void;
   theme: Theme;
@@ -627,7 +649,7 @@ interface ChatViewProps {
   onRejectModification: (filePath: string) => void;
 }
 
-const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isResponding, retrievalStatus, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onSetSessionGenerationConfig, onAcceptModification, onRejectModification }) => {
+const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isResponding, retrievalStatus, thinkingText, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onSetSessionGenerationConfig, onAcceptModification, onRejectModification }) => {
   const [input, setInput] = useState('');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [saveModalState, setSaveModalState] = useState<{ code: string; lang: string; activeProjectId: string | null } | null>(null);
@@ -725,7 +747,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, thinkingText]);
   
   useEffect(() => {
     if (predefinedInput) {
@@ -1105,6 +1127,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
                 isResponding={isResponding && index === filteredMessages.length - 1}
             />
         ))}
+        {thinkingText !== null && <ThinkingIndicator content={thinkingText} />}
         <div ref={messagesEndRef} />
       </main>
       <footer className="p-4 bg-[--bg-primary] border-t border-[--border-primary]">

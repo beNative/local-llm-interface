@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, FileSystemEntry, SystemStats, GenerationConfig } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
-import { fetchModels, streamChatCompletion, LLMServiceError, generateTextCompletion } from './services/llmService';
+import { fetchModels, streamChatCompletion, LLMServiceError, generateTextCompletion, StreamChunk } from './services/llmService';
 import { logger } from './services/logger';
 import SettingsPanel from './components/SettingsPanel';
 import ModelSelector from './components/ModelSelector';
@@ -101,6 +101,7 @@ const App: React.FC = () => {
   const [view, setView] = useState<View>('chat');
   const [isResponding, setIsResponding] = useState<boolean>(false);
   const [retrievalStatus, setRetrievalStatus] = useState<'idle' | 'retrieving'>('idle');
+  const [thinkingText, setThinkingText] = useState<string | null>(null);
   const [isElectron, setIsElectron] = useState(false);
   const [isLogPanelVisible, setIsLogPanelVisible] = useState(false);
   const [prefilledInput, setPrefilledInput] = useState('');
@@ -422,6 +423,7 @@ const App: React.FC = () => {
       abortControllerRef.current = null;
       setIsResponding(false);
       setRetrievalStatus('idle');
+      setThinkingText(null);
       logger.info('User requested to stop generation.');
     }
   };
@@ -474,6 +476,7 @@ const App: React.FC = () => {
     
     const controller = new AbortController();
     abortControllerRef.current = controller;
+    setThinkingText(''); // Initialize thinking state
 
     const userMessageContent = Array.isArray(content) ? (content.find(p => p.type === 'text') as { type: 'text', text: string } | undefined)?.text || '' : content;
     const modificationRegex = /(?:refactor|modify|change|update|add to|edit|implement|create|write|delete)\s+(?:in\s+)?(?:the\s+file\s+)?([\w./\\-]+)/i;
@@ -587,20 +590,27 @@ ${originalContent}
       activeSession.modelId,
       messagesForApi,
       controller.signal,
-      (chunk) => {
-        setConfig(c => {
-            if (!c) return c;
-            const targetSession = c.sessions?.find(s => s.id === activeSessionId);
-            if (!targetSession) return c;
-            const lastMsg = targetSession.messages[targetSession.messages.length - 1];
-            if (lastMsg && lastMsg.role === 'assistant') {
-                const updatedMsg: ChatMessage = { ...lastMsg, content: (lastMsg.content as string) + chunk };
-                const updatedMessages: ChatMessage[] = [...targetSession.messages.slice(0, -1), updatedMsg];
-                const updatedS: ChatSession = { ...targetSession, messages: updatedMessages };
-                return { ...c, sessions: c.sessions!.map(s => s.id === activeSessionId ? updatedS : s) };
+      (chunk: StreamChunk) => {
+        if (chunk.type === 'reasoning') {
+            setThinkingText(prev => (prev ?? '') + chunk.text);
+        } else if (chunk.type === 'content') {
+            if (thinkingText !== null) {
+                setThinkingText(null); // Clear thinking state as soon as content arrives
             }
-            return c;
-        });
+            setConfig(c => {
+                if (!c) return c;
+                const targetSession = c.sessions?.find(s => s.id === activeSessionId);
+                if (!targetSession) return c;
+                const lastMsg = targetSession.messages[targetSession.messages.length - 1];
+                if (lastMsg && lastMsg.role === 'assistant') {
+                    const updatedMsg: ChatMessage = { ...lastMsg, content: (lastMsg.content as string) + chunk.text };
+                    const updatedMessages: ChatMessage[] = [...targetSession.messages.slice(0, -1), updatedMsg];
+                    const updatedS: ChatSession = { ...targetSession, messages: updatedMessages };
+                    return { ...c, sessions: c.sessions!.map(s => s.id === activeSessionId ? updatedS : s) };
+                }
+                return c;
+            });
+        }
       },
       (err) => {
         const errorMsgContent = `Sorry, an error occurred: ${err.message}`;
@@ -615,11 +625,13 @@ ${originalContent}
         });
         setIsResponding(false);
         setRetrievalStatus('idle');
+        setThinkingText(null);
         abortControllerRef.current = null;
       },
       (metadata: ChatMessageMetadata) => {
         setIsResponding(false);
         setRetrievalStatus('idle');
+        setThinkingText(null);
         abortControllerRef.current = null;
         logger.info('Message stream completed.');
         
@@ -654,7 +666,7 @@ ${originalContent}
       },
       activeSession.generationConfig
     );
-  }, [config, activeSession, activeSessionId, activeProjectId, generateSessionName]);
+  }, [config, activeSession, activeSessionId, activeProjectId, generateSessionName, thinkingText]);
 
   const handleAcceptModification = async (filePath: string, newContent: string) => {
     if (!window.electronAPI) return;
@@ -833,6 +845,7 @@ ${originalContent}
                         onSendMessage={handleSendMessage}
                         isResponding={isResponding || retrievalStatus === 'retrieving'}
                         retrievalStatus={retrievalStatus}
+                        thinkingText={thinkingText}
                         onStopGeneration={handleStopGeneration}
                         onRenameSession={(newName) => handleRenameSession(activeSession.id, newName)}
                         theme={config.theme || 'dark'}

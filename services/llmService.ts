@@ -8,6 +8,10 @@ export class LLMServiceError extends Error {
   }
 }
 
+export type StreamChunk = 
+  { type: 'content'; text: string } | 
+  { type: 'reasoning'; text: string };
+
 export const fetchModels = async (baseUrl: string): Promise<Model[]> => {
   try {
     logger.info(`Fetching models from ${baseUrl}/models`);
@@ -155,7 +159,7 @@ export const streamChatCompletion = async (
   modelId: string,
   messages: ChatMessage[],
   signal: AbortSignal,
-  onChunk: (text: string) => void,
+  onChunk: (chunk: StreamChunk) => void,
   onError: (error: Error) => void,
   onDone: (metadata: ChatMessageMetadata) => void,
   generationConfig?: GenerationConfig
@@ -235,10 +239,15 @@ export const streamChatCompletion = async (
             }
             try {
               const json = JSON.parse(data);
-              const content = json.choices?.[0]?.delta?.content || '';
-              if (content) {
-                onChunk(content);
+              const delta = json.choices?.[0]?.delta;
+              
+              if (delta?.content) {
+                onChunk({ type: 'content', text: delta.content });
               }
+              if (delta?.reasoning_content) {
+                onChunk({ type: 'reasoning', text: delta.reasoning_content });
+              }
+
               // Capture usage stats, which can arrive in different formats
               if (json.usage) { // Standard OpenAI format
                   usage = json.usage;
