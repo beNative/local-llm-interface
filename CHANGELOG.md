@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.0] - 2024-06-22
+
+### Improved
+- **Chat**: Code blocks now feature automatic language detection, ensuring more reliable syntax highlighting and enabling contextual actions (like "Run" or "Save") even when the language is not specified in the markdown.
+
+### Fixed
+- **API Client**: Fixed critical JSON parsing errors that occurred when the LLM returned request headers as an object instead of an array, or when the request body contained unescaped characters. The client is now significantly more robust against variations in model output.
+
 ## [1.6.0] - 2024-06-15
 
 ### Added

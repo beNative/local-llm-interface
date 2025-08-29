@@ -68,6 +68,12 @@ To provide users with more insight into the models they are using, a new functio
 ### Chat Performance Optimization
 The chat view faced a performance degradation issue in long conversations, where input latency increased significantly. This was caused by the re-rendering of the entire message list on every keystroke in the input box. The issue was resolved by memoizing the individual chat message component (`MemoizedChatMessage` using `React.memo`). This ensures that only the message components whose props have changed (e.g., the last message being streamed) are re-rendered, while the rest of the conversation history is not, leading to a consistently smooth user experience regardless of conversation length.
 
+### Code Block Intelligence
+The `ChatView` component implements a heuristic-based language detection function (`detectLang`) to identify the programming language within markdown code blocks when one is not specified. This allows for robust syntax highlighting via `react-syntax-highlighter` and dynamically enables language-specific actions (e.g., running Python code, saving to a Node.js project).
+
+### API Client Robustness
+The `ApiView` component's request generation logic has been hardened to handle variations in the LLM's JSON output. It now flexibly parses HTTP headers (accepting both arrays of objects and plain objects) and safely stringifies the request body, preventing crashes from malformed or improperly escaped model responses.
+
 ### Services Deep Dive
 
 - **`llmService.ts`**: Handles all communication with the LLM server.

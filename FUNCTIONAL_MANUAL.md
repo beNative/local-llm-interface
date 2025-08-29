@@ -134,3 +134,4 @@ These settings are saved with the session.
 - **Multimodal Chat**: Use the **paperclip icon** to attach an image.
 - **Predefined Prompts**: Use the **bookmark icon** to quickly insert one of your saved prompts.
 - **Stop Generation**: While the model is responding, a red "Stop" button appears, allowing you to interrupt it.
+- **Intelligent Code Blocks**: Code blocks in responses are automatically syntax-highlighted. The application intelligently detects the programming language (e.g., Python, JavaScript, Java) even if not specified by the model, enabling relevant actions like "Run", "Save", and "Ask AI to Fix".
