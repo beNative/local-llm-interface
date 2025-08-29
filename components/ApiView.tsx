@@ -77,7 +77,7 @@ const ApiView: React.FC<ApiViewProps> = ({ isElectron, theme, config, models, on
 {
   "method": "string (one of GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS)",
   "url": "string (a full, valid URL)",
-  "headers": [{"key": "string", "value": "string"}],
+  "headers": { "Content-Type": "application/json" },
   "body": "object | string (For JSON content-types, provide a valid JSON object. For other content-types, provide a string. For GET requests, this should be null.)"
 }
 Only output the raw JSON object. Do not include any other text, explanations, or markdown code fences. Just the JSON.`;
@@ -98,15 +98,23 @@ Description: "${prompt}"`;
 
             const jsonResponse = JSON.parse(jsonText);
             
-            const headersObject = (jsonResponse.headers || []).reduce((acc: Record<string, string>, h: {key: string, value: string}) => {
-                if (h.key) acc[h.key] = h.value;
-                return acc;
-            }, {});
+            // The model might return an array of {key, value} or an object. Be robust.
+            let headersObject: Record<string, string> = {};
+            if (Array.isArray(jsonResponse.headers)) {
+                // Handles [{"key": "Content-Type", "value": "application/json"}]
+                headersObject = jsonResponse.headers.reduce((acc: Record<string, string>, h: {key: string, value: string}) => {
+                    if (h.key) acc[h.key] = h.value;
+                    return acc;
+                }, {});
+            } else if (typeof jsonResponse.headers === 'object' && jsonResponse.headers !== null) {
+                // Handles {"Content-Type": "application/json"}
+                headersObject = jsonResponse.headers;
+            }
 
             let bodyString: string | null = null;
             if (jsonResponse.body !== undefined && jsonResponse.body !== null) {
                 if (typeof jsonResponse.body === 'object') {
-                    bodyString = JSON.stringify(jsonResponse.body);
+                    bodyString = JSON.stringify(jsonResponse.body, null, 2);
                 } else {
                     bodyString = String(jsonResponse.body);
                 }
