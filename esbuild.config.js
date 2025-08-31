@@ -65,6 +65,7 @@ async function build() {
     define: {
       'process.env.NODE_ENV': isProduction ? '"production"' : '"development"',
     },
+    external: ['lucide-react', '@heroicons/react/*'],
   });
 
   console.log('Build successful!');
