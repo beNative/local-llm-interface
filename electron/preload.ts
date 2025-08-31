@@ -2,7 +2,9 @@
 
 
 
-const { contextBridge, ipcRenderer } = require('electron');
+
+// FIX: Convert CommonJS require to ES module import.
+import { contextBridge, ipcRenderer } from 'electron';
 import type { CodeProject } from '../src/types';
 
 /**

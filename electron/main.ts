@@ -2,7 +2,8 @@
 
 
 
-const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
+
+import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import { readdir, stat, readFile, writeFile, mkdir, copyFile } from 'fs/promises';
@@ -11,9 +12,13 @@ import { spawn } from 'child_process';
 import * as crypto from 'crypto';
 import { request as httpRequest } from 'http';
 import { request as httpsRequest } from 'https';
+import { fileURLToPath } from 'url';
 import type { IncomingHttpHeaders } from 'http';
 import type { ApiRequest, ApiResponse, CodeProject, ProjectType, Toolchain, ToolchainStatus } from '../src/types';
 
+// FIX: Define __dirname for ES module scope.
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // The path where user settings will be stored.
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
