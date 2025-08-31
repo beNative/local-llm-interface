@@ -416,9 +416,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                           <div>
                                 <label htmlFor="font-family" className="block text-sm font-medium text-[--text-muted] mb-1">Font Family</label>
                                 <select id="font-family" value={themeOverrides.fontFamily || 'sans-serif'} onChange={e => handleFontOverrideChange('fontFamily', e.target.value)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]">
-                                    <option value="sans-serif">Sans-serif</option>
-                                    <option value="serif">Serif</option>
-                                    <option value="monospace">Monospace</option>
+                                    <option value="sans-serif" style={{ fontFamily: 'sans-serif' }}>System Default</option>
+                                    <option value="serif" style={{ fontFamily: 'serif' }}>Serif</option>
+                                    <option value="monospace" style={{ fontFamily: 'monospace' }}>Monospace</option>
+                                    <option value="Verdana, Geneva, Tahoma, sans-serif" style={{ fontFamily: 'Verdana, Geneva, Tahoma, sans-serif' }}>Verdana</option>
+                                    <option value="Georgia, Cambria, 'Times New Roman', Times, serif" style={{ fontFamily: "Georgia, Cambria, 'Times New Roman', Times, serif" }}>Georgia</option>
                                 </select>
                           </div>
                           <div>

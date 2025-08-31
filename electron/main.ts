@@ -1,13 +1,14 @@
 
-const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
-const path = require('path');
-const fs = require('fs');
-const { readdir, stat, readFile, writeFile, mkdir, copyFile } = require('fs/promises');
-const os = require('os');
-const { spawn } = require('child_process');
-const crypto = require('crypto');
-const { request: httpRequest } = require('http');
-const { request: httpsRequest } = require('https');
+// FIX: Use ES6 imports instead of require for better TypeScript integration.
+import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
+import * as path from 'path';
+import * as fs from 'fs';
+import { readdir, stat, readFile, writeFile, mkdir, copyFile } from 'fs/promises';
+import * as os from 'os';
+import { spawn } from 'child_process';
+import * as crypto from 'crypto';
+import { request as httpRequest } from 'http';
+import { request as httpsRequest } from 'https';
 import type { IncomingHttpHeaders } from 'http';
 import type { ApiRequest, ApiResponse, CodeProject, ProjectType, Toolchain, ToolchainStatus } from '../src/types';
 
@@ -234,13 +235,23 @@ let previousCpuTimes = os.cpus().map(cpu => {
 });
 
 const createWindow = () => {
+  // FIX: Replace __dirname with a method that works in both dev and packaged apps
+  // to avoid TS errors when node types are not available.
+  const preloadScriptPath = app.isPackaged
+    ? path.join(app.getAppPath(), 'preload.js')
+    : path.join(app.getAppPath(), 'dist', 'preload.js');
+    
+  const indexPath = app.isPackaged
+    ? path.join(app.getAppPath(), 'index.html')
+    : path.join(app.getAppPath(), 'dist', 'index.html');
+    
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
       // Attach the preload script.
-      preload: path.join(__dirname, 'preload.js'),
+      preload: preloadScriptPath,
       // Security best practices
       contextIsolation: true,
       nodeIntegration: false,
@@ -291,7 +302,6 @@ const createWindow = () => {
   }, 2000); // Send stats every 2 seconds
 
   // Load the app's index.html file.
-  const indexPath = path.join(__dirname, 'index.html');
   mainWindow.loadFile(indexPath);
 
   // Open external links in the user's default browser instead of a new Electron window.

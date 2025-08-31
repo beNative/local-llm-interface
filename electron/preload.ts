@@ -1,5 +1,7 @@
 
-const { contextBridge, ipcRenderer } = require('electron');
+
+// FIX: Use import instead of require for ES module compatibility and proper typing.
+import { contextBridge, ipcRenderer } from 'electron';
 import type { CodeProject } from '../src/types';
 
 /**

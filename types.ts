@@ -40,7 +40,7 @@ export interface ColorOverrides {
 export interface ThemeOverrides {
   light?: ColorOverrides;
   dark?: ColorOverrides;
-  fontFamily?: 'sans-serif' | 'serif' | 'monospace';
+  fontFamily?: string;
   fontSize?: number;
 }
 
