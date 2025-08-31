@@ -2,12 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import type { FileSystemEntry } from '../types';
-import SpinnerIcon from './icons/SpinnerIcon';
-import FolderIcon from './icons/FolderIcon';
-import FileIcon from './icons/FileIcon';
-import ChevronRightIcon from './icons/ChevronRightIcon';
-import ChevronDownIcon from './icons/ChevronDownIcon';
 import { logger } from '../services/logger';
+import Icon from './Icon';
 
 interface FileTreeItemProps {
   entry: FileSystemEntry;
@@ -115,8 +111,8 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({ entry, onFileClick, level }
     }
   };
 
-  const Icon = entry.isDirectory ? FolderIcon : FileIcon;
-  const ExpanderIcon = isExpanded ? ChevronDownIcon : ChevronRightIcon;
+  const MainIcon = entry.isDirectory ? 'folder' : 'file';
+  const ExpanderIconName = isExpanded ? 'chevronDown' : 'chevronRight';
 
   return (
     <div>
@@ -134,11 +130,11 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({ entry, onFileClick, level }
         }`}
       >
         {entry.isDirectory ? (
-            isLoading ? <SpinnerIcon className="w-4 h-4 flex-shrink-0" /> : <ExpanderIcon className="w-4 h-4 flex-shrink-0" />
+            isLoading ? <Icon name="spinner" className="w-4 h-4 flex-shrink-0" /> : <Icon name={ExpanderIconName} className="w-4 h-4 flex-shrink-0" />
         ) : (
           <div className="w-4 h-4 flex-shrink-0" /> 
         )}
-        <Icon className="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+        <Icon name={MainIcon} className="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
         <span className="truncate text-[--text-secondary]">{entry.name}</span>
       </div>
       {isExpanded && children.length > 0 && (

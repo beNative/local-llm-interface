@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { diff_match_patch, DIFF_DELETE, DIFF_INSERT, DIFF_EQUAL } from 'diff-match-patch';
 import type { Theme } from '../types';
-import SpinnerIcon from './icons/SpinnerIcon';
-import CheckIcon from './icons/CheckIcon';
-import XIcon from './icons/XIcon';
 import { logger } from '../services/logger';
+import Icon from './Icon';
 
 interface FileModificationViewProps {
   filePath: string;
@@ -102,20 +100,20 @@ const FileModificationView: React.FC<FileModificationViewProps> = ({ filePath, n
                 onClick={onReject}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-100 dark:bg-red-900/50 rounded-lg hover:bg-red-200 dark:hover:bg-red-900"
             >
-                <XIcon className="w-4 h-4" />
+                <Icon name="x" className="w-4 h-4" />
                 Reject
             </button>
              <button
                 onClick={() => onAccept(newContent)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-green-700 bg-green-100 dark:bg-green-900/50 rounded-lg hover:bg-green-200 dark:hover:bg-green-800"
              >
-                <CheckIcon className="w-4 h-4" />
+                <Icon name="check" className="w-4 h-4" />
                 Accept
             </button>
         </div>
       </header>
       <main className="max-h-96 overflow-y-auto p-2 font-mono text-sm">
-        {isLoading && <div className="p-4 text-center"><SpinnerIcon className="w-6 h-6 inline-block" /></div>}
+        {isLoading && <div className="p-4 text-center"><Icon name="spinner" className="w-6 h-6 inline-block" /></div>}
         {error && <div className="p-4 text-red-500">{error}</div>}
         {diff && renderDiff()}
       </main>

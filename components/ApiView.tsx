@@ -4,12 +4,7 @@ import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { ApiRequest, ApiResponse, ApiHttpMethod, Theme, Config, Model, ChatMessage } from '../types';
 import { generateTextCompletion } from '../services/llmService';
 import { logger } from '../services/logger';
-import ServerIcon from './icons/ServerIcon';
-import SpinnerIcon from './icons/SpinnerIcon';
-import SendIcon from './icons/SendIcon';
-import TrashIcon from './icons/TrashIcon';
-import FileTextIcon from './icons/FileTextIcon';
-import LightbulbIcon from './icons/LightbulbIcon';
+import Icon from './Icon';
 
 interface ApiViewProps {
     isElectron: boolean;
@@ -223,7 +218,7 @@ Description: "${prompt}"`;
     <div className="p-4 sm:p-6 h-full flex flex-col bg-[--bg-secondary]">
         <header className="flex-shrink-0">
              <h1 className="flex items-center gap-3 text-3xl font-bold mb-4" style={{color: 'var(--accent-api)'}}>
-                <ServerIcon className="w-8 h-8"/>
+                <Icon name="server" className="w-8 h-8"/>
                 API Client
             </h1>
             {error && <div className="mb-4 text-red-500 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg text-sm">{error}</div>}
@@ -258,12 +253,12 @@ Description: "${prompt}"`;
                         </select>
                     </div>
                     <button onClick={handleGenerateRequest} disabled={!prompt || !selectedModelId || isLoading} className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-[--text-on-accent] bg-[--accent-api] rounded-lg hover:brightness-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-primary] focus:ring-[--border-focus] disabled:opacity-60 disabled:cursor-not-allowed">
-                        {isLoading && !apiRequest ? <SpinnerIcon className="w-5 h-5"/> : 'Generate Request'}
+                        {isLoading && !apiRequest ? <Icon name="spinner" className="w-5 h-5"/> : 'Generate Request'}
                     </button>
                 </div>
 
                 <div className="flex-grow flex flex-col gap-2 bg-[--bg-primary] p-4 rounded-[--border-radius] border border-[--border-primary] shadow-sm min-h-0">
-                    <h4 className="text-sm font-semibold text-[--text-muted] flex items-center gap-2"><LightbulbIcon className="w-4 h-4" /> Examples & History</h4>
+                    <h4 className="text-sm font-semibold text-[--text-muted] flex items-center gap-2"><Icon name="lightbulb" className="w-4 h-4" /> Examples & History</h4>
                     <div className="flex-grow overflow-y-auto space-y-3 text-xs">
                         {examplePrompts.map((p, i) => (
                             <button key={i} onClick={() => setPrompt(p)} className="w-full text-left p-2 rounded-lg bg-[--bg-tertiary] hover:bg-[--bg-hover] text-[--text-secondary] hover:text-[--text-primary]">
@@ -274,7 +269,7 @@ Description: "${prompt}"`;
                             <>
                                 <div className="flex justify-between items-center pt-2 border-t border-[--border-primary]">
                                     <h5 className="text-xs font-semibold text-[--text-muted]">Recent</h5>
-                                    <button onClick={onClearApiPrompts} className="text-red-500 hover:underline" title="Clear history"><TrashIcon className="w-3 h-3" /></button>
+                                    <button onClick={onClearApiPrompts} className="text-red-500 hover:underline" title="Clear history"><Icon name="trash" className="w-3 h-3" /></button>
                                 </div>
                                 {recentPrompts.map((p, i) => (
                                     <button key={`recent-${i}`} onClick={() => setPrompt(p)} className="w-full text-left p-2 rounded-lg bg-[--bg-tertiary]/50 hover:bg-[--bg-hover] text-[--text-muted] hover:text-[--text-primary] truncate" title={p}>
@@ -290,8 +285,8 @@ Description: "${prompt}"`;
             {/* Request Panel */}
             <div className="lg:col-span-8 xl:col-span-4 bg-[--bg-primary] p-4 rounded-[--border-radius] border border-[--border-primary] shadow-sm flex flex-col min-h-0">
                 <h3 className="text-md font-semibold text-[--text-secondary] mb-3 flex-shrink-0">2. Edit & Send Request</h3>
-                {isLoading && !apiRequest && <EmptyState icon={<SpinnerIcon className="w-6 h-6"/>} title="Generating Request">{loadingMessage}</EmptyState>}
-                {!isLoading && !apiRequest && <EmptyState icon={<ServerIcon className="w-6 h-6"/>} title="Request Panel">Your generated request will appear here. Start by describing it on the left.</EmptyState>}
+                {isLoading && !apiRequest && <EmptyState icon={<Icon name="spinner" className="w-6 h-6"/>} title="Generating Request">{loadingMessage}</EmptyState>}
+                {!isLoading && !apiRequest && <EmptyState icon={<Icon name="server" className="w-6 h-6"/>} title="Request Panel">Your generated request will appear here. Start by describing it on the left.</EmptyState>}
 
                 {apiRequest && (
                     <div className="flex-grow flex flex-col gap-3 min-h-0">
@@ -301,7 +296,7 @@ Description: "${prompt}"`;
                             </select>
                             <input type="text" value={apiRequest.url} onChange={e => setApiRequest({...apiRequest, url: e.target.value})} placeholder="https://api.example.com/data" className="flex-grow px-3 py-2 font-mono text-sm text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"/>
                             <button onClick={handleSendRequest} disabled={isLoading} className="flex items-center justify-center w-12 h-10 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-green-400" title="Send the configured HTTP request">
-                                {isLoading ? <SpinnerIcon className="w-5 h-5"/> : <SendIcon className="w-5 h-5" />}
+                                {isLoading ? <Icon name="spinner" className="w-5 h-5"/> : <Icon name="send" className="w-5 h-5" />}
                             </button>
                         </div>
                         
@@ -312,7 +307,7 @@ Description: "${prompt}"`;
                                    <div key={index} className="flex gap-2 items-center">
                                        <input type="text" value={key} onChange={e => handleHeaderChange(index, e.target.value, value)} placeholder="Key" className="w-1/3 px-2 py-1 font-mono text-xs text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg"/>
                                        <input type="text" value={value} onChange={e => handleHeaderChange(index, key, e.target.value)} placeholder="Value" className="flex-grow px-2 py-1 font-mono text-xs text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg"/>
-                                       <button onClick={() => handleRemoveHeader(key)} className="p-1 text-gray-400 hover:text-red-500"><TrashIcon className="w-4 h-4"/></button>
+                                       <button onClick={() => handleRemoveHeader(key)} className="p-1 text-gray-400 hover:text-red-500"><Icon name="trash" className="w-4 h-4"/></button>
                                    </div>
                                 ))}
                             </div>
@@ -338,8 +333,8 @@ Description: "${prompt}"`;
             {/* Response Panel */}
             <div className="lg:col-span-12 xl:col-span-5 bg-[--bg-primary] p-4 rounded-[--border-radius] border border-[--border-primary] shadow-sm flex flex-col min-h-0">
                  <h3 className="text-md font-semibold text-[--text-secondary] mb-3 flex-shrink-0">3. View Response</h3>
-                 {isLoading && apiRequest && <EmptyState icon={<SpinnerIcon className="w-6 h-6"/>} title="Sending Request">{loadingMessage}</EmptyState>}
-                 {!isLoading && !apiResponse && <EmptyState icon={<FileTextIcon className="w-6 h-6"/>} title="Response Panel">The server's response will appear here after you send a request.</EmptyState>}
+                 {isLoading && apiRequest && <EmptyState icon={<Icon name="spinner" className="w-6 h-6"/>} title="Sending Request">{loadingMessage}</EmptyState>}
+                 {!isLoading && !apiResponse && <EmptyState icon={<Icon name="fileText" className="w-6 h-6"/>} title="Response Panel">The server's response will appear here after you send a request.</EmptyState>}
 
                  {apiResponse && (
                      <div className="flex-grow flex flex-col gap-3 min-h-0">

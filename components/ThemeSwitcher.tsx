@@ -1,7 +1,6 @@
 import React from 'react';
 import type { Theme } from '../types';
-import SunIcon from './icons/SunIcon';
-import MoonIcon from './icons/MoonIcon';
+import Icon from './Icon';
 
 interface ThemeSwitcherProps {
   theme: Theme;
@@ -18,9 +17,9 @@ const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ theme, onToggle }) => {
       title={title}
     >
       {theme === 'light' ? (
-        <MoonIcon className="w-5 h-5" />
+        <Icon name="moon" className="w-5 h-5" />
       ) : (
-        <SunIcon className="w-5 h-5" />
+        <Icon name="sun" className="w-5 h-5" />
       )}
     </button>
   );

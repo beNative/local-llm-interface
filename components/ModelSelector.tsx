@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import type { Model, LLMProvider, Theme } from '../types';
-import ModelIcon from './icons/ModelIcon';
-import SpinnerIcon from './icons/SpinnerIcon';
-import SettingsIcon from './icons/SettingsIcon';
-import InfoIcon from './icons/InfoIcon';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { fetchOllamaModelDetails, LLMServiceError } from '../services/llmService';
+import Icon from './Icon';
 
 interface ModelDetailsModalProps {
   model: Model;
@@ -90,7 +87,7 @@ const ModelCard: React.FC<{ model: Model; onSelect: () => void; onShowDetails: (
       <div>
         <div className="flex items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-3 min-w-0">
-              <ModelIcon className="w-6 h-6 text-[--accent-chat] flex-shrink-0" />
+              <Icon name="model" className="w-6 h-6 text-[--accent-chat] flex-shrink-0" />
               <h3 className="text-lg font-semibold text-[--text-primary] truncate" title={model.id}>{model.id}</h3>
             </div>
             {provider === 'Ollama' && (
@@ -100,7 +97,7 @@ const ModelCard: React.FC<{ model: Model; onSelect: () => void; onShowDetails: (
                     title="Show model details"
                     disabled={isFetchingDetails}
                 >
-                    {isFetchingDetails ? <SpinnerIcon className="w-5 h-5"/> : <InfoIcon className="w-5 h-5" />}
+                    {isFetchingDetails ? <Icon name="spinner" className="w-5 h-5"/> : <Icon name="info" className="w-5 h-5" />}
                 </button>
             )}
         </div>
@@ -186,7 +183,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, onSelectModel, is
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center text-[--text-muted]">
-        <SpinnerIcon className="w-12 h-12 mb-4" />
+        <Icon name="spinner" className="w-12 h-12 mb-4" />
         <p className="text-lg">Fetching available models...</p>
       </div>
     );
@@ -201,7 +198,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, onSelectModel, is
             onClick={onGoToSettings}
             className="mt-6 flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-[--text-on-accent] bg-[--accent-settings] rounded-lg hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-secondary] focus:ring-[--border-focus]"
         >
-            <SettingsIcon className="w-5 h-5" />
+            <Icon name="settings" className="w-5 h-5" />
             Go to Settings
         </button>
       </div>
@@ -217,7 +214,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, onSelectModel, is
                 onClick={onGoToSettings}
                 className="mt-6 flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-[--text-on-accent] bg-[--accent-settings] rounded-lg hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-secondary] focus:ring-[--border-focus]"
             >
-                <SettingsIcon className="w-5 h-5" />
+                <Icon name="settings" className="w-5 h-5" />
                 Go to Settings
             </button>
       </div>

@@ -1,15 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import type { Config, LLMProvider, Theme, ThemeOverrides, PredefinedPrompt, ColorOverrides, SystemPrompt, ToolchainStatus, Toolchain } from '../types';
+import type { Config, LLMProvider, Theme, ThemeOverrides, PredefinedPrompt, ColorOverrides, SystemPrompt, ToolchainStatus, Toolchain, IconSet } from '../types';
 import { PROVIDER_CONFIGS } from '../constants';
-import SettingsIcon from './icons/SettingsIcon';
-import TrashIcon from './icons/TrashIcon';
-import IdentityIcon from './icons/IdentityIcon';
-import SpinnerIcon from './icons/SpinnerIcon';
-import SlidersIcon from './icons/SlidersIcon';
-import PaletteIcon from './icons/PaletteIcon';
-import BookmarkIcon from './icons/BookmarkIcon';
-import CpuIcon from './icons/CpuIcon';
-
+import Icon from './Icon';
 
 interface SettingsPanelProps {
   config: Config;
@@ -133,7 +125,7 @@ const ToolchainSelector: React.FC<{
       <label className="block text-sm font-medium text-[--text-muted] mb-1">{label}</label>
       {isLoading ? (
         <div className="flex items-center gap-2 text-sm text-[--text-muted]">
-          <SpinnerIcon className="w-4 h-4" />
+          <Icon name="spinner" className="w-4 h-4" />
           <span>Scanning for installations...</span>
         </div>
       ) : (
@@ -270,7 +262,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
     }));
   };
 
-  const handleFontOverrideChange = (key: 'fontFamily' | 'fontSize', value: string | number) => {
+  const handleThemeOverridesChange = (key: keyof ThemeOverrides, value: string | number | IconSet) => {
     setLocalConfig(current => ({
         ...current,
         themeOverrides: {
@@ -337,10 +329,10 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
   };
 
   const navItems: { id: SettingsSection; label: string; icon: React.ReactNode; isVisible: boolean }[] = [
-      { id: 'general', label: 'General', icon: <SlidersIcon className="w-5 h-5"/>, isVisible: true },
-      { id: 'personalization', label: 'Personalization', icon: <PaletteIcon className="w-5 h-5"/>, isVisible: true },
-      { id: 'content', label: 'Content', icon: <BookmarkIcon className="w-5 h-5"/>, isVisible: true },
-      { id: 'advanced', label: 'Advanced', icon: <CpuIcon className="w-5 h-5"/>, isVisible: isElectron },
+      { id: 'general', label: 'General', icon: <Icon name="sliders" className="w-5 h-5"/>, isVisible: true },
+      { id: 'personalization', label: 'Personalization', icon: <Icon name="palette" className="w-5 h-5"/>, isVisible: true },
+      { id: 'content', label: 'Content', icon: <Icon name="bookmark" className="w-5 h-5"/>, isVisible: true },
+      { id: 'advanced', label: 'Advanced', icon: <Icon name="cpu" className="w-5 h-5"/>, isVisible: isElectron },
   ];
 
   const renderContent = () => {
@@ -410,12 +402,12 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                             </div>
                         </div>
                     </div>
-                    <div className="border-t border-[--border-primary] mt-6 pt-6">
-                        <h4 className="text-md font-semibold text-[--text-secondary] mb-4">Font Settings (Global)</h4>
+                    <div className="border-t border-[--border-primary] mt-6 pt-6 space-y-4">
+                        <h4 className="text-md font-semibold text-[--text-secondary] mb-2">Interface Customization (Global)</h4>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
                                 <label htmlFor="font-family" className="block text-sm font-medium text-[--text-muted] mb-1">Font Family</label>
-                                <select id="font-family" value={themeOverrides.fontFamily || 'sans-serif'} onChange={e => handleFontOverrideChange('fontFamily', e.target.value)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]">
+                                <select id="font-family" value={themeOverrides.fontFamily || 'sans-serif'} onChange={e => handleThemeOverridesChange('fontFamily', e.target.value)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]">
                                     <option value="sans-serif" style={{ fontFamily: 'sans-serif' }}>System Default</option>
                                     <option value="serif" style={{ fontFamily: 'serif' }}>Serif</option>
                                     <option value="monospace" style={{ fontFamily: 'monospace' }}>Monospace</option>
@@ -425,8 +417,16 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                           </div>
                           <div>
                                 <label htmlFor="font-size" className="block text-sm font-medium text-[--text-muted] mb-1">Font Size (px)</label>
-                                <input type="number" id="font-size" value={themeOverrides.fontSize || 16} onChange={e => handleFontOverrideChange('fontSize', e.target.valueAsNumber)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]" placeholder="16"/>
+                                <input type="number" id="font-size" value={themeOverrides.fontSize || 16} onChange={e => handleThemeOverridesChange('fontSize', e.target.valueAsNumber)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]" placeholder="16"/>
                           </div>
+                        </div>
+                        <div>
+                            <label htmlFor="icon-set" className="block text-sm font-medium text-[--text-muted] mb-1">Icon Set</label>
+                            <select id="icon-set" value={themeOverrides.iconSet || 'default'} onChange={e => handleThemeOverridesChange('iconSet', e.target.value as IconSet)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]">
+                                <option value="default">Default</option>
+                                <option value="lucide">Lucide</option>
+                                <option value="heroicons">Heroicons</option>
+                            </select>
                         </div>
                     </div>
                  </div>
@@ -445,7 +445,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                                                 <p className="font-semibold text-[--text-primary] truncate">{prompt.title}</p>
                                                 <p className="text-sm text-[--text-muted] mt-1 whitespace-pre-wrap font-mono break-words">{prompt.content}</p>
                                             </div>
-                                            <button onClick={() => handleDeletePrompt(prompt.id)} className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full flex-shrink-0" aria-label="Delete prompt"><TrashIcon className="w-4 h-4" /></button>
+                                            <button onClick={() => handleDeletePrompt(prompt.id)} className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full flex-shrink-0" aria-label="Delete prompt"><Icon name="trash" className="w-4 h-4" /></button>
                                         </div>
                                     ))}
                                 </div>
@@ -454,7 +454,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                         </div>
                     </div>
                     <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
-                        <h3 className="flex items-center gap-2 text-xl font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3"><IdentityIcon className="w-5 h-5" /> System Prompts (Personas)</h3>
+                        <h3 className="flex items-center gap-2 text-xl font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3"><Icon name="identity" className="w-5 h-5" /> System Prompts (Personas)</h3>
                         <div className="space-y-4">
                             {(localConfig.systemPrompts || []).length > 0 ? (
                                 <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
@@ -464,7 +464,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                                                 <p className="font-semibold text-[--text-primary] truncate">{prompt.title}</p>
                                                 <p className="text-sm text-[--text-muted] mt-1 whitespace-pre-wrap font-mono break-words">{prompt.content}</p>
                                             </div>
-                                            <button onClick={() => handleDeleteSystemPrompt(prompt.id)} className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full flex-shrink-0" aria-label="Delete system prompt"><TrashIcon className="w-4 h-4" /></button>
+                                            <button onClick={() => handleDeleteSystemPrompt(prompt.id)} className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full flex-shrink-0" aria-label="Delete system prompt"><Icon name="trash" className="w-4 h-4" /></button>
                                         </div>
                                     ))}
                                 </div>
@@ -494,7 +494,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
     <div className="flex h-full overflow-hidden bg-[--bg-secondary]">
       <aside className="w-60 p-4 border-r border-[--border-primary] overflow-y-auto flex-shrink-0 bg-[--bg-primary]">
         <h1 className="flex items-center gap-3 text-2xl font-bold mb-8 px-2" style={{ color: 'var(--accent-settings)'}}>
-          <SettingsIcon className="w-7 h-7"/>
+          <Icon name="settings" className="w-7 h-7"/>
           Settings
         </h1>
         <nav className="space-y-1">

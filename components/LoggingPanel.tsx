@@ -1,9 +1,9 @@
 
+
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { logger } from '../services/logger';
 import type { LogEntry, LogLevel } from '../types';
-import TrashIcon from './icons/TrashIcon';
-import ClipboardIcon from './icons/ClipboardIcon';
+import Icon from './Icon';
 
 interface LoggingPanelProps {
   onClose: () => void;
@@ -123,10 +123,10 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={copyLogs} className="p-1.5 rounded text-[--text-muted] hover:bg-[--bg-hover]" title={isCopied ? 'Copied!' : 'Copy Logs'}>
-            <ClipboardIcon className="w-4 h-4" />
+            <Icon name="clipboard" className="w-4 h-4" />
           </button>
           <button onClick={logger.clearLogs} className="p-1.5 rounded text-[--text-muted] hover:bg-[--bg-hover]" title="Clear Logs">
-            <TrashIcon className="w-4 h-4" />
+            <Icon name="trash" className="w-4 h-4" />
           </button>
           <button onClick={onClose} className="p-1.5 rounded text-[--text-muted] hover:bg-[--bg-hover]" title="Close Panel">
              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>

@@ -1,9 +1,6 @@
 import React from 'react';
 import type { ChatSession } from '../types';
-import PlusIcon from './icons/PlusIcon';
-import TrashIcon from './icons/TrashIcon';
-import MessageSquareIcon from './icons/MessageSquareIcon';
-import SparklesIcon from './icons/SparklesIcon';
+import Icon from './Icon';
 
 interface SessionSidebarProps {
   sessions: ChatSession[];
@@ -23,7 +20,7 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
           className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg text-white bg-[--accent-chat] hover:brightness-95 transition-all shadow-sm"
           title="Start a new conversation"
         >
-          <PlusIcon className="w-4 h-4" />
+          <Icon name="plus" className="w-4 h-4" />
           New Chat
         </button>
       </div>
@@ -41,7 +38,7 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
                 <div className="absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 bg-[--accent-chat] rounded-r-full" />
             )}
             <button onClick={() => onSelectSession(session.id)} className="w-full flex items-start gap-2.5 text-left truncate px-3 py-2">
-                <MessageSquareIcon className="w-4 h-4 flex-shrink-0 mt-1" />
+                <Icon name="messageSquare" className="w-4 h-4 flex-shrink-0 mt-1" />
                 <div className="flex-1 truncate pr-14">
                     <span className={`block truncate ${activeSessionId === session.id ? 'text-[--text-primary]' : ''}`}>{session.name}</span>
                     <span className="block text-xs opacity-70 truncate font-normal">{session.modelId}</span>
@@ -56,7 +53,7 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
                 className="p-1.5 rounded-md text-[--text-muted] hover:bg-[--accent-chat]/10 hover:text-[--accent-chat]"
                 title="Generate name"
               >
-                <SparklesIcon className="w-4 h-4" />
+                <Icon name="sparkles" className="w-4 h-4" />
               </button>
               <button
                 onClick={(e) => {
@@ -66,7 +63,7 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
                 className="p-1.5 rounded-md text-[--text-muted] hover:bg-red-500/10 hover:text-red-500"
                 title="Delete session"
               >
-                <TrashIcon className="w-4 h-4" />
+                <Icon name="trash" className="w-4 h-4" />
               </button>
             </div>
           </div>

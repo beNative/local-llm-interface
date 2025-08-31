@@ -4,6 +4,7 @@
 
 export type Theme = 'light' | 'dark';
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
+export type IconSet = 'default' | 'lucide' | 'heroicons';
 
 export interface LogEntry {
   timestamp: Date;
@@ -42,6 +43,7 @@ export interface ThemeOverrides {
   dark?: ColorOverrides;
   fontFamily?: string;
   fontSize?: number;
+  iconSet?: IconSet;
 }
 
 export interface GenerationConfig {

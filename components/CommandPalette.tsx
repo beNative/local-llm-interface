@@ -1,11 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { ChatSession, CodeProject } from '../types';
-import SearchIcon from './icons/SearchIcon';
-import MessageSquareIcon from './icons/MessageSquareIcon';
-import CodeIcon from './icons/CodeIcon';
-import FileIcon from './icons/FileIcon';
 import { logger } from '../services/logger';
-import SpinnerIcon from './icons/SpinnerIcon';
+import Icon from './Icon';
 
 type View = 'chat' | 'projects' | 'api' | 'settings' | 'info';
 
@@ -43,11 +39,11 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, sessio
             
             // Base commands
             const baseCommands: Command[] = [
-                { type: 'view', id: 'view_chat', name: 'Go to Chat', icon: <MessageSquareIcon className="w-4 h-4"/>, action: () => onNavigate('chat') },
-                { type: 'view', id: 'view_projects', name: 'Go to Projects', icon: <CodeIcon className="w-4 h-4"/>, action: () => onNavigate('projects') },
-                { type: 'view', id: 'view_api', name: 'Go to API Client', icon: <CodeIcon className="w-4 h-4"/>, action: () => onNavigate('api') },
-                { type: 'view', id: 'view_settings', name: 'Go to Settings', icon: <CodeIcon className="w-4 h-4"/>, action: () => onNavigate('settings') },
-                { type: 'view', id: 'view_info', name: 'Go to Info', icon: <CodeIcon className="w-4 h-4"/>, action: () => onNavigate('info') },
+                { type: 'view', id: 'view_chat', name: 'Go to Chat', icon: <Icon name="messageSquare" className="w-4 h-4"/>, action: () => onNavigate('chat') },
+                { type: 'view', id: 'view_projects', name: 'Go to Projects', icon: <Icon name="code" className="w-4 h-4"/>, action: () => onNavigate('projects') },
+                { type: 'view', id: 'view_api', name: 'Go to API Client', icon: <Icon name="server" className="w-4 h-4"/>, action: () => onNavigate('api') },
+                { type: 'view', id: 'view_settings', name: 'Go to Settings', icon: <Icon name="settings" className="w-4 h-4"/>, action: () => onNavigate('settings') },
+                { type: 'view', id: 'view_info', name: 'Go to Info', icon: <Icon name="info" className="w-4 h-4"/>, action: () => onNavigate('info') },
             ];
             
             const sessionCommands: Command[] = sessions.map(s => ({
@@ -55,7 +51,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, sessio
                 id: s.id,
                 name: `Chat: ${s.name}`,
                 description: `Switch to session created on ${new Date(parseInt(s.id.split('_')[1])).toLocaleDateString()}`,
-                icon: <MessageSquareIcon className="w-4 h-4" />,
+                icon: <Icon name="messageSquare" className="w-4 h-4" />,
                 action: () => onSelectSession(s.id)
             }));
             
@@ -76,7 +72,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, sessio
                             id: file.path,
                             name: file.name,
                             description: `In project: ${project.name}`,
-                            icon: <FileIcon className="w-4 h-4" />,
+                            icon: <Icon name="file" className="w-4 h-4" />,
                             action: () => onOpenFile(file)
                         }))
                     );
@@ -149,7 +145,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, sessio
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 bg-[--bg-backdrop] backdrop-blur-sm" onClick={handleBackdropClick}>
             <div className="bg-[--bg-secondary] rounded-[--border-radius] shadow-2xl w-full max-w-2xl border border-[--border-primary]" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center gap-3 p-4 border-b border-[--border-primary]">
-                    <SearchIcon className="w-5 h-5 text-[--text-muted]" />
+                    <Icon name="search" className="w-5 h-5 text-[--text-muted]" />
                     <input
                         ref={inputRef}
                         type="text"
@@ -159,7 +155,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, sessio
                         placeholder="Search for chats, projects, files, and commands..."
                         className="w-full bg-transparent text-[--text-primary] focus:outline-none placeholder:text-[--text-muted]"
                     />
-                     {isLoadingFiles && <SpinnerIcon className="w-5 h-5 text-[--text-muted]" />}
+                     {isLoadingFiles && <Icon name="spinner" className="w-5 h-5 text-[--text-muted]" />}
                 </div>
                 <div ref={resultsRef} className="max-h-[60vh] overflow-y-auto p-2">
                     {filteredCommands.length > 0 ? (

@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import SpinnerIcon from './icons/SpinnerIcon';
+import Icon from './Icon';
 import type { Theme } from '../types';
 
 type Doc = 'README' | 'FUNCTIONAL' | 'TECHNICAL' | 'CHANGELOG';
@@ -68,7 +68,7 @@ const InfoView: React.FC<{ theme: Theme }> = ({ theme }) => {
       <main className="flex-1 overflow-y-auto p-6 md:p-8">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
-            <SpinnerIcon className="w-10 h-10 text-[--text-muted]" />
+            <Icon name="spinner" className="w-10 h-10 text-[--text-muted]" />
           </div>
         ) : error ? (
           <div className="text-red-500 bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">

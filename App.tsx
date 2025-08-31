@@ -11,15 +11,11 @@ import LoggingPanel from './components/LoggingPanel';
 import InfoView from './components/InfoView';
 import ProjectsView from './components/ProjectsView';
 import ApiView from './components/ApiView';
-import FileTextIcon from './components/icons/FileTextIcon';
-import SettingsIcon from './components/icons/SettingsIcon';
-import InfoIcon from './components/icons/InfoIcon';
-import MessageSquareIcon from './components/icons/MessageSquareIcon';
-import CodeIcon from './components/icons/CodeIcon';
-import ServerIcon from './components/icons/ServerIcon';
 import SessionSidebar from './components/SessionSidebar';
 import CommandPalette from './components/CommandPalette';
 import StatusBar from './components/StatusBar';
+import Icon from './components/Icon';
+import { IconProvider } from './components/IconProvider';
 
 type View = 'chat' | 'projects' | 'api' | 'settings' | 'info';
 
@@ -908,98 +904,100 @@ ${originalContent}
       : null;
 
   return (
-    <div className="flex flex-col h-screen font-sans bg-[--bg-primary]">
-      {config && <CommandPalette 
-        isOpen={isCommandPaletteOpen}
-        onClose={() => setIsCommandPaletteOpen(false)}
-        sessions={config.sessions || []}
-        projects={config.projects || []}
-        onNavigate={setView}
-        onSelectSession={handleSelectSession}
-        onOpenFile={handleOpenFileFromPalette}
-      />}
-      {runOutput && <RunOutputModal runOutput={runOutput} onClose={() => setRunOutput(null)} />}
-      <header className="flex items-center justify-between p-2 border-b border-[--border-primary] bg-[--bg-primary] sticky top-0 z-10 flex-shrink-0">
-        <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold px-2 text-[--text-primary]">{APP_NAME}</h1>
-            <nav className="flex items-center gap-1">
-              <NavButton active={view === 'chat'} onClick={() => setView('chat')} title="Switch to the main chat interface" ariaLabel="Chat View" view="chat">
-                <MessageSquareIcon className="w-5 h-5" />
-                <span>Chat</span>
-              </NavButton>
-              <NavButton active={view === 'projects'} onClick={() => setView('projects')} title="Manage local code projects" ariaLabel="Projects View" view="projects">
-                <CodeIcon className="w-5 h-5" />
-                <span>Projects</span>
-              </NavButton>
-               <NavButton active={view === 'api'} onClick={() => setView('api')} title="Test HTTP endpoints using natural language" ariaLabel="API Client View" view="api">
-                <ServerIcon className="w-5 h-5" />
-                <span>API Client</span>
-              </NavButton>
-              <NavButton active={view === 'settings'} onClick={() => setView('settings')} title="Configure application settings" ariaLabel="Settings View" view="settings">
-                 <SettingsIcon className="w-5 h-5" />
-                <span>Settings</span>
-              </NavButton>
-              <NavButton active={view === 'info'} onClick={() => setView('info')} title="View application documentation and manuals" ariaLabel="Info View" view="info">
-                <InfoIcon className="w-5 h-5" />
-                <span>Info</span>
-              </NavButton>
-            </nav>
-        </div>
-
-        <div className="flex items-center gap-2 pr-2">
-           <div className="hidden sm:block text-xs text-[--text-muted] border border-[--border-secondary] rounded-md px-2 py-1 font-mono">
-                Cmd/Ctrl + K
-           </div>
-           <button
-            onClick={() => setIsLogPanelVisible(!isLogPanelVisible)}
-            className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-primary] focus:ring-[--border-focus]"
-            aria-label="Toggle logs panel"
-            title="Toggle the application logs panel for debugging"
-            >
-             <FileTextIcon className="w-5 h-5" />
-            </button>
-          <ThemeSwitcher theme={config?.theme || 'dark'} onToggle={handleThemeToggle} />
-        </div>
-      </header>
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <main className="flex-1 flex overflow-hidden">
-          {view === 'chat' && activeSession && (
-            <>
-              <div style={{ width: `${sidebarWidth}px` }} className="flex-shrink-0 h-full">
-                <SessionSidebar
-                  sessions={sessions}
-                  activeSessionId={activeSessionId || null}
-                  onNewChat={handleNewChat}
-                  onSelectSession={handleSelectSession}
-                  onDeleteSession={handleDeleteSession}
-                  onGenerateSessionName={handleManualGenerateSessionName}
-                />
-              </div>
-              <div
-                onMouseDown={handleResizeMouseDown}
-                className="w-1.5 flex-shrink-0 cursor-col-resize bg-[--bg-tertiary] hover:bg-[--border-focus] transition-colors duration-200"
-                aria-label="Resize sidebar"
-                role="separator"
-              ></div>
-            </>
-          )}
-          <div className="flex-1 overflow-hidden">
-              {renderContent()}
+    <IconProvider iconSet={config?.themeOverrides?.iconSet || 'default'}>
+      <div className="flex flex-col h-screen font-sans bg-[--bg-primary]">
+        {config && <CommandPalette 
+          isOpen={isCommandPaletteOpen}
+          onClose={() => setIsCommandPaletteOpen(false)}
+          sessions={config.sessions || []}
+          projects={config.projects || []}
+          onNavigate={setView}
+          onSelectSession={handleSelectSession}
+          onOpenFile={handleOpenFileFromPalette}
+        />}
+        {runOutput && <RunOutputModal runOutput={runOutput} onClose={() => setRunOutput(null)} />}
+        <header className="flex items-center justify-between p-2 border-b border-[--border-primary] bg-[--bg-primary] sticky top-0 z-10 flex-shrink-0">
+          <div className="flex items-center gap-4">
+              <h1 className="text-xl font-bold px-2 text-[--text-primary]">{APP_NAME}</h1>
+              <nav className="flex items-center gap-1">
+                <NavButton active={view === 'chat'} onClick={() => setView('chat')} title="Switch to the main chat interface" ariaLabel="Chat View" view="chat">
+                  <Icon name="messageSquare" className="w-5 h-5" />
+                  <span>Chat</span>
+                </NavButton>
+                <NavButton active={view === 'projects'} onClick={() => setView('projects')} title="Manage local code projects" ariaLabel="Projects View" view="projects">
+                  <Icon name="code" className="w-5 h-5" />
+                  <span>Projects</span>
+                </NavButton>
+                 <NavButton active={view === 'api'} onClick={() => setView('api')} title="Test HTTP endpoints using natural language" ariaLabel="API Client View" view="api">
+                  <Icon name="server" className="w-5 h-5" />
+                  <span>API Client</span>
+                </NavButton>
+                <NavButton active={view === 'settings'} onClick={() => setView('settings')} title="Configure application settings" ariaLabel="Settings View" view="settings">
+                   <Icon name="settings" className="w-5 h-5" />
+                  <span>Settings</span>
+                </NavButton>
+                <NavButton active={view === 'info'} onClick={() => setView('info')} title="View application documentation and manuals" ariaLabel="Info View" view="info">
+                  <Icon name="info" className="w-5 h-5" />
+                  <span>Info</span>
+                </NavButton>
+              </nav>
           </div>
-        </main>
-        {isElectron && config && (
-            <StatusBar
-                stats={systemStats}
-                connectionStatus={connectionStatus}
-                statusText={statusText}
-                provider={config.provider}
-                activeModel={activeSession?.modelId || null}
-                activeProject={activeProjectName}
-            />
-        )}
+
+          <div className="flex items-center gap-2 pr-2">
+             <div className="hidden sm:block text-xs text-[--text-muted] border border-[--border-secondary] rounded-md px-2 py-1 font-mono">
+                  Cmd/Ctrl + K
+             </div>
+             <button
+              onClick={() => setIsLogPanelVisible(!isLogPanelVisible)}
+              className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-primary] focus:ring-[--border-focus]"
+              aria-label="Toggle logs panel"
+              title="Toggle the application logs panel for debugging"
+              >
+               <Icon name="fileText" className="w-5 h-5" />
+              </button>
+            <ThemeSwitcher theme={config?.theme || 'dark'} onToggle={handleThemeToggle} />
+          </div>
+        </header>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <main className="flex-1 flex overflow-hidden">
+            {view === 'chat' && activeSession && (
+              <>
+                <div style={{ width: `${sidebarWidth}px` }} className="flex-shrink-0 h-full">
+                  <SessionSidebar
+                    sessions={sessions}
+                    activeSessionId={activeSessionId || null}
+                    onNewChat={handleNewChat}
+                    onSelectSession={handleSelectSession}
+                    onDeleteSession={handleDeleteSession}
+                    onGenerateSessionName={handleManualGenerateSessionName}
+                  />
+                </div>
+                <div
+                  onMouseDown={handleResizeMouseDown}
+                  className="w-1.5 flex-shrink-0 cursor-col-resize bg-[--bg-tertiary] hover:bg-[--border-focus] transition-colors duration-200"
+                  aria-label="Resize sidebar"
+                  role="separator"
+                ></div>
+              </>
+            )}
+            <div className="flex-1 overflow-hidden">
+                {renderContent()}
+            </div>
+          </main>
+          {isElectron && config && (
+              <StatusBar
+                  stats={systemStats}
+                  connectionStatus={connectionStatus}
+                  statusText={statusText}
+                  provider={config.provider}
+                  activeModel={activeSession?.modelId || null}
+                  activeProject={activeProjectName}
+              />
+          )}
+        </div>
+        {isLogPanelVisible && <LoggingPanel onClose={() => setIsLogPanelVisible(false)} />}
       </div>
-      {isLogPanelVisible && <LoggingPanel onClose={() => setIsLogPanelVisible(false)} />}
-    </div>
+    </IconProvider>
   );
 };
 

@@ -1,14 +1,8 @@
 import React, { useState } from 'react';
 import type { Config, CodeProject, ProjectType, FileSystemEntry } from '../types';
-import CodeIcon from './icons/CodeIcon';
-import FolderOpenIcon from './icons/FolderOpenIcon';
-import TrashIcon from './icons/TrashIcon';
-import GlobeIcon from './icons/GlobeIcon';
-import SpinnerIcon from './icons/SpinnerIcon';
-import MessagePlusIcon from './icons/MessagePlusIcon';
-import PlayIcon from './icons/PlayIcon';
 import FileTree from './FileTree';
 import { logger } from '../services/logger';
+import Icon from './Icon';
 
 interface EditorModalProps {
   file: { path: string, name: string };
@@ -70,7 +64,7 @@ const EditorModal: React.FC<EditorModalProps> = ({ file, onClose, onAddToChat })
                 </header>
                 <main className="flex-1 overflow-hidden p-2">
                     {isLoading ? (
-                        <div className="h-full flex items-center justify-center"><SpinnerIcon className="w-8 h-8" /></div>
+                        <div className="h-full flex items-center justify-center"><Icon name="spinner" className="w-8 h-8" /></div>
                     ) : error ? (
                         <div className="h-full flex items-center justify-center text-red-500">{error}</div>
                     ) : (
@@ -88,11 +82,11 @@ const EditorModal: React.FC<EditorModalProps> = ({ file, onClose, onAddToChat })
                         onClick={() => onAddToChat(file.name, content)} 
                         disabled={isLoading}
                         className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-green-400">
-                        <MessagePlusIcon className="w-5 h-5"/>
+                        <Icon name="messagePlus" className="w-5 h-5"/>
                         Add to Chat Context
                     </button>
                     <button onClick={handleSave} disabled={isSaving || isLoading} className="flex items-center justify-center px-4 py-2 text-sm font-medium text-[--text-on-accent] bg-[--accent-chat] rounded-lg hover:brightness-90 disabled:opacity-60">
-                        {isSaving ? <SpinnerIcon className="w-5 h-5"/> : 'Save Changes'}
+                        {isSaving ? <Icon name="spinner" className="w-5 h-5"/> : 'Save Changes'}
                     </button>
                 </footer>
             </div>
@@ -119,7 +113,7 @@ const ProjectCard: React.FC<{
                     : project.type === 'delphi' ? 'text-orange-500'
                     : 'text-purple-500';
 
-    const RunIcon = project.type === 'webapp' ? GlobeIcon : PlayIcon;
+    const runIsGlobe = project.type === 'webapp';
     const runText = project.type === 'webapp' ? 'Run in Browser' 
                   : project.type === 'delphi' ? 'Build Project' 
                   : 'Run Project';
@@ -143,7 +137,7 @@ const ProjectCard: React.FC<{
                     className="flex items-start gap-3 mb-2 cursor-pointer"
                     onClick={onToggleExpand}
                 >
-                    <CodeIcon className={`w-6 h-6 ${typeColor} flex-shrink-0 mt-0.5`} />
+                    <Icon name="code" className={`w-6 h-6 ${typeColor} flex-shrink-0 mt-0.5`} />
                     <div className="flex-grow min-w-0">
                       <h4 className="text-lg font-semibold text-[--text-primary] truncate">{project.name}</h4>
                       <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-[--bg-tertiary] text-[--text-secondary]">
@@ -155,7 +149,7 @@ const ProjectCard: React.FC<{
             
                 <div className="grid grid-cols-2 gap-2 mt-4">
                     <button onClick={onRun} disabled={isBusy} className="col-span-2 text-sm px-3 py-2 rounded-lg bg-[--accent-projects] text-white hover:brightness-95 disabled:opacity-60 disabled:cursor-wait flex items-center justify-center gap-2 font-semibold" title={runTitle}>
-                        {isBusy ? <SpinnerIcon className="w-5 h-5"/> : <RunIcon className="w-5 h-5" />}
+                        {isBusy ? <Icon name="spinner" className="w-5 h-5"/> : <Icon name={runIsGlobe ? 'globe' : 'play'} className="w-5 h-5" />}
                         {isBusy ? 'Working...' : runText}
                     </button>
 
@@ -166,12 +160,12 @@ const ProjectCard: React.FC<{
                     )}
                    
                     <button onClick={onOpen} disabled={isBusy} className="text-xs px-3 py-1.5 rounded-lg bg-[--bg-tertiary] text-[--text-secondary] hover:bg-[--bg-hover] disabled:opacity-50 flex items-center justify-center gap-1.5" title="Open project folder in your file explorer">
-                        <FolderOpenIcon className="w-4 h-4"/>
+                        <Icon name="folderOpen" className="w-4 h-4"/>
                         <span>Folder</span>
                     </button>
 
                     <button onClick={onDelete} disabled={isBusy} className={`col-span-2 ${project.type !== 'webapp' && project.type !== 'delphi' ? '' : 'col-start-2'} mt-1 text-xs px-3 py-1 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900 disabled:opacity-50 flex items-center justify-center gap-1.5`} title="Permanently delete this project and all its files. This action cannot be undone.">
-                        <TrashIcon className="w-4 h-4" />
+                        <Icon name="trash" className="w-4 h-4" />
                         <span>Delete</span>
                     </button>
                 </div>
@@ -214,7 +208,7 @@ const NewProjectForm: React.FC<{
                 disabled={isBusy}
             />
             <button type="submit" disabled={!name.trim() || isBusy} className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed" title={`Create a new ${projectType} project folder with appropriate boilerplate files`}>
-                {isBusy ? <SpinnerIcon className="w-5 h-5"/> : 'Create'}
+                {isBusy ? <Icon name="spinner" className="w-5 h-5"/> : 'Create'}
             </button>
         </form>
     );
@@ -409,7 +403,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
     <div className="p-4 sm:p-6 h-full overflow-y-auto bg-[--bg-secondary]">
       <div className="max-w-4xl mx-auto">
         <h1 className="flex items-center gap-3 text-3xl font-bold mb-8" style={{color: 'var(--accent-projects)'}}>
-          <CodeIcon className="w-8 h-8"/>
+          <Icon name="code" className="w-8 h-8"/>
           Projects
         </h1>
         
