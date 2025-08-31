@@ -1,4 +1,3 @@
-
 // FIX: Use ES6 imports instead of require for better TypeScript integration.
 import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
 import * as path from 'path';
@@ -11,6 +10,11 @@ import { request as httpRequest } from 'http';
 import { request as httpsRequest } from 'https';
 import type { IncomingHttpHeaders } from 'http';
 import type { ApiRequest, ApiResponse, CodeProject, ProjectType, Toolchain, ToolchainStatus } from '../src/types';
+
+// Let TypeScript know that __dirname is a global variable in this Node.js environment.
+// This is necessary because we are using ES Modules, which don't have __dirname by default.
+// Esbuild, our bundler, will correctly define it at build time for the Node.js platform.
+declare const __dirname: string;
 
 // The path where user settings will be stored.
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
@@ -235,15 +239,10 @@ let previousCpuTimes = os.cpus().map(cpu => {
 });
 
 const createWindow = () => {
-  // FIX: Replace __dirname with a method that works in both dev and packaged apps
-  // to avoid TS errors when node types are not available.
-  const preloadScriptPath = app.isPackaged
-    ? path.join(app.getAppPath(), 'preload.js')
-    : path.join(app.getAppPath(), 'dist', 'preload.js');
-    
-  const indexPath = app.isPackaged
-    ? path.join(app.getAppPath(), 'index.html')
-    : path.join(app.getAppPath(), 'dist', 'index.html');
+  // Use __dirname to reliably resolve paths both in development and in the packaged app.
+  // Esbuild correctly provides __dirname in a Node.js context.
+  const preloadScriptPath = path.join(__dirname, 'preload.js');
+  const indexPath = path.join(__dirname, 'index.html');
     
   // Create the browser window.
   const mainWindow = new BrowserWindow({
