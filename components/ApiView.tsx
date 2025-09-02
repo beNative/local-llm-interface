@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import type { ApiRequest, ApiResponse, ApiHttpMethod, Theme, Config, Model, ChatMessage } from '../types';
+import type { ApiRequest, ApiResponse, ApiHttpMethod, Theme, Config, Model, ChatMessage, LLMProviderConfig } from '../types';
 import { generateTextCompletion } from '../services/llmService';
 import { logger } from '../services/logger';
 import Icon from './Icon';
@@ -57,10 +57,16 @@ const ApiView: React.FC<ApiViewProps> = ({ isElectron, theme, config, models, on
     }
     
     const handleGenerateRequest = async () => {
-        if (!prompt || !selectedModelId || !config) {
+        if (!prompt || !selectedModelId || !config || !config.selectedProviderId) {
             setError("Cannot generate request. Check prompt, model selection, and app configuration.");
             return;
         }
+        const activeProvider = config.providers?.find(p => p.id === config.selectedProviderId);
+        if (!activeProvider) {
+            setError("Active provider configuration not found.");
+            return;
+        }
+
         onSaveApiPrompt(prompt);
         setIsLoading(true);
         setLoadingMessage(`Generating with ${selectedModelId}...`);
@@ -86,7 +92,7 @@ Description: "${prompt}"`;
         ];
         
         try {
-            const responseText = await generateTextCompletion(config, selectedModelId, messages);
+            const responseText = await generateTextCompletion(activeProvider, config.apiKeys, selectedModelId, messages);
             
             const jsonMatch = responseText.match(/```(json)?\s*([\s\S]*?)\s*```/);
             const jsonText = jsonMatch ? jsonMatch[2] : responseText;

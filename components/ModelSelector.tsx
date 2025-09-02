@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { Model, LLMProvider, Theme } from '../types';
+import type { Model, LLMProviderConfig, Theme } from '../types';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { fetchOllamaModelDetails, LLMServiceError } from '../services/llmService';
@@ -60,12 +60,11 @@ interface ModelSelectorProps {
   isLoading: boolean;
   error: string | null;
   onGoToSettings: () => void;
-  provider: LLMProvider;
-  baseUrl: string;
+  provider: LLMProviderConfig | null;
   theme: Theme;
 }
 
-const ModelCard: React.FC<{ model: Model; onSelect: () => void; onShowDetails: () => void; provider: LLMProvider; isFetchingDetails: boolean; }> = ({ model, onSelect, onShowDetails, provider, isFetchingDetails }) => {
+const ModelCard: React.FC<{ model: Model; onSelect: () => void; onShowDetails: () => void; provider: LLMProviderConfig | null; isFetchingDetails: boolean; }> = ({ model, onSelect, onShowDetails, provider, isFetchingDetails }) => {
   const formatBytes = (bytes?: number, decimals = 2) => {
     if (bytes === undefined || bytes === null) return 'N/A';
     if (bytes === 0) return '0 Bytes';
@@ -90,7 +89,7 @@ const ModelCard: React.FC<{ model: Model; onSelect: () => void; onShowDetails: (
               <Icon name="model" className="w-6 h-6 text-[--accent-chat] flex-shrink-0" />
               <h3 className="text-lg font-semibold text-[--text-primary] truncate" title={model.id}>{model.id}</h3>
             </div>
-            {provider === 'Ollama' && (
+            {provider?.id === 'ollama' && (
                 <button
                     onClick={(e) => { e.stopPropagation(); onShowDetails(); }}
                     className="p-1.5 rounded-full text-[--text-muted] hover:bg-[--bg-hover] disabled:opacity-50 disabled:cursor-wait"
@@ -154,7 +153,7 @@ const ModelCard: React.FC<{ model: Model; onSelect: () => void; onShowDetails: (
   );
 };
 
-const ModelSelector: React.FC<ModelSelectorProps> = ({ models, onSelectModel, isLoading, error, onGoToSettings, provider, baseUrl, theme }) => {
+const ModelSelector: React.FC<ModelSelectorProps> = ({ models, onSelectModel, isLoading, error, onGoToSettings, provider, theme }) => {
   const [detailsModalModel, setDetailsModalModel] = useState<Model | null>(null);
   const [fetchingDetailsFor, setFetchingDetailsFor] = useState<string | null>(null);
   const [localModels, setLocalModels] = useState<Model[]>(models);
@@ -164,9 +163,10 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, onSelectModel, is
   }, [models]);
 
   const handleShowDetails = async (modelToShow: Model) => {
+      if (!provider) return;
       setFetchingDetailsFor(modelToShow.id);
       try {
-          const details = await fetchOllamaModelDetails(baseUrl, modelToShow.name);
+          const details = await fetchOllamaModelDetails(provider.baseUrl, modelToShow.name);
           const updatedModel = { ...modelToShow, details: { ...modelToShow.details, ...details } };
           
           setLocalModels(prev => prev.map(m => m.id === updatedModel.id ? updatedModel : m));
@@ -209,7 +209,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, onSelectModel, is
     return (
         <div className="flex flex-col items-center justify-center h-full text-center text-[--text-muted] p-8 bg-[--bg-primary] rounded-lg m-6">
             <h2 className="text-2xl font-bold mb-2 text-[--text-primary]">No Models Found</h2>
-            <p className="max-w-md">The connected service reported zero available models. Make sure you have downloaded or configured models in Ollama or LMStudio.</p>
+            <p className="max-w-md">The connected service reported zero available models. Make sure you have downloaded or configured models in {provider?.name || 'your provider'}.</p>
             <button
                 onClick={onGoToSettings}
                 className="mt-6 flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-[--text-on-accent] bg-[--accent-settings] rounded-lg hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-secondary] focus:ring-[--border-focus]"

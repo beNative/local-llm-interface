@@ -8,7 +8,16 @@ export interface LogEntry {
   message: string;
 }
 
-export type LLMProvider = 'Ollama' | 'LMStudio' | 'OpenAI' | 'Google Gemini' | 'Custom';
+export type LLMProviderType = 'openai-compatible' | 'google-gemini';
+
+export interface LLMProviderConfig {
+  id: string; // unique identifier, e.g., 'ollama', 'openai', 'custom-glm'
+  name: string; // display name, e.g., 'Ollama', 'OpenAI', 'My GLM'
+  baseUrl: string;
+  type: LLMProviderType;
+  apiKeyName?: string; // e.g., 'openAI', 'google', 'custom_glm_key'
+  isCustom: boolean; // flag to indicate if it's user-added
+}
 
 export type ProjectType = 'python' | 'nodejs' | 'webapp' | 'java' | 'delphi';
 
@@ -52,7 +61,7 @@ export interface ChatSession {
   id: string;
   name: string;
   modelId: string;
-  provider: LLMProvider; // To know which service to use
+  providerId: string;
   messages: ChatMessage[];
   systemPromptId?: string | null;
   generationConfig?: GenerationConfig;
@@ -83,15 +92,12 @@ export interface ToolchainStatus {
 }
 
 export interface Config {
-  provider: LLMProvider;
-  baseUrl: string;
+  providers?: LLMProviderConfig[];
+  selectedProviderId?: string;
   theme?: Theme;
   themeOverrides?: ThemeOverrides;
   logToFile?: boolean;
-  apiKeys?: {
-    openAI?: string;
-    google?: string;
-  };
+  apiKeys?: Record<string, string | undefined>;
   pythonProjectsPath?: string;
   nodejsProjectsPath?: string;
   webAppsPath?: string;

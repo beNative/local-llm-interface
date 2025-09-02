@@ -4,19 +4,20 @@ import LMStudioIcon from './icons/LMStudioIcon';
 import OpenAIIcon from './icons/OpenAIIcon';
 import GoogleGeminiIcon from './icons/GoogleGeminiIcon';
 import Icon from './Icon';
-import type { LLMProvider, SystemStats, Model } from '../types';
+import type { LLMProviderConfig, SystemStats, Model } from '../types';
 
 
 interface StatusBarProps {
     stats: SystemStats | null;
     connectionStatus: 'connected' | 'connecting' | 'error';
     statusText: string;
-    provider: LLMProvider;
+    providers: LLMProviderConfig[];
+    selectedProviderId: string | undefined;
     activeModel: string | null;
     activeProject: string | null;
     models: Model[];
     onSelectModel: (modelId: string) => void;
-    onChangeProvider: (provider: LLMProvider) => void;
+    onChangeProvider: (providerId: string) => void;
 }
 
 const formatBytes = (bytes: number, decimals = 1) => {
@@ -28,12 +29,21 @@ const formatBytes = (bytes: number, decimals = 1) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 };
 
+const ProviderIcons: Record<string, React.FC<{className?: string}>> = {
+  ollama: OllamaIcon,
+  lmstudio: LMStudioIcon,
+  openai: OpenAIIcon,
+  'google-gemini': GoogleGeminiIcon,
+};
 
-const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusText, provider, activeModel, activeProject, models, onSelectModel, onChangeProvider }) => {
+
+const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusText, providers, selectedProviderId, activeModel, activeProject, models, onSelectModel, onChangeProvider }) => {
     const [isProviderPopoverOpen, setIsProviderPopoverOpen] = useState(false);
     const [isModelPopoverOpen, setIsModelPopoverOpen] = useState(false);
     const providerRef = useRef<HTMLDivElement>(null);
     const modelRef = useRef<HTMLDivElement>(null);
+    
+    const activeProvider = providers.find(p => p.id === selectedProviderId);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -61,11 +71,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
         ? 'bg-red-500'
         : 'bg-green-500';
     
-    const ProviderIcon = provider === 'Ollama' ? OllamaIcon
-                       : provider === 'LMStudio' ? LMStudioIcon
-                       : provider === 'OpenAI' ? OpenAIIcon
-                       : provider === 'Google Gemini' ? GoogleGeminiIcon
-                       : (props: any) => <Icon name="model" {...props} />;
+    const ProviderIcon = activeProvider ? (ProviderIcons[activeProvider.id] || ((props: any) => <Icon name="server" {...props} />)) : ((props: any) => <Icon name="server" {...props} />);
 
     return (
         <footer className="flex items-center justify-between gap-6 px-4 py-1 bg-[--bg-primary] border-t border-[--border-primary] text-xs text-[--text-muted] font-mono flex-shrink-0">
@@ -75,20 +81,20 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
                     <button onClick={() => setIsProviderPopoverOpen(p => !p)} className="flex items-center gap-2 p-1 rounded hover:bg-[--bg-hover]" title={statusText}>
                         <ProviderIcon className="w-4 h-4" />
                         <span className={`w-2 h-2 rounded-full ${statusDotClass}`}></span>
-                        <span className="hidden sm:inline">{provider}</span>
+                        <span className="hidden sm:inline">{activeProvider?.name || 'No Provider'}</span>
                     </button>
                     {isProviderPopoverOpen && (
                          <div className="absolute bottom-full left-0 mb-2 w-48 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-lg z-20 overflow-hidden">
-                            {(['Ollama', 'LMStudio', 'OpenAI', 'Google Gemini', 'Custom'] as LLMProvider[]).map(p => (
+                            {providers.map(p => (
                                 <button
-                                    key={p}
+                                    key={p.id}
                                     onClick={() => {
-                                        onChangeProvider(p);
+                                        onChangeProvider(p.id);
                                         setIsProviderPopoverOpen(false);
                                     }}
                                     className="w-full text-left block px-3 py-2 text-sm font-sans text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
                                 >
-                                    {p}
+                                    {p.name}
                                 </button>
                             ))}
                         </div>

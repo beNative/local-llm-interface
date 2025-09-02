@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import type { Config, LLMProvider, Theme, ThemeOverrides, PredefinedPrompt, ColorOverrides, SystemPrompt, ToolchainStatus, Toolchain, IconSet } from '../types';
-import { PROVIDER_CONFIGS } from '../constants';
+import type { Config, LLMProviderConfig, Theme, ThemeOverrides, PredefinedPrompt, ColorOverrides, SystemPrompt, ToolchainStatus, Toolchain, IconSet, LLMProviderType } from '../types';
 import Icon from './Icon';
+import { DEFAULT_PROVIDERS } from '../constants';
 
 interface SettingsPanelProps {
   config: Config;
@@ -20,6 +20,70 @@ const PREDEFINED_COLORS = [
 ];
 
 const iconSets: IconSet[] = ['default', 'lucide', 'heroicons', 'feather', 'fontawesome', 'material'];
+
+const ProviderEditorModal: React.FC<{
+  provider: LLMProviderConfig | null;
+  onClose: () => void;
+  onSave: (provider: LLMProviderConfig) => void;
+}> = ({ provider, onClose, onSave }) => {
+    const [name, setName] = useState(provider?.name || '');
+    const [baseUrl, setBaseUrl] = useState(provider?.baseUrl || '');
+    const [requiresApiKey, setRequiresApiKey] = useState(!!provider?.apiKeyName);
+    const [apiKeyName, setApiKeyName] = useState(provider?.apiKeyName || '');
+
+    const handleSave = () => {
+        if (!name.trim() || !baseUrl.trim() || (requiresApiKey && !apiKeyName.trim())) {
+            alert('Please fill in all required fields.');
+            return;
+        }
+        onSave({
+            id: provider?.id || `custom_${Date.now()}`,
+            name: name.trim(),
+            baseUrl: baseUrl.trim(),
+            type: 'openai-compatible', // Currently only support adding openai-compatible custom providers
+            apiKeyName: requiresApiKey ? apiKeyName.trim() : undefined,
+            isCustom: true,
+        });
+    };
+
+    const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (e.target === e.currentTarget) onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[--bg-backdrop] backdrop-blur-sm" onClick={handleBackdropClick}>
+            <div className="bg-[--bg-secondary] rounded-lg shadow-xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
+                <h2 className="text-xl font-bold text-[--text-primary] mb-4">{provider ? 'Edit' : 'Add'} Custom Provider</h2>
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-[--text-muted] mb-1">Provider Name</label>
+                        <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg" placeholder="e.g., My GLM Server" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-[--text-muted] mb-1">Base URL (v1 compatible)</label>
+                        <input type="text" value={baseUrl} onChange={e => setBaseUrl(e.target.value)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg" placeholder="http://localhost:8000/v1" />
+                    </div>
+                    <label className="flex items-center gap-3 cursor-pointer mt-2">
+                        <input type="checkbox" checked={requiresApiKey} onChange={e => setRequiresApiKey(e.target.checked)} className="w-4 h-4 rounded text-indigo-600 bg-[--bg-tertiary] border-[--border-secondary]" />
+                        <span className="text-sm font-medium text-[--text-muted]">Requires API Key</span>
+                    </label>
+                    {requiresApiKey && (
+                        <div>
+                            <label className="block text-sm font-medium text-[--text-muted] mb-1">API Key Field Name</label>
+                            <input type="text" value={apiKeyName} onChange={e => setApiKeyName(e.target.value)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg" placeholder="e.g., MY_GLM_API_KEY" />
+                            <p className="text-xs text-[--text-muted] mt-1 px-1">This is the internal name used to store the key. The actual key is entered in the API Keys section.</p>
+                        </div>
+                    )}
+                </div>
+                <div className="flex justify-end gap-3 mt-6">
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-lg hover:bg-[--bg-hover]">Cancel</button>
+                    <button onClick={handleSave} className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700">Save Provider</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 const ColorSelector: React.FC<{ label: string; value: string; onChange: (value: string) => void;}> = ({ label, value, onChange }) => (
     <div>
@@ -179,6 +243,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
   const [toolchains, setToolchains] = useState<ToolchainStatus | null>(null);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
   const [activeSection, setActiveSection] = useState<SettingsSection>('general');
+  const [editingProvider, setEditingProvider] = useState<LLMProviderConfig | null>(null);
+  const [isAddingProvider, setIsAddingProvider] = useState(false);
   const isUpdatingFromProps = useRef(true);
   
   useEffect(() => {
@@ -228,25 +294,44 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
   const activeThemeDefaults = activeAppearanceTab === 'dark' ? defaults.dark : defaults.light;
   const themeOverrides = localConfig.themeOverrides || {};
   const activeColorOverrides = (activeAppearanceTab === 'dark' ? themeOverrides.dark : themeOverrides.light) || {};
-
-  const handleProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const provider = e.target.value as LLMProvider;
-    setLocalConfig(current => ({
-      ...current,
-      provider,
-      baseUrl: PROVIDER_CONFIGS[provider]?.baseUrl || '',
-    }));
-  };
-
-  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setLocalConfig({ ...localConfig, baseUrl: e.target.value });
+  
+  const handleSelectProvider = (providerId: string) => {
+    setLocalConfig(current => ({ ...current, selectedProviderId: providerId }));
   };
   
+  const handleSaveProvider = (providerToSave: LLMProviderConfig) => {
+    setLocalConfig(current => {
+      const providers = current.providers ? [...current.providers] : [];
+      const existingIndex = providers.findIndex(p => p.id === providerToSave.id);
+      if (existingIndex > -1) {
+        providers[existingIndex] = providerToSave;
+      } else {
+        providers.push(providerToSave);
+      }
+      return { ...current, providers };
+    });
+    setEditingProvider(null);
+    setIsAddingProvider(false);
+  };
+
+  const handleDeleteProvider = (providerId: string) => {
+    if (!confirm('Are you sure you want to delete this custom provider?')) return;
+    setLocalConfig(current => {
+      const providers = (current.providers || []).filter(p => p.id !== providerId);
+      let selectedProviderId = current.selectedProviderId;
+      // If the deleted provider was the active one, select the first provider in the list
+      if (selectedProviderId === providerId) {
+        selectedProviderId = providers[0]?.id;
+      }
+      return { ...current, providers, selectedProviderId };
+    });
+  };
+
   const handleLogToFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLocalConfig({ ...localConfig, logToFile: e.target.checked });
   };
 
-  const handleApiKeyChange = (key: 'openAI' | 'google', value: string) => {
+  const handleApiKeyChange = (key: string, value: string) => {
     setLocalConfig(current => ({
         ...current,
         apiKeys: {
@@ -334,14 +419,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
     }));
   };
 
-  const providerDescriptions: Record<LLMProvider, string> = {
-    Ollama: 'Connect to a running Ollama instance. The default URL is usually correct.',
-    LMStudio: 'Connect to the local server in LM Studio. Find the URL in the Server tab.',
-    OpenAI: 'Connect to the official OpenAI API for models like GPT-4.',
-    'Google Gemini': 'Connect to the Google Gemini API for models like Gemini Pro.',
-    Custom: 'For any other OpenAI-compatible API endpoint.'
-  };
-
   const navItems: { id: SettingsSection; label: string; icon: React.ReactNode; isVisible: boolean }[] = [
       { id: 'general', label: 'General', icon: <Icon name="sliders" className="w-5 h-5"/>, isVisible: true },
       { id: 'personalization', label: 'Personalization', icon: <Icon name="palette" className="w-5 h-5"/>, isVisible: true },
@@ -349,52 +426,83 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
       { id: 'advanced', label: 'Advanced', icon: <Icon name="cpu" className="w-5 h-5"/>, isVisible: isElectron },
   ];
 
+  const uniqueApiProviders = useMemo(() => {
+    const seenKeys = new Set<string>();
+    return (localConfig.providers || []).filter(p => {
+        if (p.apiKeyName && !seenKeys.has(p.apiKeyName)) {
+            seenKeys.add(p.apiKeyName);
+            return true;
+        }
+        return false;
+    });
+  }, [localConfig.providers]);
+
   const renderContent = () => {
       switch (activeSection) {
           case 'general':
               return (
                 <div className="space-y-8">
+                  {(editingProvider || isAddingProvider) && (
+                    <ProviderEditorModal
+                      provider={editingProvider}
+                      onClose={() => { setEditingProvider(null); setIsAddingProvider(false); }}
+                      onSave={handleSaveProvider}
+                    />
+                  )}
                   <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
                     <h3 className="text-xl font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">Connection</h3>
-                    <div className="space-y-4">
-                        <div>
-                            <label htmlFor="provider" className="block text-sm font-medium text-[--text-muted] mb-1">LLM Provider</label>
-                            <select id="provider" value={localConfig.provider} onChange={handleProviderChange} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]">
-                                <option value="Ollama">Ollama</option>
-                                <option value="LMStudio">LMStudio</option>
-                                <option value="OpenAI">OpenAI</option>
-                                <option value="Google Gemini">Google Gemini</option>
-                                <option value="Custom">Custom</option>
-                            </select>
-                            <p className="text-xs text-[--text-muted] mt-2 px-1">{providerDescriptions[localConfig.provider]}</p>
-                        </div>
-                        {localConfig.provider !== 'Google Gemini' && (
-                            <div>
-                                <label htmlFor="baseUrl" className="block text-sm font-medium text-[--text-muted] mb-1">Base URL (v1 compatible)</label>
-                                <input type="text" id="baseUrl" value={localConfig.baseUrl} onChange={handleUrlChange} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]" placeholder="e.g., http://localhost:11434/v1" />
+                    <div className="space-y-3">
+                        {(localConfig.providers || []).map(p => (
+                            <div key={p.id} className="flex items-center gap-3 p-3 rounded-lg border border-[--border-secondary] bg-[--bg-secondary]">
+                                <input 
+                                    type="radio" 
+                                    name="selectedProvider" 
+                                    id={`provider-radio-${p.id}`}
+                                    checked={localConfig.selectedProviderId === p.id}
+                                    onChange={() => handleSelectProvider(p.id)}
+                                    className="w-4 h-4 text-indigo-600 bg-[--bg-tertiary] border-[--border-secondary] focus:ring-indigo-500"
+                                />
+                                <label htmlFor={`provider-radio-${p.id}`} className="flex-grow cursor-pointer">
+                                    <p className="font-semibold text-[--text-primary]">{p.name}</p>
+                                    <p className="text-xs text-[--text-muted] font-mono truncate">{p.baseUrl}</p>
+                                </label>
+                                {p.isCustom && (
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={() => setEditingProvider(p)} className="p-2 text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-full"><Icon name="settings" className="w-4 h-4"/></button>
+                                        <button onClick={() => handleDeleteProvider(p.id)} className="p-2 text-[--text-muted] hover:text-red-500 hover:bg-red-500/10 rounded-full"><Icon name="trash" className="w-4 h-4"/></button>
+                                    </div>
+                                )}
                             </div>
-                        )}
+                        ))}
+                        <button 
+                            onClick={() => { setEditingProvider(null); setIsAddingProvider(true); }} 
+                            className="w-full flex items-center justify-center gap-2 text-sm text-[--text-secondary] hover:text-[--text-primary] bg-[--bg-tertiary] hover:bg-[--bg-hover] border border-[--border-secondary] rounded-lg py-2"
+                        >
+                            <Icon name="plus" className="w-4 h-4" /> Add Custom Provider
+                        </button>
                     </div>
                   </div>
                   <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
                         <h3 className="text-xl font-semibold text-[--text-secondary] mb-4">API Keys</h3>
-                        {localConfig.provider === 'OpenAI' && (
-                            <div>
-                                <label htmlFor="openai-api-key" className="block text-sm font-medium text-[--text-muted] mb-1">OpenAI API Key</label>
-                                <input type="password" id="openai-api-key" value={localConfig.apiKeys?.openAI || ''} onChange={e => handleApiKeyChange('openAI', e.target.value)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]" placeholder="sk-..." />
-                                <p className="text-xs text-[--text-muted] mt-1 px-1">Your key is stored locally and never sent to any third party.</p>
-                            </div>
-                        )}
-                        {localConfig.provider === 'Google Gemini' && (
-                            <div>
-                                <label htmlFor="google-api-key" className="block text-sm font-medium text-[--text-muted] mb-1">Google AI Studio API Key</label>
-                                <input type="password" id="google-api-key" value={localConfig.apiKeys?.google || ''} onChange={e => handleApiKeyChange('google', e.target.value)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]" placeholder="AIzaSy..." />
-                                <p className="text-xs text-[--text-muted] mt-1 px-1">Your key is stored locally and never sent to any third party.</p>
-                            </div>
-                        )}
-                        {localConfig.provider !== 'OpenAI' && localConfig.provider !== 'Google Gemini' && (
-                           <p className="text-sm text-[--text-muted]">The selected provider does not require an API key.</p>
-                        )}
+                        <div className="space-y-4">
+                            {uniqueApiProviders.map(p => (
+                                <div key={p.apiKeyName}>
+                                    <label htmlFor={`api-key-${p.apiKeyName}`} className="block text-sm font-medium text-[--text-muted] mb-1">API Key for {p.name}</label>
+                                    <input 
+                                        type="password"
+                                        id={`api-key-${p.apiKeyName}`}
+                                        value={localConfig.apiKeys?.[p.apiKeyName!] || ''}
+                                        onChange={e => handleApiKeyChange(p.apiKeyName!, e.target.value)}
+                                        className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
+                                        placeholder={`Enter your ${p.name} key here...`}
+                                    />
+                                    <p className="text-xs text-[--text-muted] mt-1 px-1">Your key is stored locally and never sent to any third party.</p>
+                                </div>
+                            ))}
+                            {uniqueApiProviders.length === 0 && (
+                               <p className="text-sm text-[--text-muted]">The selected provider does not require an API key.</p>
+                            )}
+                        </div>
                   </div>
                   {isElectron && (
                      <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">

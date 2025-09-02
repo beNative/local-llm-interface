@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, FileSystemEntry, SystemStats, GenerationConfig, LLMProvider } from './types';
-import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
+import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, FileSystemEntry, SystemStats, GenerationConfig, LLMProviderConfig } from './types';
+import { APP_NAME, DEFAULT_PROVIDERS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
 import { fetchModels, streamChatCompletion, LLMServiceError, generateTextCompletion, StreamChunk } from './services/llmService';
 import { logger } from './services/logger';
 import SettingsPanel from './components/SettingsPanel';
@@ -117,6 +117,9 @@ const App: React.FC = () => {
   const sessions = config?.sessions || [];
   const activeSessionId = config?.activeSessionId;
   const activeSession = sessions.find(s => s.id === activeSessionId) || null;
+  const providers = config?.providers || [];
+  const selectedProviderId = config?.selectedProviderId;
+  const activeProvider = providers.find(p => p.id === selectedProviderId) || null;
 
   // Effect for one-time app initialization and loading settings
   useEffect(() => {
@@ -124,8 +127,8 @@ const App: React.FC = () => {
     const loadInitialConfig = async () => {
       logger.debug('Loading initial config.');
       const defaultConfig: Config = { 
-        provider: 'Ollama', 
-        baseUrl: PROVIDER_CONFIGS.Ollama.baseUrl,
+        providers: DEFAULT_PROVIDERS,
+        selectedProviderId: 'ollama',
         theme: 'dark',
         themeOverrides: {
             light: {},
@@ -144,7 +147,7 @@ const App: React.FC = () => {
         systemPrompts: [],
       };
       
-      let loadedConfig = defaultConfig;
+      let loadedConfig: Config = defaultConfig;
 
       if (window.electronAPI) {
         setIsElectron(true);
@@ -168,6 +171,52 @@ const App: React.FC = () => {
              logger.error("Failed to parse local settings, using defaults.");
           }
         }
+      }
+
+      // MIGRATION LOGIC from old provider structure
+      const oldConf = loadedConfig as any;
+      if (!loadedConfig.providers || loadedConfig.providers.length === 0 || oldConf.provider) {
+          logger.info('Migrating old provider configuration to new structure.');
+          const newProviders = [...DEFAULT_PROVIDERS];
+          const oldProviderName = oldConf.provider;
+          let newSelectedId = 'ollama';
+
+          if (oldProviderName === 'LMStudio') newSelectedId = 'lmstudio';
+          else if (oldProviderName === 'OpenAI') newSelectedId = 'openai';
+          else if (oldProviderName === 'Google Gemini') newSelectedId = 'google-gemini';
+          else if (oldProviderName === 'Custom' && oldConf.baseUrl) {
+              const customProvider: LLMProviderConfig = {
+                  id: 'custom-migrated',
+                  name: 'Custom (Migrated)',
+                  baseUrl: oldConf.baseUrl,
+                  type: 'openai-compatible',
+                  isCustom: true,
+              };
+              newProviders.push(customProvider);
+              newSelectedId = 'custom-migrated';
+          }
+          
+          loadedConfig.providers = newProviders;
+          loadedConfig.selectedProviderId = newSelectedId;
+
+          // Migrate sessions
+          if (loadedConfig.sessions) {
+              loadedConfig.sessions = (loadedConfig.sessions as any[]).map((s: any) => {
+                  if (s.provider) {
+                      let providerId = 'ollama'; // default
+                      if (s.provider === 'LMStudio') providerId = 'lmstudio';
+                      else if (s.provider === 'OpenAI') providerId = 'openai';
+                      else if (s.provider === 'Google Gemini') providerId = 'google-gemini';
+                      else if (s.provider === 'Custom') providerId = newSelectedId;
+                      
+                      const { provider, ...rest } = s;
+                      return { ...rest, providerId };
+                  }
+                  return s;
+              });
+          }
+          delete oldConf.provider;
+          delete oldConf.baseUrl;
       }
       
       setConfig(loadedConfig);
@@ -259,21 +308,20 @@ const App: React.FC = () => {
     logger.info('Configuration change requested.');
 
     setConfig(currentConfig => {
-      if (!currentConfig) return newConfig; // Should not happen after init
+      if (!currentConfig) return newConfig;
 
-      const needsModelReload = newConfig.baseUrl !== currentConfig.baseUrl 
-          || newConfig.provider !== currentConfig.provider
-          || newConfig.apiKeys?.openAI !== currentConfig.apiKeys?.openAI
-          || newConfig.apiKeys?.google !== currentConfig.apiKeys?.google;
+      const oldProvider = currentConfig.providers?.find(p => p.id === currentConfig.selectedProviderId);
+      const newProvider = newConfig.providers?.find(p => p.id === newConfig.selectedProviderId);
+
+      const needsModelReload = !oldProvider || !newProvider || 
+        newProvider.id !== oldProvider.id ||
+        newProvider.baseUrl !== oldProvider.baseUrl ||
+        (newProvider.apiKeyName && newConfig.apiKeys?.[newProvider.apiKeyName] !== currentConfig.apiKeys?.[newProvider.apiKeyName]);
 
       if (needsModelReload) {
-        logger.info('Provider, Base URL, or API Key changed. Sessions are preserved. Returning to model selection.');
+        logger.info('Provider, Base URL, or API Key changed. Reloading models.');
         setView('chat');
-        // Keep existing sessions, but clear active one to force model re-selection
-        return {
-          ...newConfig,
-          activeSessionId: undefined, 
-        };
+        return { ...newConfig, activeSessionId: undefined };
       }
       
       return { ...currentConfig, ...newConfig };
@@ -282,17 +330,16 @@ const App: React.FC = () => {
     logger.setConfig({ logToFile: newConfig.logToFile });
   }, []);
   
-  const handleProviderChange = useCallback((provider: LLMProvider) => {
+  const handleProviderChange = useCallback((providerId: string) => {
     setConfig(c => {
-        if (!c || c.provider === provider) return c;
+        if (!c || c.selectedProviderId === providerId) return c;
         
-        logger.info(`Provider changed to ${provider} from status bar.`);
-        setView('chat'); // Go to chat view which will show model selection
+        logger.info(`Provider changed to ${providerId} from status bar.`);
+        setView('chat');
         return {
             ...c,
-            provider,
-            baseUrl: PROVIDER_CONFIGS[provider].baseUrl,
-            activeSessionId: undefined, // Go back to model selection screen
+            selectedProviderId: providerId,
+            activeSessionId: undefined,
         };
     });
   }, []);
@@ -307,15 +354,15 @@ const App: React.FC = () => {
   };
 
   const loadModels = useCallback(async () => {
-    if (!config) {
-        setError("Configuration not loaded. Please restart the application.");
+    if (!activeProvider || !config) {
+        setError("Provider configuration not loaded. Please select a provider in Settings.");
         setModels([]);
         return;
     }
     setIsLoadingModels(true);
     setError(null);
     try {
-      const fetchedModels = await fetchModels(config);
+      const fetchedModels = await fetchModels(activeProvider, config.apiKeys);
       setModels(fetchedModels);
     } catch (err) {
       const errorMessage = err instanceof LLMServiceError ? err.message : 'An unexpected error occurred.';
@@ -324,7 +371,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoadingModels(false);
     }
-  }, [config]);
+  }, [config, activeProvider]);
 
   useEffect(() => {
     // Load models if config is ready and we are on a view that needs them
@@ -364,7 +411,13 @@ const App: React.FC = () => {
   }, []);
 
   const generateSessionName = useCallback(async (session: ChatSession) => {
-      if (!config) return;
+      if (!config || !config.providers) return;
+      
+      const providerForSession = config.providers.find(p => p.id === session.providerId);
+      if (!providerForSession) {
+          logger.error(`Cannot generate session name: Provider with ID ${session.providerId} not found.`);
+          return;
+      }
 
       const conversation = session.messages
           .filter(m => ['user', 'assistant'].includes(m.role) && m.content)
@@ -390,9 +443,7 @@ const App: React.FC = () => {
       
       try {
           logger.info(`Generating session title for session ${session.id}`);
-          // Use a temporary config for the current provider of the session
-          const tempConfig = { ...config, provider: session.provider };
-          const title = await generateTextCompletion(tempConfig, session.modelId, [{ role: 'user', content: prompt }]);
+          const title = await generateTextCompletion(providerForSession, config.apiKeys, session.modelId, [{ role: 'user', content: prompt }]);
           const cleanedTitle = title.trim().replace(/^"|"$/g, '');
           if (cleanedTitle) {
             handleRenameSession(session.id, cleanedTitle);
@@ -414,13 +465,13 @@ const App: React.FC = () => {
   };
 
   const handleSelectModel = (modelId: string) => {
-    if (!config) return;
+    if (!config || !config.selectedProviderId) return;
     logger.info(`Model selected for new chat: ${modelId}`);
     const newSession: ChatSession = {
         id: `session_${Date.now()}`,
         name: 'New Chat',
         modelId: modelId,
-        provider: config.provider,
+        providerId: config.selectedProviderId,
         messages: [{ role: 'system', content: DEFAULT_SYSTEM_PROMPT }],
         systemPromptId: null,
         generationConfig: {
@@ -489,12 +540,15 @@ const App: React.FC = () => {
   };
 
   const handleSendMessage = useCallback(async (content: string | ChatMessageContentPart[], options?: { useRAG: boolean }) => {
-    if (!activeSession || !config) return;
+    if (!activeSession || !config || !config.providers) return;
     
-    // Create a temporary config snapshot for this specific request, using the session's provider
-    const requestConfig = { ...config, provider: activeSession.provider, baseUrl: PROVIDER_CONFIGS[activeSession.provider].baseUrl };
+    const providerForSession = config.providers.find(p => p.id === activeSession.providerId);
+    if (!providerForSession) {
+        logger.error(`Cannot send message: Provider with ID ${activeSession.providerId} for session ${activeSession.id} not found.`);
+        return;
+    }
 
-    logger.info(`Sending message to model ${activeSession.modelId} via ${activeSession.provider}. RAG enabled: ${!!options?.useRAG}`);
+    logger.info(`Sending message to model ${activeSession.modelId} via ${providerForSession.name}. RAG enabled: ${!!options?.useRAG}`);
     const isFirstUserMessage = activeSession.messages.filter(m => m.role === 'user').length === 0;
     
     const controller = new AbortController();
@@ -517,7 +571,7 @@ const App: React.FC = () => {
     if (match && activeProjectId && window.electronAPI) {
         // ... (existing file modification logic is unchanged)
     } else if (options?.useRAG && activeProjectId && window.electronAPI) {
-        // ... (existing RAG logic is unchanged, it will use requestConfig)
+        // ... (existing RAG logic is unchanged)
     }
     
     const updatedSession: ChatSession = { ...activeSession, messages: [...newMessages, { role: 'assistant', content: '' }] };
@@ -525,7 +579,8 @@ const App: React.FC = () => {
     setIsResponding(true);
 
     await streamChatCompletion(
-      requestConfig,
+      providerForSession,
+      config.apiKeys,
       activeSession.modelId,
       messagesForApi,
       controller.signal,
@@ -802,8 +857,7 @@ const App: React.FC = () => {
                         isLoading={isLoadingModels}
                         error={error}
                         onGoToSettings={handleGoToSettings}
-                        provider={config.provider}
-                        baseUrl={config.baseUrl}
+                        provider={activeProvider}
                         theme={config.theme || 'dark'}
                     />
                 </div>
@@ -822,7 +876,7 @@ const App: React.FC = () => {
       ? 'Connecting to LLM provider...'
       : connectionStatus === 'error'
       ? `Connection Error`
-      : `Connected to ${config?.provider}. ${models.length} model(s) available.`;
+      : `Connected to ${activeProvider?.name}. ${models.length} model(s) available.`;
 
   const activeProjectName = activeProjectId
       ? config?.projects?.find(p => p.id === activeProjectId)?.name || null
@@ -914,7 +968,8 @@ const App: React.FC = () => {
                   stats={systemStats}
                   connectionStatus={connectionStatus}
                   statusText={statusText}
-                  provider={config.provider}
+                  providers={providers}
+                  selectedProviderId={selectedProviderId}
                   activeModel={activeSession?.modelId || null}
                   activeProject={activeProjectName}
                   models={models}

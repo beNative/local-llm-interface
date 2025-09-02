@@ -1,5 +1,5 @@
 import { GoogleGenAI, HarmCategory, HarmBlockThreshold, type Content } from "@google/genai";
-import type { Model, ChatMessage, ChatMessageMetadata, ChatMessageUsage, GenerationConfig, ModelDetails, Config, LLMProvider, ChatMessageContentPart } from '../types';
+import type { Model, ChatMessage, ChatMessageMetadata, ChatMessageUsage, GenerationConfig, ModelDetails, Config, LLMProviderConfig, ChatMessageContentPart } from '../types';
 import { logger } from './logger';
 
 export class LLMServiceError extends Error {
@@ -13,17 +13,14 @@ export type StreamChunk =
   { type: 'content'; text: string } | 
   { type: 'reasoning'; text: string };
 
-const getApiKey = (provider: LLMProvider, config: Config): string | undefined => {
-    if (provider === 'OpenAI') return config.apiKeys?.openAI;
-    if (provider === 'Google Gemini') return config.apiKeys?.google;
-    return undefined;
+const getApiKey = (provider: LLMProviderConfig, apiKeys: Config['apiKeys']): string | undefined => {
+    if (!provider.apiKeyName) return undefined;
+    return apiKeys?.[provider.apiKeyName];
 };
 
-export const fetchModels = async (config: Config): Promise<Model[]> => {
-  const { provider, baseUrl } = config;
-  
-  if (provider === 'Google Gemini') {
-      const apiKey = getApiKey(provider, config);
+export const fetchModels = async (provider: LLMProviderConfig, apiKeys: Config['apiKeys']): Promise<Model[]> => {
+  if (provider.type === 'google-gemini') {
+      const apiKey = getApiKey(provider, apiKeys);
       if (!apiKey) {
           throw new LLMServiceError('Google Gemini API key is not configured in Settings.');
       }
@@ -37,16 +34,16 @@ export const fetchModels = async (config: Config): Promise<Model[]> => {
 
   try {
     const headers: Record<string, string> = {};
-    if (provider === 'OpenAI') {
-        const apiKey = getApiKey(provider, config);
+    if (provider.apiKeyName) {
+        const apiKey = getApiKey(provider, apiKeys);
         if (!apiKey) {
-            throw new LLMServiceError('OpenAI API key is not configured in Settings.');
+            throw new LLMServiceError(`API key for ${provider.name} is not configured in Settings.`);
         }
         headers['Authorization'] = `Bearer ${apiKey}`;
     }
 
-    logger.info(`Fetching models from ${baseUrl}/models`);
-    const response = await fetch(`${baseUrl}/models`, { headers });
+    logger.info(`Fetching models from ${provider.baseUrl}/models`);
+    const response = await fetch(`${provider.baseUrl}/models`, { headers });
     if (!response.ok) {
       const errorText = await response.text();
       const errorMsg = `Failed to fetch models: ${response.status} ${response.statusText}. ${errorText}`;
@@ -67,7 +64,7 @@ export const fetchModels = async (config: Config): Promise<Model[]> => {
         }));
     }
     if (data.data) {
-        logger.info(`Found ${data.data.length} models (${provider} format).`);
+        logger.info(`Found ${data.data.length} models (${provider.name} format).`);
         return data.data;
     }
     logger.warn('Models endpoint returned unknown format, no models found.');
@@ -108,19 +105,22 @@ export const fetchOllamaModelDetails = async (baseUrl: string, modelName: string
 };
 
 const textCompletionOpenAI = async (
-    config: Config,
+    provider: LLMProviderConfig,
+    apiKeys: Config['apiKeys'],
     modelId: string,
     messages: ChatMessage[],
     generationConfig?: GenerationConfig
 ): Promise<string> => {
-    const { baseUrl, provider } = config;
-    const apiKey = getApiKey(provider, config);
-    if (!apiKey) throw new LLMServiceError('API key is not configured for this provider.');
+    const { baseUrl, apiKeyName } = provider;
+    if (apiKeyName) {
+        const apiKey = getApiKey(provider, apiKeys);
+        if (!apiKey) throw new LLMServiceError('API key is not configured for this provider.');
+    }
 
-    const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-    };
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (apiKeyName) {
+        headers['Authorization'] = `Bearer ${getApiKey(provider, apiKeys)}`;
+    }
 
     const options: Record<string, any> = {};
     if (generationConfig) {
@@ -145,67 +145,73 @@ const textCompletionOpenAI = async (
     return content;
 };
 
+// FIX: Updated to use the correct Gemini API methods as per the guidelines.
+// - Replaced deprecated `ai.models.getModel` with a direct call to `ai.models.generateContent`.
+// - Correctly passed `generationConfig` and `systemInstruction` in a `config` object.
+// - Changed response text extraction from `result.response.text()` to `response.text`.
+// - Added robust handling for multi-part message content.
 const textCompletionGemini = async (
-    config: Config,
+    provider: LLMProviderConfig,
+    apiKeys: Config['apiKeys'],
     modelId: string,
     messages: ChatMessage[],
     generationConfig?: GenerationConfig
 ): Promise<string> => {
-    const apiKey = getApiKey('Google Gemini', config);
+    const apiKey = getApiKey(provider, apiKeys);
     if (!apiKey) throw new LLMServiceError('Google Gemini API key is not configured.');
 
     const ai = new GoogleGenAI({ apiKey });
-    const model = ai.models.getModel({ model: modelId });
 
     const systemInstruction = messages.find(m => m.role === 'system')?.content as string || undefined;
-    const history = messages
+    const contents = messages
         .filter(m => m.role === 'user' || m.role === 'assistant')
-        .map(m => ({
-            role: m.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: m.content as string }]
-        }));
+        .map(m => {
+            let parts: any[] = [];
+            if (typeof m.content === 'string') {
+                parts.push({ text: m.content });
+            } else if (Array.isArray(m.content)) {
+                parts = m.content.map(p => {
+                    if (p.type === 'text') return { text: p.text };
+                    if (p.type === 'image_url') {
+                        const [header, data] = p.image_url.url.split(',');
+                        const mimeType = header.match(/:(.*?);/)?.[1];
+                        return { inlineData: { mimeType, data } };
+                    }
+                    return {};
+                }).filter(Boolean);
+            }
+            return { role: m.role === 'assistant' ? 'model' : 'user', parts };
+        });
 
-    const result = await model.generateContent({
-        contents: history,
-        generationConfig,
-        systemInstruction,
+    const response = await ai.models.generateContent({
+        model: modelId,
+        contents: contents,
+        config: {
+            ...generationConfig,
+            systemInstruction,
+        },
     });
     
-    return result.response.text();
+    return response.text;
 };
 
 export const generateTextCompletion = async (
-  config: Config,
+  provider: LLMProviderConfig,
+  apiKeys: Config['apiKeys'],
   modelId: string,
   messages: ChatMessage[],
   generationConfig?: GenerationConfig
 ): Promise<string> => {
   try {
-    logger.info(`Requesting non-streaming text completion from model ${modelId} via ${config.provider}`);
+    logger.info(`Requesting non-streaming text completion from model ${modelId} via ${provider.name}`);
 
-    if (config.provider === 'Google Gemini') {
-        return await textCompletionGemini(config, modelId, messages, generationConfig);
+    if (provider.type === 'google-gemini') {
+        return await textCompletionGemini(provider, apiKeys, modelId, messages, generationConfig);
     }
     
-    if (config.provider === 'OpenAI') {
-        return await textCompletionOpenAI(config, modelId, messages, generationConfig);
-    }
+    // Default to OpenAI-compatible
+    return await textCompletionOpenAI(provider, apiKeys, modelId, messages, generationConfig);
 
-    // Default OpenAI-compatible local server logic
-    const response = await fetch(`${config.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: modelId, messages, stream: false, ...generationConfig }),
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new LLMServiceError(`API error: ${response.status} ${response.statusText}. ${errorText}`);
-    }
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) throw new LLMServiceError('API response did not contain message content.');
-    return content;
   } catch (error) {
      if (error instanceof LLMServiceError) throw error;
      if (error instanceof Error) {
@@ -218,8 +224,13 @@ export const generateTextCompletion = async (
   }
 };
 
+// FIX: Updated to use the correct Gemini API methods for streaming chat.
+// - Replaced deprecated `ai.models.getModel` and `model.startChat` with `ai.chats.create`.
+// - The result of `chat.sendMessageStream` is now correctly treated as the async iterator.
+// - Changed chunk text extraction from `chunk.text()` to `chunk.text`.
 const streamChatCompletionGemini = async (
-    config: Config,
+    provider: LLMProviderConfig,
+    apiKeys: Config['apiKeys'],
     modelId: string,
     messages: ChatMessage[],
     signal: AbortSignal,
@@ -228,7 +239,7 @@ const streamChatCompletionGemini = async (
     onDone: (metadata: ChatMessageMetadata) => void,
     generationConfig?: GenerationConfig
 ) => {
-    const apiKey = getApiKey('Google Gemini', config);
+    const apiKey = getApiKey(provider, apiKeys);
     if (!apiKey) {
         onError(new LLMServiceError('Google Gemini API key is not configured.'));
         return;
@@ -275,14 +286,16 @@ const streamChatCompletionGemini = async (
             });
         }
         
-        const model = ai.models.getModel({ 
+        const chat = ai.chats.create({ 
             model: modelId, 
-            systemInstruction,
-            generationConfig,
+            history: history as Content[],
+            config: {
+                systemInstruction,
+                ...generationConfig,
+            },
         });
-        const chat = model.startChat({ history: history as Content[] });
 
-        const result = await chat.sendMessageStream(latestMessageContent);
+        const stream = await chat.sendMessageStream(latestMessageContent);
         
         signal.addEventListener('abort', () => {
             // There's no direct abort method on the stream in the SDK.
@@ -290,9 +303,9 @@ const streamChatCompletionGemini = async (
             logger.warn('Gemini stream abort requested. Processing will stop.');
         });
 
-        for await (const chunk of result.stream) {
+        for await (const chunk of stream) {
             if (signal.aborted) break;
-            const text = chunk.text();
+            const text = chunk.text;
             if (text) {
                 onChunk({ type: 'content', text });
             }
@@ -308,7 +321,8 @@ const streamChatCompletionGemini = async (
 
 
 export const streamChatCompletion = async (
-  config: Config,
+  provider: LLMProviderConfig,
+  apiKeys: Config['apiKeys'],
   modelId: string,
   messages: ChatMessage[],
   signal: AbortSignal,
@@ -320,17 +334,18 @@ export const streamChatCompletion = async (
   const startTime = Date.now();
   let usage: ChatMessageUsage | undefined = undefined;
   
-  if (config.provider === 'Google Gemini') {
-      return streamChatCompletionGemini(config, modelId, messages, signal, onChunk, onError, onDone, generationConfig);
+  if (provider.type === 'google-gemini') {
+      return streamChatCompletionGemini(provider, apiKeys, modelId, messages, signal, onChunk, onError, onDone, generationConfig);
   }
   
+  // Default to OpenAI-compatible
   try {
     logger.info(`Starting chat completion stream with model ${modelId}`);
     
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (config.provider === 'OpenAI') {
-        const apiKey = getApiKey('OpenAI', config);
-        if (!apiKey) throw new LLMServiceError('OpenAI API Key not configured.');
+    if (provider.apiKeyName) {
+        const apiKey = getApiKey(provider, apiKeys);
+        if (!apiKey) throw new LLMServiceError(`API Key for ${provider.name} not configured.`);
         headers['Authorization'] = `Bearer ${apiKey}`;
     }
 
@@ -341,7 +356,7 @@ export const streamChatCompletion = async (
         if (generationConfig.topP !== undefined) options.top_p = generationConfig.topP;
     }
 
-    const response = await fetch(`${config.baseUrl}/chat/completions`, {
+    const response = await fetch(`${provider.baseUrl}/chat/completions`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ model: modelId, messages, stream: true, ...options }),

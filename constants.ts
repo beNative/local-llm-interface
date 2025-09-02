@@ -1,22 +1,11 @@
-import type { Config, LLMProvider } from './types';
+import type { LLMProviderConfig } from './types';
 
-export const PROVIDER_CONFIGS: Record<LLMProvider, { baseUrl: string }> = {
-  Ollama: {
-    baseUrl: 'http://localhost:11434/v1',
-  },
-  LMStudio: {
-    baseUrl: 'http://127.0.0.1:1234/v1',
-  },
-  OpenAI: {
-    baseUrl: 'https://api.openai.com/v1',
-  },
-  'Google Gemini': {
-    baseUrl: 'gemini-api', // Special identifier for the service layer
-  },
-  Custom: {
-    baseUrl: 'http://localhost:8080/v1',
-  },
-};
+export const DEFAULT_PROVIDERS: LLMProviderConfig[] = [
+  { id: 'ollama', name: 'Ollama', baseUrl: 'http://localhost:11434/v1', type: 'openai-compatible', isCustom: false },
+  { id: 'lmstudio', name: 'LMStudio', baseUrl: 'http://127.0.0.1:1234/v1', type: 'openai-compatible', isCustom: false },
+  { id: 'openai', name: 'OpenAI', baseUrl: 'https://api.openai.com/v1', type: 'openai-compatible', apiKeyName: 'openAI', isCustom: false },
+  { id: 'google-gemini', name: 'Google Gemini', baseUrl: 'gemini-api', type: 'google-gemini', apiKeyName: 'google', isCustom: false },
+];
 
 export const APP_NAME = "Local LLM Interface";
 
