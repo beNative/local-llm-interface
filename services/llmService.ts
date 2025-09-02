@@ -242,10 +242,9 @@ const streamChatCompletionGemini = async (
         
         const userAndAssistantMessages = messages.filter(m => m.role === 'user' || m.role === 'assistant');
 
-        // FIX: Correctly separate the history from the new prompt.
-        // The history is all messages except the last two (the new user prompt and the blank assistant shell).
+        // The history is all messages except the last one (the new user prompt).
         const history = userAndAssistantMessages
-            .slice(0, -2) 
+            .slice(0, -1) 
             .map(m => {
                 let parts: any[] = [];
                 if (typeof m.content === 'string') {
@@ -264,8 +263,8 @@ const streamChatCompletionGemini = async (
                 return { role: m.role === 'assistant' ? 'model' : 'user', parts };
             });
 
-        // The latest prompt from the user is the second to last message in the array.
-        const latestMessage = userAndAssistantMessages[userAndAssistantMessages.length - 2];
+        // The latest prompt from the user is the last message in the array.
+        const latestMessage = userAndAssistantMessages[userAndAssistantMessages.length - 1];
         if (!latestMessage || latestMessage.role !== 'user') {
             onError(new Error("Could not find user message to send."));
             return;
