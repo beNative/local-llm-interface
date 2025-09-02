@@ -57,6 +57,32 @@ const ContextSources: React.FC<{ files: string[] }> = ({ files }) => {
     );
 };
 
+const ThinkingLog: React.FC<{ content: string }> = ({ content }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    if (!content) return null;
+
+    return (
+        <div className="mb-2 text-xs border border-[--assistant-message-text-color]/10 rounded-lg">
+            <button
+                onClick={() => setIsExpanded(prev => !prev)}
+                className="flex items-center w-full p-2 text-left opacity-80 hover:opacity-100"
+            >
+                <BrainCircuitIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+                <span className="font-semibold flex-grow">Show reasoning</span>
+                <ChevronDownIcon className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+            </button>
+            {isExpanded && (
+                <div className="p-2 border-t border-[--assistant-message-text-color]/10 prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {content}
+                    </ReactMarkdown>
+                </div>
+            )}
+        </div>
+    );
+};
+
 
 const MessageMetadata: React.FC<{ metadata: ChatMessageMetadata }> = ({ metadata }) => {
     const { usage, speed } = metadata;
@@ -553,6 +579,7 @@ const MemoizedChatMessage = React.memo<{
             <SpinnerIcon className="w-5 h-5 text-gray-400"/>
           ) : (
             <>
+              {msg.metadata?.thinking && <ThinkingLog content={msg.metadata.thinking} />}
               {msg.metadata?.ragContext && <ContextSources files={msg.metadata.ragContext.files} />}
               <div className="prose prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2">
                 <ReactMarkdown

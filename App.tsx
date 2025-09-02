@@ -109,6 +109,7 @@ const App: React.FC = () => {
   const [editingFile, setEditingFile] = useState<{ path: string; name: string } | null>(null);
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const accumulatedThinkingText = useRef<string | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(256);
   const isResizingRef = useRef(false);
 
@@ -553,6 +554,7 @@ const App: React.FC = () => {
     
     const controller = new AbortController();
     abortControllerRef.current = controller;
+    accumulatedThinkingText.current = null;
 
     const userMessageContent = Array.isArray(content) ? (content.find(p => p.type === 'text') as { type: 'text', text: string } | undefined)?.text || '' : content;
     const modificationRegex = /(?:refactor|modify|change|update|add to|edit|implement|create|write|delete)\s+(?:in\s+)?(?:the\s+file\s+)?([\w./\\-]+)/i;
@@ -577,6 +579,7 @@ const App: React.FC = () => {
     const updatedSession: ChatSession = { ...activeSession, messages: [...newMessages, { role: 'assistant', content: '' }] };
     setConfig(c => ({ ...c!, sessions: c!.sessions!.map(s => s.id === activeSessionId ? updatedSession : s) }));
     setIsResponding(true);
+    setThinkingText(null);
 
     await streamChatCompletion(
       providerForSession,
@@ -586,9 +589,12 @@ const App: React.FC = () => {
       controller.signal,
       (chunk: StreamChunk) => {
         if (chunk.type === 'reasoning') {
-            setThinkingText(prev => (prev === null ? chunk.text : prev + chunk.text));
+            accumulatedThinkingText.current = (accumulatedThinkingText.current || '') + chunk.text;
+            setThinkingText(accumulatedThinkingText.current);
         } else if (chunk.type === 'content') {
-            setThinkingText(prev => prev !== null ? null : prev);
+            if (thinkingText !== null) {
+                setThinkingText(null);
+            }
             setConfig(c => {
                 if (!c) return c;
                 const targetSession = c.sessions?.find(s => s.id === activeSessionId);
@@ -617,9 +623,11 @@ const App: React.FC = () => {
         abortControllerRef.current = null;
       },
       (metadata: ChatMessageMetadata) => {
+        const finalThinkingText = accumulatedThinkingText.current;
         setIsResponding(false);
         setRetrievalStatus('idle');
         setThinkingText(null);
+        accumulatedThinkingText.current = null;
         abortControllerRef.current = null;
         logger.info('Message stream completed.');
         
@@ -629,7 +637,11 @@ const App: React.FC = () => {
             if (!targetSession) return c;
             const lastMsg = targetSession.messages[targetSession.messages.length - 1];
             if (lastMsg?.role === 'assistant') {
-                const finalMetadata = { ...metadata, ragContext: ragMetadata };
+                const finalMetadata: ChatMessageMetadata = { 
+                    ...metadata, 
+                    ragContext: ragMetadata,
+                    ...(finalThinkingText && { thinking: finalThinkingText }),
+                };
                 const updatedMsg: ChatMessage = { ...lastMsg, metadata: finalMetadata };
                 return { ...c, sessions: c.sessions!.map(s => s.id === activeSessionId ? { ...s, messages: [...s.messages.slice(0, -1), updatedMsg] } : s) };
             }
@@ -649,7 +661,7 @@ const App: React.FC = () => {
       },
       activeSession.generationConfig
     );
-  }, [config, activeSession, activeSessionId, activeProjectId, generateSessionName]);
+  }, [config, activeSession, activeSessionId, activeProjectId, generateSessionName, thinkingText]);
 
   const handleAcceptModification = async (filePath: string, newContent: string) => {
     if (!window.electronAPI) return;

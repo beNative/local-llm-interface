@@ -158,6 +158,7 @@ export interface ChatMessageMetadata {
   ragContext?: {
     files: string[];
   };
+  thinking?: string;
 }
 
 export interface ChatMessage {
