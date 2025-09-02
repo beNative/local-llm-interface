@@ -68,6 +68,19 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
             
             {/* Right Side */}
             <div className="flex items-center gap-6">
+                 <div className="flex items-center gap-2" title="System-wide CPU Usage">
+                    <Icon name="cpu" className="w-4 h-4" />
+                     {stats ? (
+                        <>
+                            <div className="w-20 h-2 bg-[--bg-tertiary] rounded-full overflow-hidden hidden md:block">
+                                <div className="h-full bg-[--accent-projects]" style={{ width: `${cpuUsagePercent}%` }}></div>
+                            </div>
+                            <span>{cpuUsagePercent.toFixed(0)}%</span>
+                        </>
+                    ) : (
+                        <span>--%</span>
+                    )}
+                </div>
                 <div className="flex items-center gap-2" title={stats?.gpu !== undefined && stats.gpu >= 0 ? `System-wide GPU Usage: ${stats.gpu.toFixed(0)}%` : "System-wide GPU Usage (Requires NVIDIA GPU)"}>
                     <Icon name="gpu" className="w-4 h-4" />
                      {stats && stats.gpu >= 0 ? (
@@ -92,19 +105,6 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
                         </>
                     ) : (
                         <span>-- MB / -- GB</span>
-                    )}
-                </div>
-                <div className="flex items-center gap-2" title="System-wide CPU Usage">
-                    <Icon name="cpu" className="w-4 h-4" />
-                     {stats ? (
-                        <>
-                            <div className="w-20 h-2 bg-[--bg-tertiary] rounded-full overflow-hidden hidden md:block">
-                                <div className="h-full bg-[--accent-projects]" style={{ width: `${cpuUsagePercent}%` }}></div>
-                            </div>
-                            <span>{cpuUsagePercent.toFixed(0)}%</span>
-                        </>
-                    ) : (
-                        <span>--%</span>
                     )}
                 </div>
             </div>

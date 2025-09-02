@@ -241,25 +241,29 @@ let previousCpuTimes = os.cpus().map(cpu => {
 const getGpuUsage = (): Promise<number> => {
     return new Promise((resolve) => {
         const platform = os.platform();
-        let command: string | null = null;
-
-        if (platform === 'win32' || platform === 'linux') {
-            command = 'nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits';
-        }
-        
-        if (!command) {
+        if (platform !== 'win32' && platform !== 'linux') {
             return resolve(-1);
         }
 
-        exec(command, (error, stdout) => {
-            if (error) {
-                // This is expected if nvidia-smi is not installed or not an NVIDIA card.
-                // We don't need to log an error.
+        const smi = spawn('nvidia-smi', ['--query-gpu=utilization.gpu', '--format=csv,noheader,nounits']);
+        let stdout = '';
+        
+        smi.stdout.on('data', (data) => {
+            stdout += data.toString();
+        });
+
+        smi.on('error', () => {
+            // Command not found, etc. This is not an application error.
+            resolve(-1);
+        });
+
+        smi.on('close', (code) => {
+            if (code === 0) {
+                const usage = parseFloat(stdout.trim());
+                resolve(isNaN(usage) ? -1 : usage);
+            } else {
                 resolve(-1);
-                return;
             }
-            const usage = parseFloat(stdout.trim());
-            resolve(isNaN(usage) ? -1 : usage);
         });
     });
 };
