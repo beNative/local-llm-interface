@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
-import type { ChatMessage, Theme, CodeProject, ProjectType, FileSystemEntry, ChatSession, Model, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, GenerationConfig } from '../types';
+import type { ChatMessage, Theme, CodeProject, ProjectType, FileSystemEntry, ChatSession, Model, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, GenerationConfig, LLMProviderConfig } from '../types';
 import SendIcon from './icons/SendIcon';
 import SpinnerIcon from './icons/SpinnerIcon';
 import ModelIcon from './icons/ModelIcon';
@@ -28,6 +28,7 @@ import BrainCircuitIcon from './icons/BrainCircuitIcon';
 import FileCodeIcon from './icons/FileCodeIcon';
 import SlidersIcon from './icons/SlidersIcon';
 import SparklesIcon from './icons/SparklesIcon';
+import ProviderIcon from './ProviderIcon';
 
 const ContextSources: React.FC<{ files: string[] }> = ({ files }) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -638,6 +639,7 @@ const ThinkingIndicator: React.FC<{ content: string }> = ({ content }) => {
 
 interface ChatViewProps {
   session: ChatSession;
+  provider: LLMProviderConfig | null;
   onSendMessage: (content: string | ChatMessageContentPart[], options?: { useRAG: boolean }) => void;
   isResponding: boolean;
   retrievalStatus: 'idle' | 'retrieving';
@@ -661,7 +663,7 @@ interface ChatViewProps {
   onRejectModification: (filePath: string) => void;
 }
 
-const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isResponding, retrievalStatus, thinkingText, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onSetSessionGenerationConfig, onAcceptModification, onRejectModification }) => {
+const ChatView: React.FC<ChatViewProps> = ({ session, provider, onSendMessage, isResponding, retrievalStatus, thinkingText, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onSetSessionGenerationConfig, onAcceptModification, onRejectModification }) => {
   const [input, setInput] = useState('');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [saveModalState, setSaveModalState] = useState<{ code: string; lang: string; activeProjectId: string | null } | null>(null);
@@ -926,7 +928,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
      )}
       <header className="flex items-center justify-between p-4 bg-[--bg-primary] border-b border-[--border-primary] gap-4">
         <div className="flex items-center gap-3 min-w-0">
-          <ModelIcon className="w-6 h-6 text-[--accent-chat] flex-shrink-0"/>
+          <ProviderIcon provider={provider} className="w-6 h-6 text-[--accent-chat] flex-shrink-0"/>
           <div className="flex flex-col min-w-0">
             {isEditingTitle ? (
               <input
@@ -953,7 +955,7 @@ const ChatView: React.FC<ChatViewProps> = ({ session, onSendMessage, isRespondin
                       className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] px-2 -ml-2 py-0.5 rounded-lg hover:bg-[--bg-hover]"
                       title="Start new chat with a different model"
                   >
-                      <span className="truncate max-w-xs">Using: {session.modelId}</span>
+                      <span className="truncate max-w-xs">{provider?.name} / {session.modelId}</span>
                       <ChevronDownIcon className={`w-3 h-3 transition-transform ${isModelSelectorOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {isModelSelectorOpen && (

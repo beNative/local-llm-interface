@@ -542,7 +542,7 @@ const App: React.FC = () => {
 
   const handleSendMessage = useCallback(async (content: string | ChatMessageContentPart[], options?: { useRAG: boolean }) => {
     if (!config || !config.providers || !config.activeSessionId) {
-        logger.error("SendMessage called without an active session or configuration.");
+        logger.error("SendMessage was called, but an active session or configuration is missing. Aborting.");
         return;
     }
     
@@ -550,17 +550,16 @@ const App: React.FC = () => {
     const session = config.sessions?.find(s => s.id === sessionId);
 
     if (!session) {
-        logger.error(`SendMessage could not find the active session with id ${sessionId}`);
+        logger.error(`SendMessage could not find the active session with id ${sessionId}. Aborting.`);
         return;
     }
 
     const providerForSession = config.providers.find(p => p.id === session.providerId);
     if (!providerForSession) {
-        logger.error(`Cannot send message: Provider with ID ${session.providerId} for session ${session.id} not found.`);
+        logger.error(`Cannot send message: Provider with ID ${session.providerId} for session ${session.id} not found. Aborting.`);
         return;
     }
 
-    logger.info(`Sending message to model ${session.modelId} via ${providerForSession.name}. RAG enabled: ${!!options?.useRAG}`);
     const isFirstUserMessage = session.messages.filter(m => m.role === 'user').length === 0;
     
     const controller = new AbortController();
@@ -581,10 +580,78 @@ const App: React.FC = () => {
     let messagesForApi: ChatMessage[] = [...newMessages];
     let ragMetadata: ChatMessageMetadata['ragContext'] | undefined = undefined;
 
+    logger.info(`Sending message in session ${sessionId}. Provider: ${providerForSession.name}, Model: ${session.modelId}. RAG enabled: ${!!options?.useRAG}. Messages in history: ${messagesForApi.length}`);
+
+
     if (match && activeProjectId && window.electronAPI) {
         // ... (existing file modification logic is unchanged)
     } else if (options?.useRAG && activeProjectId && window.electronAPI) {
-        // ... (existing RAG logic is unchanged)
+        const project = config.projects?.find(p => p.id === activeProjectId);
+        if (project) {
+            setRetrievalStatus('retrieving');
+            try {
+                const fileTree = await window.electronAPI.projectGetFileTree(project.path);
+                const ragSystemPrompt = `You are a Retrieval-Augmented Generation (RAG) assistant. Your task is to identify the most relevant files from a project to answer a user's question. Based on the user's question and a file tree, return a JSON array of file paths that are most likely to contain the answer. Prioritize core logic files, configuration, and relevant components. Do not include test files, documentation, or boilerplate unless specifically asked. Return ONLY the JSON array, with no other text or explanation. If no files seem relevant, return an empty array.`;
+                const ragUserPrompt = `User's question: "${userMessageContent}"\n\nProject file tree:\n${fileTree}`;
+                
+                logger.debug(`RAG Step 1: Requesting relevant files for prompt: "${userMessageContent}"`);
+                const relevantFilesText = await generateTextCompletion(providerForSession, config.apiKeys, session.modelId, [
+                    { role: 'system', content: ragSystemPrompt },
+                    { role: 'user', content: ragUserPrompt },
+                ]);
+
+                let relevantFiles: string[] = [];
+                try {
+                    relevantFiles = JSON.parse(relevantFilesText);
+                } catch (e) {
+                    logger.warn(`RAG model returned non-JSON for file list: ${relevantFilesText}`);
+                }
+
+                if (relevantFiles.length > 0) {
+                    logger.info(`RAG Step 2: Identified ${relevantFiles.length} relevant files. Reading content...`);
+                    ragMetadata = { files: [] };
+                    const contentPromises = relevantFiles.map(async (fileName) => {
+                        try {
+                            const filePath = await window.electronAPI!.projectFindFile({ projectPath: project.path, fileName });
+                            if (filePath) {
+                                const fileContent = await window.electronAPI!.readProjectFile(filePath);
+                                ragMetadata!.files.push(filePath);
+                                return `--- FILE: ${fileName} ---\n${fileContent}`;
+                            }
+                        } catch (err) {
+                            logger.warn(`RAG: Could not read file ${fileName}: ${err}`);
+                        }
+                        return '';
+                    });
+                    const allContents = await Promise.all(contentPromises);
+                    const contextContent = allContents.filter(Boolean).join('\n\n');
+
+                    const systemMessageIndex = messagesForApi.findIndex(m => m.role === 'system');
+                    const baseSystemContent = systemMessageIndex > -1 ? messagesForApi[systemMessageIndex].content : DEFAULT_SYSTEM_PROMPT;
+                    const augmentedSystemContent = `${baseSystemContent}\n\n## Context from project files:\n${contextContent}`;
+
+                    if (systemMessageIndex > -1) {
+                        // IMMUTABLE UPDATE: Create a new array with a new, updated system message object.
+                        messagesForApi = [
+                            ...messagesForApi.slice(0, systemMessageIndex),
+                            { ...messagesForApi[systemMessageIndex], content: augmentedSystemContent },
+                            ...messagesForApi.slice(systemMessageIndex + 1),
+                        ];
+                    } else {
+                         // IMMUTABLE UPDATE: Create a new array with the new system message at the start.
+                        messagesForApi = [{ role: 'system', content: augmentedSystemContent }, ...messagesForApi];
+                    }
+                    logger.info(`RAG Step 3: Successfully augmented prompt with content from ${ragMetadata.files.length} files.`);
+                } else {
+                    logger.info('RAG Step 2: Model returned no relevant files. Proceeding without file context.');
+                }
+
+            } catch (e) {
+                logger.error(`RAG process failed: ${e}`);
+            } finally {
+                setRetrievalStatus('idle');
+            }
+        }
     }
     
     const updatedSession: ChatSession = { ...session, messages: [...newMessages, { role: 'assistant', content: '' }] };
@@ -842,10 +909,12 @@ const App: React.FC = () => {
         case 'chat':
         default:
              if (activeSession) {
+                 const providerForSession = providers.find(p => p.id === activeSession.providerId) || null;
                  return (
                     <ChatView
                         key={activeSession.id}
                         session={activeSession}
+                        provider={providerForSession}
                         onSendMessage={handleSendMessage}
                         isResponding={isResponding || retrievalStatus === 'retrieving'}
                         retrievalStatus={retrievalStatus}
