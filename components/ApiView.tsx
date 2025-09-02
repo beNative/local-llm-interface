@@ -86,23 +86,20 @@ Description: "${prompt}"`;
         ];
         
         try {
-            const responseText = await generateTextCompletion(config.baseUrl, selectedModelId, messages);
+            const responseText = await generateTextCompletion(config, selectedModelId, messages);
             
             const jsonMatch = responseText.match(/```(json)?\s*([\s\S]*?)\s*```/);
             const jsonText = jsonMatch ? jsonMatch[2] : responseText;
 
             const jsonResponse = JSON.parse(jsonText);
             
-            // The model might return an array of {key, value} or an object. Be robust.
             let headersObject: Record<string, string> = {};
             if (Array.isArray(jsonResponse.headers)) {
-                // Handles [{"key": "Content-Type", "value": "application/json"}]
                 headersObject = jsonResponse.headers.reduce((acc: Record<string, string>, h: {key: string, value: string}) => {
                     if (h.key) acc[h.key] = h.value;
                     return acc;
                 }, {});
             } else if (typeof jsonResponse.headers === 'object' && jsonResponse.headers !== null) {
-                // Handles {"Content-Type": "application/json"}
                 headersObject = jsonResponse.headers;
             }
 

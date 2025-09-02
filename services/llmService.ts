@@ -1,4 +1,5 @@
-import type { Model, ChatMessage, ChatMessageMetadata, ChatMessageUsage, GenerationConfig, ModelDetails } from '../types';
+import { GoogleGenAI, HarmCategory, HarmBlockThreshold, type Content } from "@google/genai";
+import type { Model, ChatMessage, ChatMessageMetadata, ChatMessageUsage, GenerationConfig, ModelDetails, Config, LLMProvider, ChatMessageContentPart } from '../types';
 import { logger } from './logger';
 
 export class LLMServiceError extends Error {
@@ -12,10 +13,40 @@ export type StreamChunk =
   { type: 'content'; text: string } | 
   { type: 'reasoning'; text: string };
 
-export const fetchModels = async (baseUrl: string): Promise<Model[]> => {
+const getApiKey = (provider: LLMProvider, config: Config): string | undefined => {
+    if (provider === 'OpenAI') return config.apiKeys?.openAI;
+    if (provider === 'Google Gemini') return config.apiKeys?.google;
+    return undefined;
+};
+
+export const fetchModels = async (config: Config): Promise<Model[]> => {
+  const { provider, baseUrl } = config;
+  
+  if (provider === 'Google Gemini') {
+      const apiKey = getApiKey(provider, config);
+      if (!apiKey) {
+          throw new LLMServiceError('Google Gemini API key is not configured in Settings.');
+      }
+      // Gemini API doesn't have a model listing endpoint via the SDK that's equivalent.
+      // We return a curated list of supported and recommended models.
+      logger.info('Returning curated list of Google Gemini models.');
+      return [
+        { id: 'gemini-2.5-flash', name: 'gemini-2.5-flash', object: 'model', created: Date.now() / 1000, owned_by: 'google', },
+      ];
+  }
+
   try {
+    const headers: Record<string, string> = {};
+    if (provider === 'OpenAI') {
+        const apiKey = getApiKey(provider, config);
+        if (!apiKey) {
+            throw new LLMServiceError('OpenAI API key is not configured in Settings.');
+        }
+        headers['Authorization'] = `Bearer ${apiKey}`;
+    }
+
     logger.info(`Fetching models from ${baseUrl}/models`);
-    const response = await fetch(`${baseUrl}/models`);
+    const response = await fetch(`${baseUrl}/models`, { headers });
     if (!response.ok) {
       const errorText = await response.text();
       const errorMsg = `Failed to fetch models: ${response.status} ${response.statusText}. ${errorText}`;
@@ -30,14 +61,13 @@ export const fetchModels = async (baseUrl: string): Promise<Model[]> => {
         return data.models.map((m: any) => ({
              ...m,
              id: m.name,
-             // Normalize timestamp for UI consistency
              created: m.modified_at ? Math.floor(new Date(m.modified_at).getTime() / 1000) : 0,
              owned_by: 'ollama',
              object: 'model',
         }));
     }
     if (data.data) {
-        logger.info(`Found ${data.data.length} models (OpenAI-compatible format).`);
+        logger.info(`Found ${data.data.length} models (${provider} format).`);
         return data.data;
     }
     logger.warn('Models endpoint returned unknown format, no models found.');
@@ -45,7 +75,7 @@ export const fetchModels = async (baseUrl: string): Promise<Model[]> => {
   } catch (error) {
     if (error instanceof LLMServiceError) throw error;
     logger.error(error instanceof Error ? error : String(error));
-    let message = 'Could not connect to the specified server. Make sure the service is running and the Base URL is correct.';
+    let message = 'Could not connect to the specified server. Make sure the service is running, the Base URL is correct, and your API key is valid.';
     if (typeof window !== 'undefined' && !window.electronAPI) {
         message += ' When running in a browser, this could also be a Cross-Origin (CORS) issue. Using the desktop app is recommended.';
     }
@@ -54,7 +84,6 @@ export const fetchModels = async (baseUrl: string): Promise<Model[]> => {
 };
 
 export const fetchOllamaModelDetails = async (baseUrl: string, modelName: string): Promise<ModelDetails> => {
-    // The baseUrl is for the v1 API, the /api/show is not. We need to construct the root URL.
     const rootUrl = new URL(baseUrl);
     rootUrl.pathname = ''; // remove /v1 path
     const showUrl = new URL('/api/show', rootUrl.toString());
@@ -71,38 +100,27 @@ export const fetchOllamaModelDetails = async (baseUrl: string, modelName: string
             throw new Error(`Failed to fetch model details: ${response.status} ${response.statusText}. ${errorText}`);
         }
         const data = await response.json();
-        logger.debug(`Received model details: ${JSON.stringify(data)}`);
-        
-        // Parse context window from parameters string
-        let num_ctx;
-        if (data.parameters) {
-            const match = /num_ctx\s+(\d+)/.exec(data.parameters);
-            if (match) {
-                num_ctx = parseInt(match[1], 10);
-            }
-        }
-
-        return {
-            ...data.details,
-            modelfile: data.modelfile,
-            parameters: data.parameters,
-            template: data.template,
-            num_ctx,
-        };
+        return { ...data.details, modelfile: data.modelfile, parameters: data.parameters, template: data.template };
     } catch (error) {
         logger.error(`Error fetching Ollama model details: ${error}`);
         throw error;
     }
 };
 
-export const generateTextCompletion = async (
-  baseUrl: string,
-  modelId: string,
-  messages: ChatMessage[],
-  generationConfig?: GenerationConfig
+const textCompletionOpenAI = async (
+    config: Config,
+    modelId: string,
+    messages: ChatMessage[],
+    generationConfig?: GenerationConfig
 ): Promise<string> => {
-  try {
-    logger.info(`Requesting non-streaming text completion from model ${modelId}`);
+    const { baseUrl, provider } = config;
+    const apiKey = getApiKey(provider, config);
+    if (!apiKey) throw new LLMServiceError('API key is not configured for this provider.');
+
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+    };
 
     const options: Record<string, any> = {};
     if (generationConfig) {
@@ -112,41 +130,87 @@ export const generateTextCompletion = async (
     }
 
     const response = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: modelId,
-        messages: messages,
-        stream: false,
-        ...options,
-      }),
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ model: modelId, messages, stream: false, ...options }),
     });
 
     if (!response.ok) {
         const errorText = await response.text();
-        const errorMsg = `API error: ${response.status} ${response.statusText}. ${errorText}`;
-        logger.error(errorMsg);
-        throw new LLMServiceError(errorMsg);
+        throw new LLMServiceError(`API error: ${response.status} ${response.statusText}. ${errorText}`);
     }
-    
     const data = await response.json();
-    logger.debug(`Received text completion data: ${JSON.stringify(data)}`);
-    
     const content = data.choices?.[0]?.message?.content;
-    if (!content) {
-        logger.error('API response did not contain message content.');
-        throw new LLMServiceError('API response did not contain message content.');
+    if (!content) throw new LLMServiceError('API response did not contain message content.');
+    return content;
+};
+
+const textCompletionGemini = async (
+    config: Config,
+    modelId: string,
+    messages: ChatMessage[],
+    generationConfig?: GenerationConfig
+): Promise<string> => {
+    const apiKey = getApiKey('Google Gemini', config);
+    if (!apiKey) throw new LLMServiceError('Google Gemini API key is not configured.');
+
+    const ai = new GoogleGenAI({ apiKey });
+    const model = ai.models.getModel({ model: modelId });
+
+    const systemInstruction = messages.find(m => m.role === 'system')?.content as string || undefined;
+    const history = messages
+        .filter(m => m.role === 'user' || m.role === 'assistant')
+        .map(m => ({
+            role: m.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: m.content as string }]
+        }));
+
+    const result = await model.generateContent({
+        contents: history,
+        generationConfig,
+        systemInstruction,
+    });
+    
+    return result.response.text();
+};
+
+export const generateTextCompletion = async (
+  config: Config,
+  modelId: string,
+  messages: ChatMessage[],
+  generationConfig?: GenerationConfig
+): Promise<string> => {
+  try {
+    logger.info(`Requesting non-streaming text completion from model ${modelId} via ${config.provider}`);
+
+    if (config.provider === 'Google Gemini') {
+        return await textCompletionGemini(config, modelId, messages, generationConfig);
     }
     
-    return content;
+    if (config.provider === 'OpenAI') {
+        return await textCompletionOpenAI(config, modelId, messages, generationConfig);
+    }
 
+    // Default OpenAI-compatible local server logic
+    const response = await fetch(`${config.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: modelId, messages, stream: false, ...generationConfig }),
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new LLMServiceError(`API error: ${response.status} ${response.statusText}. ${errorText}`);
+    }
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) throw new LLMServiceError('API response did not contain message content.');
+    return content;
   } catch (error) {
      if (error instanceof LLMServiceError) throw error;
      if (error instanceof Error) {
         logger.error(error);
-        throw error; // re-throw
+        throw error;
      }
      const unknownError = new LLMServiceError('An unknown error occurred during text completion.');
      logger.error(unknownError);
@@ -154,8 +218,97 @@ export const generateTextCompletion = async (
   }
 };
 
+const streamChatCompletionGemini = async (
+    config: Config,
+    modelId: string,
+    messages: ChatMessage[],
+    signal: AbortSignal,
+    onChunk: (chunk: StreamChunk) => void,
+    onError: (error: Error) => void,
+    onDone: (metadata: ChatMessageMetadata) => void,
+    generationConfig?: GenerationConfig
+) => {
+    const apiKey = getApiKey('Google Gemini', config);
+    if (!apiKey) {
+        onError(new LLMServiceError('Google Gemini API key is not configured.'));
+        return;
+    }
+
+    try {
+        const ai = new GoogleGenAI({ apiKey });
+        const systemInstruction = messages.find(m => m.role === 'system')?.content as string || undefined;
+        const history = messages
+            .filter(m => m.role === 'user' || m.role === 'assistant')
+            .slice(0, -1) // All but the last message
+            .map(m => {
+                let parts: any[] = [];
+                if (typeof m.content === 'string') {
+                    parts.push({ text: m.content });
+                } else {
+                    parts = m.content.map(p => {
+                        if (p.type === 'text') return { text: p.text };
+                        if (p.type === 'image_url') {
+                            const [header, data] = p.image_url.url.split(',');
+                            const mimeType = header.match(/:(.*?);/)?.[1];
+                            return { inlineData: { mimeType, data } };
+                        }
+                        return {};
+                    }).filter(Boolean);
+                }
+                return { role: m.role === 'assistant' ? 'model' : 'user', parts };
+            });
+
+        const latestMessage = messages[messages.length - 1];
+        let latestMessageContent: (string | {inlineData: {mimeType: string, data: string}})[] = [];
+        if (typeof latestMessage.content === 'string') {
+            latestMessageContent.push(latestMessage.content);
+        } else {
+            latestMessage.content.forEach(p => {
+                if (p.type === 'text') latestMessageContent.push(p.text);
+                if (p.type === 'image_url') {
+                    const [header, data] = p.image_url.url.split(',');
+                    const mimeType = header.match(/:(.*?);/)?.[1];
+                    if (mimeType && data) {
+                        latestMessageContent.push({ inlineData: { mimeType, data } });
+                    }
+                }
+            });
+        }
+        
+        const model = ai.models.getModel({ 
+            model: modelId, 
+            systemInstruction,
+            generationConfig,
+        });
+        const chat = model.startChat({ history: history as Content[] });
+
+        const result = await chat.sendMessageStream(latestMessageContent);
+        
+        signal.addEventListener('abort', () => {
+            // There's no direct abort method on the stream in the SDK.
+            // This will stop processing, but the request might complete on the backend.
+            logger.warn('Gemini stream abort requested. Processing will stop.');
+        });
+
+        for await (const chunk of result.stream) {
+            if (signal.aborted) break;
+            const text = chunk.text();
+            if (text) {
+                onChunk({ type: 'content', text });
+            }
+        }
+        
+        // Gemini streaming API does not provide token usage data.
+        onDone({ usage: undefined });
+
+    } catch (e) {
+        onError(e instanceof Error ? e : new Error(String(e)));
+    }
+};
+
+
 export const streamChatCompletion = async (
-  baseUrl: string,
+  config: Config,
   modelId: string,
   messages: ChatMessage[],
   signal: AbortSignal,
@@ -167,8 +320,19 @@ export const streamChatCompletion = async (
   const startTime = Date.now();
   let usage: ChatMessageUsage | undefined = undefined;
   
+  if (config.provider === 'Google Gemini') {
+      return streamChatCompletionGemini(config, modelId, messages, signal, onChunk, onError, onDone, generationConfig);
+  }
+  
   try {
     logger.info(`Starting chat completion stream with model ${modelId}`);
+    
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (config.provider === 'OpenAI') {
+        const apiKey = getApiKey('OpenAI', config);
+        if (!apiKey) throw new LLMServiceError('OpenAI API Key not configured.');
+        headers['Authorization'] = `Bearer ${apiKey}`;
+    }
 
     const options: Record<string, any> = {};
     if (generationConfig) {
@@ -177,37 +341,24 @@ export const streamChatCompletion = async (
         if (generationConfig.topP !== undefined) options.top_p = generationConfig.topP;
     }
 
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const response = await fetch(`${config.baseUrl}/chat/completions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: modelId,
-        messages: messages,
-        stream: true,
-        ...options,
-      }),
+      headers,
+      body: JSON.stringify({ model: modelId, messages, stream: true, ...options }),
       signal,
     });
 
     if (!response.ok) {
         const errorText = await response.text();
-        const errorMsg = `API error: ${response.status} ${response.statusText}. ${errorText}`;
-        logger.error(errorMsg);
-        throw new LLMServiceError(errorMsg);
+        throw new LLMServiceError(`API error: ${response.status} ${response.statusText}. ${errorText}`);
     }
 
-    if (!response.body) {
-      logger.error('Response body is empty for streaming chat.');
-      throw new LLMServiceError('Response body is empty.');
-    }
+    if (!response.body) throw new LLMServiceError('Response body is empty.');
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
 
-    const processStream = async () => {
-      while (true) {
+    while (true) {
         const { done, value } = await reader.read();
         if (done) {
           const endTime = Date.now();
@@ -221,66 +372,40 @@ export const streamChatCompletion = async (
           break;
         }
         const textChunk = decoder.decode(value, { stream: true });
-        logger.debug(`Stream chunk received: ${textChunk}`);
         const lines = textChunk.split('\n').filter((line) => line.trim() !== '');
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             const data = line.substring(6);
             if (data.trim() === '[DONE]') {
-              const endTime = Date.now();
-              const durationInSeconds = (endTime - startTime) / 1000;
-              let speed: number | undefined = undefined;
-              if (usage?.completion_tokens && durationInSeconds > 0) {
-                speed = usage.completion_tokens / durationInSeconds;
-              }
-              logger.info('Chat stream sent [DONE] message.');
-              onDone({ usage, speed });
-              return;
-            }
-            try {
-              const json = JSON.parse(data);
-              const delta = json.choices?.[0]?.delta;
-              
-              if (delta?.content) {
-                onChunk({ type: 'content', text: delta.content });
-              }
-              if (delta?.reasoning_content) {
-                onChunk({ type: 'reasoning', text: delta.reasoning_content });
-              }
-
-              // Capture usage stats, which can arrive in different formats
-              if (json.usage) { // Standard OpenAI format
-                  usage = json.usage;
-              } else if (json.done === true && json.prompt_eval_count !== undefined) { // Ollama format
-                  usage = {
-                      prompt_tokens: json.prompt_eval_count,
-                      completion_tokens: json.eval_count,
-                      total_tokens: json.prompt_eval_count + (json.eval_count || 0),
-                  };
-              }
-            } catch (e) {
-               logger.warn(`Could not parse stream data chunk: ${e}, Data: "${data}"`);
+              // This is handled by `done` above
+            } else {
+                try {
+                  const json = JSON.parse(data);
+                  const delta = json.choices?.[0]?.delta;
+                  if (delta?.content) onChunk({ type: 'content', text: delta.content });
+                  if (delta?.reasoning_content) onChunk({ type: 'reasoning', text: delta.reasoning_content });
+                  if (json.usage) usage = json.usage;
+                  if (json.done === true && json.prompt_eval_count !== undefined) {
+                      usage = {
+                          prompt_tokens: json.prompt_eval_count,
+                          completion_tokens: json.eval_count,
+                          total_tokens: json.prompt_eval_count + (json.eval_count || 0),
+                      };
+                  }
+                } catch (e) {
+                   logger.warn(`Could not parse stream data chunk: ${e}, Data: "${data}"`);
+                }
             }
           }
         }
       }
-    }
-    
-    await processStream();
 
   } catch (error) {
      if (error instanceof Error && error.name === 'AbortError') {
         logger.info('Chat stream aborted by user.');
-        onDone({}); // Call onDone to clean up state
+        onDone({});
         return;
      }
-     if (error instanceof Error) {
-        logger.error(error);
-        onError(error);
-     } else {
-        const unknownError = new LLMServiceError('An unknown error occurred during chat streaming.');
-        logger.error(unknownError);
-        onError(unknownError);
-     }
+     onError(error instanceof Error ? error : new Error(String(error)));
   }
 };

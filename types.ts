@@ -1,7 +1,3 @@
-
-
-
-
 export type Theme = 'light' | 'dark';
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
 export type IconSet = 'default' | 'lucide' | 'heroicons' | 'feather' | 'fontawesome' | 'material';
@@ -12,7 +8,7 @@ export interface LogEntry {
   message: string;
 }
 
-export type LLMProvider = 'Ollama' | 'LMStudio' | 'Custom';
+export type LLMProvider = 'Ollama' | 'LMStudio' | 'OpenAI' | 'Google Gemini' | 'Custom';
 
 export type ProjectType = 'python' | 'nodejs' | 'webapp' | 'java' | 'delphi';
 
@@ -56,6 +52,7 @@ export interface ChatSession {
   id: string;
   name: string;
   modelId: string;
+  provider: LLMProvider; // To know which service to use
   messages: ChatMessage[];
   systemPromptId?: string | null;
   generationConfig?: GenerationConfig;
@@ -91,6 +88,10 @@ export interface Config {
   theme?: Theme;
   themeOverrides?: ThemeOverrides;
   logToFile?: boolean;
+  apiKeys?: {
+    openAI?: string;
+    google?: string;
+  };
   pythonProjectsPath?: string;
   nodejsProjectsPath?: string;
   webAppsPath?: string;

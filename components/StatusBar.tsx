@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import OllamaIcon from './icons/OllamaIcon';
 import LMStudioIcon from './icons/LMStudioIcon';
+import OpenAIIcon from './icons/OpenAIIcon';
+import GoogleGeminiIcon from './icons/GoogleGeminiIcon';
 import Icon from './Icon';
 import type { LLMProvider, SystemStats, Model } from '../types';
 
@@ -59,7 +61,11 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
         ? 'bg-red-500'
         : 'bg-green-500';
     
-    const ProviderIcon = provider === 'Ollama' ? OllamaIcon : provider === 'LMStudio' ? LMStudioIcon : (props: any) => <Icon name="model" {...props} />;
+    const ProviderIcon = provider === 'Ollama' ? OllamaIcon
+                       : provider === 'LMStudio' ? LMStudioIcon
+                       : provider === 'OpenAI' ? OpenAIIcon
+                       : provider === 'Google Gemini' ? GoogleGeminiIcon
+                       : (props: any) => <Icon name="model" {...props} />;
 
     return (
         <footer className="flex items-center justify-between gap-6 px-4 py-1 bg-[--bg-primary] border-t border-[--border-primary] text-xs text-[--text-muted] font-mono flex-shrink-0">
@@ -73,7 +79,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
                     </button>
                     {isProviderPopoverOpen && (
                          <div className="absolute bottom-full left-0 mb-2 w-48 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-lg z-20 overflow-hidden">
-                            {(['Ollama', 'LMStudio', 'Custom'] as LLMProvider[]).map(p => (
+                            {(['Ollama', 'LMStudio', 'OpenAI', 'Google Gemini', 'Custom'] as LLMProvider[]).map(p => (
                                 <button
                                     key={p}
                                     onClick={() => {

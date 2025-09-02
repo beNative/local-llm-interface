@@ -1,12 +1,17 @@
-
 import type { Config, LLMProvider } from './types';
 
-export const PROVIDER_CONFIGS: Record<LLMProvider, Omit<Config, 'provider'>> = {
+export const PROVIDER_CONFIGS: Record<LLMProvider, { baseUrl: string }> = {
   Ollama: {
     baseUrl: 'http://localhost:11434/v1',
   },
   LMStudio: {
     baseUrl: 'http://127.0.0.1:1234/v1',
+  },
+  OpenAI: {
+    baseUrl: 'https://api.openai.com/v1',
+  },
+  'Google Gemini': {
+    baseUrl: 'gemini-api', // Special identifier for the service layer
   },
   Custom: {
     baseUrl: 'http://localhost:8080/v1',

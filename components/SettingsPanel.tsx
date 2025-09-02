@@ -245,6 +245,16 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
   const handleLogToFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLocalConfig({ ...localConfig, logToFile: e.target.checked });
   };
+
+  const handleApiKeyChange = (key: 'openAI' | 'google', value: string) => {
+    setLocalConfig(current => ({
+        ...current,
+        apiKeys: {
+            ...current.apiKeys,
+            [key]: value
+        }
+    }));
+  };
   
   const handleToolchainChange = (key: keyof Config, value: string) => {
     const finalValue = value === 'default' ? undefined : value;
@@ -327,6 +337,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
   const providerDescriptions: Record<LLMProvider, string> = {
     Ollama: 'Connect to a running Ollama instance. The default URL is usually correct.',
     LMStudio: 'Connect to the local server in LM Studio. Find the URL in the Server tab.',
+    OpenAI: 'Connect to the official OpenAI API for models like GPT-4.',
+    'Google Gemini': 'Connect to the Google Gemini API for models like Gemini Pro.',
     Custom: 'For any other OpenAI-compatible API endpoint.'
   };
 
@@ -350,15 +362,39 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                             <select id="provider" value={localConfig.provider} onChange={handleProviderChange} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]">
                                 <option value="Ollama">Ollama</option>
                                 <option value="LMStudio">LMStudio</option>
+                                <option value="OpenAI">OpenAI</option>
+                                <option value="Google Gemini">Google Gemini</option>
                                 <option value="Custom">Custom</option>
                             </select>
                             <p className="text-xs text-[--text-muted] mt-2 px-1">{providerDescriptions[localConfig.provider]}</p>
                         </div>
-                        <div>
-                            <label htmlFor="baseUrl" className="block text-sm font-medium text-[--text-muted] mb-1">Base URL (v1 compatible)</label>
-                            <input type="text" id="baseUrl" value={localConfig.baseUrl} onChange={handleUrlChange} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]" placeholder="e.g., http://localhost:11434/v1" />
-                        </div>
+                        {localConfig.provider !== 'Google Gemini' && (
+                            <div>
+                                <label htmlFor="baseUrl" className="block text-sm font-medium text-[--text-muted] mb-1">Base URL (v1 compatible)</label>
+                                <input type="text" id="baseUrl" value={localConfig.baseUrl} onChange={handleUrlChange} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]" placeholder="e.g., http://localhost:11434/v1" />
+                            </div>
+                        )}
                     </div>
+                  </div>
+                  <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
+                        <h3 className="text-xl font-semibold text-[--text-secondary] mb-4">API Keys</h3>
+                        {localConfig.provider === 'OpenAI' && (
+                            <div>
+                                <label htmlFor="openai-api-key" className="block text-sm font-medium text-[--text-muted] mb-1">OpenAI API Key</label>
+                                <input type="password" id="openai-api-key" value={localConfig.apiKeys?.openAI || ''} onChange={e => handleApiKeyChange('openAI', e.target.value)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]" placeholder="sk-..." />
+                                <p className="text-xs text-[--text-muted] mt-1 px-1">Your key is stored locally and never sent to any third party.</p>
+                            </div>
+                        )}
+                        {localConfig.provider === 'Google Gemini' && (
+                            <div>
+                                <label htmlFor="google-api-key" className="block text-sm font-medium text-[--text-muted] mb-1">Google AI Studio API Key</label>
+                                <input type="password" id="google-api-key" value={localConfig.apiKeys?.google || ''} onChange={e => handleApiKeyChange('google', e.target.value)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]" placeholder="AIzaSy..." />
+                                <p className="text-xs text-[--text-muted] mt-1 px-1">Your key is stored locally and never sent to any third party.</p>
+                            </div>
+                        )}
+                        {localConfig.provider !== 'OpenAI' && localConfig.provider !== 'Google Gemini' && (
+                           <p className="text-sm text-[--text-muted]">The selected provider does not require an API key.</p>
+                        )}
                   </div>
                   {isElectron && (
                      <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">

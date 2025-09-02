@@ -11,6 +11,7 @@
     "package": "npm run build && electron-builder"
   },
   "dependencies": {
+    "@google/genai": "^0.15.0",
     "@heroicons/react": "^2.1.5",
     "diff-match-patch": "^1.0.5",
     "lucide-react": "^0.417.0",
