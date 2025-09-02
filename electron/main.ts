@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { readdir, stat, readFile, writeFile, mkdir, copyFile } from 'fs/promises';
 import * as os from 'os';
-import { spawn } from 'child_process';
+import { spawn, exec } from 'child_process';
 import * as crypto from 'crypto';
 import { request as httpRequest } from 'http';
 import { request as httpsRequest } from 'https';
@@ -238,6 +238,32 @@ let previousCpuTimes = os.cpus().map(cpu => {
     return { total, idle: cpu.times.idle };
 });
 
+const getGpuUsage = (): Promise<number> => {
+    return new Promise((resolve) => {
+        const platform = os.platform();
+        let command: string | null = null;
+
+        if (platform === 'win32' || platform === 'linux') {
+            command = 'nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits';
+        }
+        
+        if (!command) {
+            return resolve(-1);
+        }
+
+        exec(command, (error, stdout) => {
+            if (error) {
+                // This is expected if nvidia-smi is not installed or not an NVIDIA card.
+                // We don't need to log an error.
+                resolve(-1);
+                return;
+            }
+            const usage = parseFloat(stdout.trim());
+            resolve(isNaN(usage) ? -1 : usage);
+        });
+    });
+};
+
 const createWindow = () => {
   // Use __dirname to reliably resolve paths both in development and in the packaged app.
   // Esbuild correctly provides __dirname in a Node.js context.
@@ -260,7 +286,7 @@ const createWindow = () => {
   });
 
   // System-wide Stats Monitoring
-  const statsInterval = setInterval(() => {
+  const statsInterval = setInterval(async () => {
     if (mainWindow.isDestroyed()) {
       clearInterval(statsInterval);
       return;
@@ -289,6 +315,7 @@ const createWindow = () => {
     const avgCpuUsage = totalCpuUsage / cpus.length;
     const totalSystemMem = os.totalmem();
     const usedSystemMem = totalSystemMem - os.freemem();
+    const gpuUsage = await getGpuUsage();
 
     mainWindow.webContents.send('system-stats-update', {
       cpu: avgCpuUsage,
@@ -296,7 +323,7 @@ const createWindow = () => {
         used: usedSystemMem,
         total: totalSystemMem,
       },
-      gpu: -1, // Placeholder for GPU
+      gpu: gpuUsage,
     });
   }, 2000); // Send stats every 2 seconds
 

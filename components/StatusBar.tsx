@@ -27,6 +27,7 @@ const formatBytes = (bytes: number, decimals = 1) => {
 const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusText, provider, activeModel, activeProject }) => {
     const memUsagePercent = stats?.memory.total ? (stats.memory.used / stats.memory.total) * 100 : 0;
     const cpuUsagePercent = stats?.cpu || 0;
+    const gpuUsagePercent = stats?.gpu !== undefined && stats.gpu >= 0 ? stats.gpu : 0;
 
     const statusDotClass =
         connectionStatus === 'connecting'
@@ -67,9 +68,18 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
             
             {/* Right Side */}
             <div className="flex items-center gap-6">
-                <div className="flex items-center gap-2" title="System-wide GPU Usage (Not yet implemented)">
+                <div className="flex items-center gap-2" title={stats?.gpu !== undefined && stats.gpu >= 0 ? `System-wide GPU Usage: ${stats.gpu.toFixed(0)}%` : "System-wide GPU Usage (Requires NVIDIA GPU)"}>
                     <Icon name="gpu" className="w-4 h-4" />
-                    <span>{stats?.gpu !== undefined && stats.gpu >= 0 ? `${stats.gpu.toFixed(0)}%` : '--%'}</span>
+                     {stats && stats.gpu >= 0 ? (
+                        <>
+                            <div className="w-20 h-2 bg-[--bg-tertiary] rounded-full overflow-hidden hidden md:block">
+                                <div className="h-full bg-[--accent-api]" style={{ width: `${gpuUsagePercent}%` }}></div>
+                            </div>
+                            <span>{gpuUsagePercent.toFixed(0)}%</span>
+                        </>
+                    ) : (
+                        <span>--%</span>
+                    )}
                 </div>
                 <div className="flex items-center gap-2" title="System-wide RAM Usage">
                     <Icon name="ram" className="w-4 h-4" />
