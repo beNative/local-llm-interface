@@ -1,6 +1,7 @@
 // FIX: Changed `require` to `import` to resolve "Cannot find name 'require'" TypeScript error.
 // The bundler (esbuild) is configured to handle standard imports for the Electron main process.
-import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
+// FIX: Use a namespace import for Electron to resolve issues with named exports not being found.
+import * as electron from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import { readdir, stat, readFile, writeFile, mkdir, copyFile } from 'fs/promises';
@@ -18,7 +19,7 @@ import type { ApiRequest, ApiResponse, CodeProject, ProjectType, Toolchain, Tool
 declare const __dirname: string;
 
 // The path where user settings will be stored.
-const settingsPath = path.join(app.getPath('userData'), 'settings.json');
+const settingsPath = path.join(electron.app.getPath('userData'), 'settings.json');
 
 /**
  * Reads the settings from the JSON file.
@@ -276,7 +277,7 @@ const createWindow = () => {
   const indexPath = path.join(__dirname, 'index.html');
     
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  const mainWindow = new electron.BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
@@ -337,22 +338,22 @@ const createWindow = () => {
 
   // Open external links in the user's default browser instead of a new Electron window.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-      shell.openExternal(url);
+      electron.shell.openExternal(url);
       return { action: 'deny' };
   });
 };
 
 // This method will be called when Electron has finished initialization.
-app.whenReady().then(() => {
+electron.app.whenReady().then(() => {
     // Set up IPC listeners for the renderer process
-    ipcMain.handle('settings:get', readSettings);
-    ipcMain.handle('settings:save', (_, settings) => saveSettings(settings));
+    electron.ipcMain.handle('settings:get', readSettings);
+    electron.ipcMain.handle('settings:save', (_, settings) => saveSettings(settings));
 
-    ipcMain.handle('app:is-packaged', () => {
-        return app.isPackaged;
+    electron.ipcMain.handle('app:is-packaged', () => {
+        return electron.app.isPackaged;
     });
 
-    ipcMain.handle('detect:toolchains', async (): Promise<ToolchainStatus> => {
+    electron.ipcMain.handle('detect:toolchains', async (): Promise<ToolchainStatus> => {
         console.log("Detecting toolchains...");
         const [python, java, nodejs, delphi] = await Promise.all([
             detectPythonInterpreters(),
@@ -364,9 +365,9 @@ app.whenReady().then(() => {
         return { python, java, nodejs, delphi };
     });
 
-    ipcMain.handle('log:write', (_, entry: { timestamp: string, level: string, message: string }) => {
+    electron.ipcMain.handle('log:write', (_, entry: { timestamp: string, level: string, message: string }) => {
         try {
-            const logDir = app.isPackaged ? path.dirname(app.getPath('exe')) : app.getAppPath();
+            const logDir = electron.app.isPackaged ? path.dirname(electron.app.getPath('exe')) : electron.app.getAppPath();
             const date = new Date().toISOString().split('T')[0];
             const logFile = path.join(logDir, `local-llm-interface-${date}.log`);
             const formatted = `[${entry.timestamp}] [${entry.level}] ${entry.message}\n`;
@@ -379,7 +380,7 @@ app.whenReady().then(() => {
         }
     });
 
-    ipcMain.handle('python:run', async (_, code: string): Promise<{ stdout: string; stderr: string }> => {
+    electron.ipcMain.handle('python:run', async (_, code: string): Promise<{ stdout: string; stderr: string }> => {
         const settings: any = readSettings();
         const pythonCommand = settings?.selectedPythonPath || 'python';
 
@@ -421,7 +422,7 @@ app.whenReady().then(() => {
         }
     });
 
-    ipcMain.handle('nodejs:run', async (_, code: string): Promise<{ stdout: string; stderr: string }> => {
+    electron.ipcMain.handle('nodejs:run', async (_, code: string): Promise<{ stdout: string; stderr: string }> => {
         const settings: any = readSettings();
         const nodeCommand = settings?.selectedNodePath || 'node';
         const tempDir = os.tmpdir();
@@ -460,14 +461,14 @@ app.whenReady().then(() => {
         }
     });
     
-    ipcMain.handle('html:run', async (_, code: string): Promise<{ stdout: string; stderr: string }> => {
+    electron.ipcMain.handle('html:run', async (_, code: string): Promise<{ stdout: string; stderr: string }> => {
         const tempDir = os.tmpdir();
         const tempFileName = `html_snippet_${crypto.randomBytes(6).toString('hex')}.html`;
         const tempFilePath = path.join(tempDir, tempFileName);
 
         try {
             fs.writeFileSync(tempFilePath, code, 'utf-8');
-            await shell.openPath(tempFilePath);
+            await electron.shell.openPath(tempFilePath);
             // We don't delete the temp file so the browser has time to load it.
             // The OS will clean up the temp directory eventually.
             return {
@@ -481,7 +482,7 @@ app.whenReady().then(() => {
         }
     });
 
-    ipcMain.handle('api:make-request', async (_, req: ApiRequest): Promise<ApiResponse> => {
+    electron.ipcMain.handle('api:make-request', async (_, req: ApiRequest): Promise<ApiResponse> => {
         console.log('Making API request:', req);
         const { url, method, headers, body } = req;
         const requestModule = url.startsWith('https') ? httpsRequest : httpRequest;
@@ -531,8 +532,8 @@ app.whenReady().then(() => {
     });
 
     // Project Management Handlers
-    ipcMain.handle('dialog:select-directory', async () => {
-        const { canceled, filePaths } = await dialog.showOpenDialog({
+    electron.ipcMain.handle('dialog:select-directory', async () => {
+        const { canceled, filePaths } = await electron.dialog.showOpenDialog({
             properties: ['openDirectory']
         });
         if (!canceled && filePaths.length > 0) {
@@ -541,7 +542,7 @@ app.whenReady().then(() => {
         return null;
     });
 
-    ipcMain.handle('project:create', async (_, { projectType, name, basePath }: { projectType: ProjectType, name: string, basePath: string }) => {
+    electron.ipcMain.handle('project:create', async (_, { projectType, name, basePath }: { projectType: ProjectType, name: string, basePath: string }) => {
         const projectPath = path.join(basePath, name);
         if (fs.existsSync(projectPath)) {
             throw new Error(`Project directory already exists: ${projectPath}`);
@@ -647,14 +648,14 @@ end.
         };
     });
 
-    ipcMain.handle('project:delete', async (_, projectPath: string) => {
+    electron.ipcMain.handle('project:delete', async (_, projectPath: string) => {
         if (fs.existsSync(projectPath)) {
             fs.rmSync(projectPath, { recursive: true, force: true });
         }
     });
 
-    ipcMain.handle('project:open-folder', async (_, folderPath: string) => {
-        shell.openPath(folderPath);
+    electron.ipcMain.handle('project:open-folder', async (_, folderPath: string) => {
+        electron.shell.openPath(folderPath);
     });
     
     const isPathInAllowedBase = (filePath: string) => {
@@ -672,16 +673,16 @@ end.
         return allowedBasePaths.some(base => normalizedFilePath.startsWith(path.normalize(base) + path.sep));
     };
     
-    ipcMain.handle('project:open-webapp', async (_, projectPath: string) => {
+    electron.ipcMain.handle('project:open-webapp', async (_, projectPath: string) => {
         const indexPath = path.join(projectPath, 'index.html');
         if (isPathInAllowedBase(projectPath) && fs.existsSync(indexPath)) {
-            shell.openPath(indexPath);
+            electron.shell.openPath(indexPath);
         } else {
             throw new Error(`index.html not found in project or path is not allowed: ${projectPath}`);
         }
     });
 
-    ipcMain.handle('project:install-deps', async (_, project: CodeProject) => {
+    electron.ipcMain.handle('project:install-deps', async (_, project: CodeProject) => {
         const settings: any = readSettings();
         if (project.type === 'python') {
             const reqFile = path.join(project.path, 'requirements.txt');
@@ -702,7 +703,7 @@ end.
         return { stdout: '', stderr: `Dependency installation is not applicable for project type: ${project.type}` };
     });
     
-    ipcMain.handle('project:run', async (_, project: CodeProject): Promise<{ stdout: string; stderr: string }> => {
+    electron.ipcMain.handle('project:run', async (_, project: CodeProject): Promise<{ stdout: string; stderr: string }> => {
         const settings: any = readSettings();
         if (!isPathInAllowedBase(project.path)) {
             return { stdout: '', stderr: 'Execution denied: project path is not in an allowed base directory.' };
@@ -711,7 +712,7 @@ end.
         if (project.type === 'webapp') {
             const indexPath = path.join(project.path, 'index.html');
             if (fs.existsSync(indexPath)) {
-                shell.openPath(indexPath);
+                electron.shell.openPath(indexPath);
                 return { stdout: `Successfully opened ${indexPath} in the default browser.`, stderr: '' };
             }
             return { stdout: '', stderr: `Could not find index.html in ${project.path}` };
@@ -784,7 +785,7 @@ end.
             const indexPath = path.join(project.path, 'index.html');
             if (fs.existsSync(indexPath)) {
                 console.log(`No script entry point found for nodejs project ${project.name}, but found index.html. Opening in browser.`);
-                shell.openPath(indexPath);
+                electron.shell.openPath(indexPath);
                 return { stdout: `No script found. Opened ${indexPath} in the default browser.`, stderr: '' };
             }
 
@@ -820,7 +821,7 @@ end.
         return { stdout: '', stderr: `Project type "${project.type}" cannot be run.` };
     });
 
-    ipcMain.handle('project:run-script', async (_, { project, code }: { project: CodeProject, code: string }) => {
+    electron.ipcMain.handle('project:run-script', async (_, { project, code }: { project: CodeProject, code: string }) => {
         const settings: any = readSettings();
         const extension = project.type === 'python' ? 'py' : project.type === 'java' ? 'java' : 'js';
         const tempFileName = `script_${crypto.randomBytes(6).toString('hex')}.${extension}`;
@@ -846,7 +847,7 @@ end.
     });
 
     // File System Handlers for Project Viewer
-    ipcMain.handle('project:read-dir', async (_, dirPath: string) => {
+    electron.ipcMain.handle('project:read-dir', async (_, dirPath: string) => {
         if (!isPathInAllowedBase(dirPath)) throw new Error('Access denied to path.');
         
         const dirents = await readdir(dirPath, { withFileTypes: true });
@@ -867,12 +868,12 @@ end.
         });
     });
 
-    ipcMain.handle('project:read-file', async (_, filePath: string) => {
+    electron.ipcMain.handle('project:read-file', async (_, filePath: string) => {
         if (!isPathInAllowedBase(filePath)) throw new Error('Access denied to path.');
         return await readFile(filePath, 'utf-8');
     });
 
-    ipcMain.handle('project:write-file', async (_, filePath: string, content: string) => {
+    electron.ipcMain.handle('project:write-file', async (_, filePath: string, content: string) => {
         const dirPath = path.dirname(filePath);
         if (!isPathInAllowedBase(dirPath)) throw new Error('Access denied to path.');
         
@@ -880,7 +881,7 @@ end.
         await writeFile(filePath, content, 'utf-8');
     });
 
-    ipcMain.handle('project:add-file-from-path', async (_, { sourcePath, targetDir }: { sourcePath: string, targetDir: string }) => {
+    electron.ipcMain.handle('project:add-file-from-path', async (_, { sourcePath, targetDir }: { sourcePath: string, targetDir: string }) => {
         if (!isPathInAllowedBase(targetDir)) throw new Error('Access denied to path.');
         const targetPath = path.join(targetDir, path.basename(sourcePath));
         await copyFile(sourcePath, targetPath);
@@ -906,12 +907,12 @@ end.
         return files;
     };
     
-    ipcMain.handle('project:get-all-files', async (_, projectPath: string) => {
+    electron.ipcMain.handle('project:get-all-files', async (_, projectPath: string) => {
         if (!isPathInAllowedBase(projectPath)) throw new Error('Access denied to path.');
         return await getAllFilesRecursive(projectPath);
     });
 
-    ipcMain.handle('project:find-file', async (_, { projectPath, fileName }: { projectPath: string, fileName: string }) => {
+    electron.ipcMain.handle('project:find-file', async (_, { projectPath, fileName }: { projectPath: string, fileName: string }) => {
         if (!isPathInAllowedBase(projectPath)) throw new Error('Access denied to path.');
         const allFiles = await getAllFilesRecursive(projectPath);
         // Find a file that ends with the requested fileName. This allows for partial paths like `src/utils.js`
@@ -948,7 +949,7 @@ end.
         return tree;
     };
 
-    ipcMain.handle('project:get-file-tree', async (_, projectPath: string) => {
+    electron.ipcMain.handle('project:get-file-tree', async (_, projectPath: string) => {
         if (!isPathInAllowedBase(projectPath)) throw new Error('Access denied to path.');
         const projectName = path.basename(projectPath);
         const tree = await generateFileTree(projectPath);
@@ -959,16 +960,16 @@ end.
     createWindow();
 
     // Re-create a window on macOS when the dock icon is clicked and there are no other windows open.
-    app.on('activate', () => {
-        if (BrowserWindow.getAllWindows().length === 0) {
+    electron.app.on('activate', () => {
+        if (electron.BrowserWindow.getAllWindows().length === 0) {
             createWindow();
         }
     });
 });
 
 // Quit when all windows are closed, except on macOS.
-app.on('window-all-closed', () => {
+electron.app.on('window-all-closed', () => {
   if (os.platform() !== 'darwin') {
-    app.quit();
+    electron.app.quit();
   }
 });

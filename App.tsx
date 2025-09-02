@@ -541,17 +541,27 @@ const App: React.FC = () => {
   };
 
   const handleSendMessage = useCallback(async (content: string | ChatMessageContentPart[], options?: { useRAG: boolean }) => {
-    // The activeSession from derived state is from the render *before* this message is sent. This is correct.
-    if (!activeSession || !config || !config.providers) return;
+    if (!config || !config.providers || !config.activeSessionId) {
+        logger.error("SendMessage called without an active session or configuration.");
+        return;
+    }
     
-    const providerForSession = config.providers.find(p => p.id === activeSession.providerId);
-    if (!providerForSession) {
-        logger.error(`Cannot send message: Provider with ID ${activeSession.providerId} for session ${activeSession.id} not found.`);
+    const sessionId = config.activeSessionId;
+    const session = config.sessions?.find(s => s.id === sessionId);
+
+    if (!session) {
+        logger.error(`SendMessage could not find the active session with id ${sessionId}`);
         return;
     }
 
-    logger.info(`Sending message to model ${activeSession.modelId} via ${providerForSession.name}. RAG enabled: ${!!options?.useRAG}`);
-    const isFirstUserMessage = activeSession.messages.filter(m => m.role === 'user').length === 0;
+    const providerForSession = config.providers.find(p => p.id === session.providerId);
+    if (!providerForSession) {
+        logger.error(`Cannot send message: Provider with ID ${session.providerId} for session ${session.id} not found.`);
+        return;
+    }
+
+    logger.info(`Sending message to model ${session.modelId} via ${providerForSession.name}. RAG enabled: ${!!options?.useRAG}`);
+    const isFirstUserMessage = session.messages.filter(m => m.role === 'user').length === 0;
     
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -562,7 +572,7 @@ const App: React.FC = () => {
     const match = modificationRegex.exec(userMessageContent);
     
     let userMessage: ChatMessage = { role: 'user', content };
-    let newMessages: ChatMessage[] = [...activeSession.messages, userMessage];
+    let newMessages: ChatMessage[] = [...session.messages, userMessage];
 
     if (!newMessages.some(m => m.role === 'system')) {
         newMessages.unshift({ role: 'system', content: DEFAULT_SYSTEM_PROMPT });
@@ -577,15 +587,15 @@ const App: React.FC = () => {
         // ... (existing RAG logic is unchanged)
     }
     
-    const updatedSession: ChatSession = { ...activeSession, messages: [...newMessages, { role: 'assistant', content: '' }] };
-    setConfig(c => ({ ...c!, sessions: c!.sessions!.map(s => s.id === activeSessionId ? updatedSession : s) }));
+    const updatedSession: ChatSession = { ...session, messages: [...newMessages, { role: 'assistant', content: '' }] };
+    setConfig(c => ({ ...c!, sessions: c!.sessions!.map(s => s.id === sessionId ? updatedSession : s) }));
     setIsResponding(true);
     setThinkingText(null);
 
     await streamChatCompletion(
       providerForSession,
       config.apiKeys,
-      activeSession.modelId,
+      session.modelId,
       messagesForApi,
       controller.signal,
       (chunk: StreamChunk) => {
@@ -596,12 +606,12 @@ const App: React.FC = () => {
             setThinkingText(null);
             setConfig(c => {
                 if (!c) return c;
-                const targetSession = c.sessions?.find(s => s.id === activeSessionId);
+                const targetSession = c.sessions?.find(s => s.id === sessionId);
                 if (!targetSession) return c;
                 const lastMsg = targetSession.messages[targetSession.messages.length - 1];
                 if (lastMsg?.role === 'assistant') {
                     const updatedMsg: ChatMessage = { ...lastMsg, content: (lastMsg.content as string) + chunk.text };
-                    return { ...c, sessions: c.sessions!.map(s => s.id === activeSessionId ? { ...s, messages: [...s.messages.slice(0, -1), updatedMsg] } : s) };
+                    return { ...c, sessions: c.sessions!.map(s => s.id === sessionId ? { ...s, messages: [...s.messages.slice(0, -1), updatedMsg] } : s) };
                 }
                 return c;
             });
@@ -612,9 +622,9 @@ const App: React.FC = () => {
         const errorMsg: ChatMessage = { role: 'assistant', content: errorMsgContent };
         setConfig(c => {
             if (!c) return c;
-            const targetSession = c.sessions?.find(s => s.id === activeSessionId);
+            const targetSession = c.sessions?.find(s => s.id === sessionId);
             if (!targetSession) return c;
-            return { ...c, sessions: c.sessions!.map(s => s.id === activeSessionId ? { ...s, messages: [...s.messages.slice(0, -1), errorMsg] } : s) };
+            return { ...c, sessions: c.sessions!.map(s => s.id === sessionId ? { ...s, messages: [...s.messages.slice(0, -1), errorMsg] } : s) };
         });
         setIsResponding(false);
         setRetrievalStatus('idle');
@@ -632,7 +642,7 @@ const App: React.FC = () => {
         
         setConfig(c => {
             if (!c) return c;
-            const targetSession = c.sessions?.find(s => s.id === activeSessionId);
+            const targetSession = c.sessions?.find(s => s.id === sessionId);
             if (!targetSession) return c;
             const lastMsg = targetSession.messages[targetSession.messages.length - 1];
             if (lastMsg?.role === 'assistant') {
@@ -642,15 +652,15 @@ const App: React.FC = () => {
                     ...(finalThinkingText && { thinking: finalThinkingText }),
                 };
                 const updatedMsg: ChatMessage = { ...lastMsg, metadata: finalMetadata };
-                return { ...c, sessions: c.sessions!.map(s => s.id === activeSessionId ? { ...s, messages: [...s.messages.slice(0, -1), updatedMsg] } : s) };
+                return { ...c, sessions: c.sessions!.map(s => s.id === sessionId ? { ...s, messages: [...s.messages.slice(0, -1), updatedMsg] } : s) };
             }
             return c;
         });
 
-        if (isFirstUserMessage && activeSessionId) {
+        if (isFirstUserMessage && sessionId) {
             setConfig(currentConfig => {
                 if (!currentConfig) return null;
-                const finalSession = currentConfig.sessions?.find(s => s.id === activeSessionId);
+                const finalSession = currentConfig.sessions?.find(s => s.id === sessionId);
                 if (finalSession) {
                     generateSessionName(finalSession);
                 }
@@ -658,9 +668,9 @@ const App: React.FC = () => {
             });
         }
       },
-      activeSession.generationConfig
+      session.generationConfig
     );
-  }, [config, activeSessionId, activeProjectId, generateSessionName]);
+  }, [config, activeProjectId, generateSessionName]);
 
   const handleAcceptModification = async (filePath: string, newContent: string) => {
     if (!window.electronAPI) return;
