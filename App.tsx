@@ -541,6 +541,7 @@ const App: React.FC = () => {
   };
 
   const handleSendMessage = useCallback(async (content: string | ChatMessageContentPart[], options?: { useRAG: boolean }) => {
+    // The activeSession from derived state is from the render *before* this message is sent. This is correct.
     if (!activeSession || !config || !config.providers) return;
     
     const providerForSession = config.providers.find(p => p.id === activeSession.providerId);
@@ -592,9 +593,7 @@ const App: React.FC = () => {
             accumulatedThinkingText.current = (accumulatedThinkingText.current || '') + chunk.text;
             setThinkingText(accumulatedThinkingText.current);
         } else if (chunk.type === 'content') {
-            if (thinkingText !== null) {
-                setThinkingText(null);
-            }
+            setThinkingText(null);
             setConfig(c => {
                 if (!c) return c;
                 const targetSession = c.sessions?.find(s => s.id === activeSessionId);
@@ -661,7 +660,7 @@ const App: React.FC = () => {
       },
       activeSession.generationConfig
     );
-  }, [config, activeSession, activeSessionId, activeProjectId, generateSessionName, thinkingText]);
+  }, [config, activeSessionId, activeProjectId, generateSessionName]);
 
   const handleAcceptModification = async (filePath: string, newContent: string) => {
     if (!window.electronAPI) return;

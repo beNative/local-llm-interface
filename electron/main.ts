@@ -1,6 +1,6 @@
-// FIX: The `import { ... } from 'electron'` syntax can cause TypeScript errors
-// with some module configurations. Using `require` is a robust way to import main process modules.
-const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
+// FIX: Changed `require` to `import` to resolve "Cannot find name 'require'" TypeScript error.
+// The bundler (esbuild) is configured to handle standard imports for the Electron main process.
+import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import { readdir, stat, readFile, writeFile, mkdir, copyFile } from 'fs/promises';
