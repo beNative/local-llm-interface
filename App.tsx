@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, FileSystemEntry, SystemStats, GenerationConfig } from './types';
+import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, FileSystemEntry, SystemStats, GenerationConfig, LLMProvider } from './types';
 import { APP_NAME, PROVIDER_CONFIGS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
 import { fetchModels, streamChatCompletion, LLMServiceError, generateTextCompletion, StreamChunk } from './services/llmService';
 import { logger } from './services/logger';
@@ -276,6 +276,21 @@ const App: React.FC = () => {
     });
 
     logger.setConfig({ logToFile: newConfig.logToFile });
+  }, []);
+  
+  const handleProviderChange = useCallback((provider: LLMProvider) => {
+    setConfig(c => {
+        if (!c || c.provider === provider) return c;
+        
+        logger.info(`Provider changed to ${provider} from status bar.`);
+        setView('chat'); // Go to chat view which will show model selection
+        return {
+            ...c,
+            provider,
+            baseUrl: PROVIDER_CONFIGS[provider].baseUrl,
+            activeSessionId: undefined, // Go back to model selection screen
+        };
+    });
   }, []);
 
   const handleThemeToggle = () => {
@@ -992,6 +1007,9 @@ ${originalContent}
                   provider={config.provider}
                   activeModel={activeSession?.modelId || null}
                   activeProject={activeProjectName}
+                  models={models}
+                  onSelectModel={handleSelectModel}
+                  onChangeProvider={handleProviderChange}
               />
           )}
         </div>
