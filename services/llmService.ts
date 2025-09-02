@@ -1,4 +1,4 @@
-import { GoogleGenAI, HarmCategory, HarmBlockThreshold, type Content } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import type { Model, ChatMessage, ChatMessageMetadata, ChatMessageUsage, GenerationConfig, ModelDetails, Config, LLMProviderConfig, ChatMessageContentPart } from '../types';
 import { logger } from './logger';
 
@@ -158,26 +158,42 @@ const textCompletionGemini = async (
     const ai = new GoogleGenAI({ apiKey });
 
     const systemInstruction = messages.find(m => m.role === 'system')?.content as string || undefined;
-    const contents = messages
-        .filter(m => m.role === 'user' || m.role === 'assistant')
-        .map(m => {
-            let parts: any[] = [];
-            if (typeof m.content === 'string') {
-                parts.push({ text: m.content });
-            } else if (Array.isArray(m.content)) {
-                parts = m.content.map(p => {
-                    if (p.type === 'text') return { text: p.text };
-                    if (p.type === 'image_url') {
-                        const [header, data] = p.image_url.url.split(',');
+    // FIX: A series of cascading errors indicate a syntax issue. 
+    // Rewriting message mapping logic to be more explicit and robust.
+    const contents: ({ role: 'user' | 'model'; parts: any[] })[] = [];
+    for (const m of messages) {
+        if (m.role !== 'user' && m.role !== 'assistant') {
+            continue;
+        }
+
+        const parts: any[] = [];
+        if (typeof m.content === 'string') {
+            if (m.content) parts.push({ text: m.content });
+        } else if (Array.isArray(m.content)) {
+            for (const p of m.content) {
+                if (p.type === 'text' && p.text) {
+                    parts.push({ text: p.text });
+                } else if (p.type === 'image_url' && p.image_url?.url) {
+                    const [header, data] = p.image_url.url.split(',');
+                    if (header && data) {
                         const mimeType = header.match(/:(.*?);/)?.[1];
-                        if (!mimeType || !data) return null;
-                        return { inlineData: { mimeType, data } };
+                        if (mimeType) {
+                            parts.push({ inlineData: { mimeType, data } });
+                        }
                     }
-                    return null;
-                }).filter(Boolean);
+                }
             }
-            return { role: m.role === 'assistant' ? 'model' : 'user', parts };
-        });
+        }
+        
+        if (parts.length > 0) {
+            contents.push({ role: m.role === 'assistant' ? 'model' : 'user', parts });
+        }
+    }
+
+    if (contents.length === 0) {
+        logger.warn('No valid content to send to Gemini API after filtering.');
+        return '';
+    }
 
     const response = await ai.models.generateContent({
         model: modelId,
@@ -241,27 +257,47 @@ const streamChatCompletionGemini = async (
         const ai = new GoogleGenAI({ apiKey });
         const systemInstruction = messages.find(m => m.role === 'system')?.content as string || undefined;
         
-        // Convert our ChatMessage format to Gemini's Content format
-        const contents = messages
-            .filter(m => m.role === 'user' || m.role === 'assistant')
-            .map(m => {
-                let parts: any[] = [];
-                if (typeof m.content === 'string') {
+        // FIX: A series of cascading errors indicate a syntax issue. 
+        // Rewriting message mapping logic to be more explicit and robust, matching textCompletionGemini.
+        const contents: ({ role: 'user' | 'model'; parts: any[] })[] = [];
+        for (const m of messages) {
+            if (m.role !== 'user' && m.role !== 'assistant') {
+                continue;
+            }
+        
+            const parts: any[] = [];
+            if (typeof m.content === 'string') {
+                // Only add a text part if the content is not empty
+                if (m.content) {
                     parts.push({ text: m.content });
-                } else if (Array.isArray(m.content)) {
-                    parts = m.content.map(p => {
-                        if (p.type === 'text') return { text: p.text };
-                        if (p.type === 'image_url') {
-                            const [header, data] = p.image_url.url.split(',');
-                            const mimeType = header.match(/:(.*?);/)?.[1];
-                            if (!mimeType || !data) return null;
-                            return { inlineData: { mimeType, data } };
-                        }
-                        return null;
-                    }).filter(Boolean);
                 }
-                return { role: m.role === 'assistant' ? 'model' : 'user', parts };
-            });
+            } else if (Array.isArray(m.content)) {
+                for (const p of m.content) {
+                    if (p.type === 'text' && p.text) {
+                        parts.push({ text: p.text });
+                    } else if (p.type === 'image_url' && p.image_url?.url) {
+                        const [header, data] = p.image_url.url.split(',');
+                        if (header && data) {
+                            const mimeType = header.match(/:(.*?);/)?.[1];
+                            if (mimeType) {
+                                parts.push({ inlineData: { mimeType, data } });
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // If a message would result in empty parts, it's invalid for Gemini.
+            if (parts.length > 0) {
+                contents.push({ role: m.role === 'assistant' ? 'model' : 'user', parts });
+            }
+        }
+
+        if (contents.length === 0) {
+            logger.warn('Aborting Gemini stream: No valid content to send after filtering.');
+            onDone({});
+            return;
+        }
 
         const stream = await ai.models.generateContentStream({
             model: modelId,
@@ -310,7 +346,8 @@ export const streamChatCompletion = async (
   let usage: ChatMessageUsage | undefined = undefined;
   
   if (provider.type === 'google-gemini') {
-      return streamChatCompletionGemini(provider, apiKeys, modelId, messages, signal, onChunk, onError, onDone, generationConfig);
+      streamChatCompletionGemini(provider, apiKeys, modelId, messages, signal, onChunk, onError, onDone, generationConfig);
+      return;
   }
   
   // Default to OpenAI-compatible

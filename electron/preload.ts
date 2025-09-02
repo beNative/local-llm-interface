@@ -1,6 +1,3 @@
-
-
-
 // FIX: The `import { ... } from 'electron'` syntax can cause TypeScript errors
 // with some module configurations. Using `require` is a robust way to import preload script modules.
 const { contextBridge, ipcRenderer } = require('electron');

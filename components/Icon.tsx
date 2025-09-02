@@ -292,7 +292,7 @@ const iconMap = {
         code: Feather.Code,
         cpu: Feather.Cpu,
         file: Feather.File,
-        fileCode: Feather.FileCode,
+        fileCode: Feather.Code, // Using Code as a substitute for non-existent FileCode
         filePlus: Feather.FilePlus,
         fileText: Feather.FileText,
         folder: Feather.Folder,
