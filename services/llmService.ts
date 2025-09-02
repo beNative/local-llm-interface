@@ -145,11 +145,6 @@ const textCompletionOpenAI = async (
     return content;
 };
 
-// FIX: Updated to use the correct Gemini API methods as per the guidelines.
-// - Replaced deprecated `ai.models.getModel` with a direct call to `ai.models.generateContent`.
-// - Correctly passed `generationConfig` and `systemInstruction` in a `config` object.
-// - Changed response text extraction from `result.response.text()` to `response.text`.
-// - Added robust handling for multi-part message content.
 const textCompletionGemini = async (
     provider: LLMProviderConfig,
     apiKeys: Config['apiKeys'],
@@ -224,10 +219,6 @@ export const generateTextCompletion = async (
   }
 };
 
-// FIX: Updated to use the correct Gemini API methods for streaming chat.
-// - Replaced deprecated `ai.models.getModel` and `model.startChat` with `ai.chats.create`.
-// - The result of `chat.sendMessageStream` is now correctly treated as the async iterator.
-// - Changed chunk text extraction from `chunk.text()` to `chunk.text`.
 const streamChatCompletionGemini = async (
     provider: LLMProviderConfig,
     apiKeys: Config['apiKeys'],
@@ -248,9 +239,13 @@ const streamChatCompletionGemini = async (
     try {
         const ai = new GoogleGenAI({ apiKey });
         const systemInstruction = messages.find(m => m.role === 'system')?.content as string || undefined;
-        const history = messages
-            .filter(m => m.role === 'user' || m.role === 'assistant')
-            .slice(0, -1) // All but the last message
+        
+        const userAndAssistantMessages = messages.filter(m => m.role === 'user' || m.role === 'assistant');
+
+        // FIX: Correctly separate the history from the new prompt.
+        // The history is all messages except the last two (the new user prompt and the blank assistant shell).
+        const history = userAndAssistantMessages
+            .slice(0, -2) 
             .map(m => {
                 let parts: any[] = [];
                 if (typeof m.content === 'string') {
@@ -269,7 +264,13 @@ const streamChatCompletionGemini = async (
                 return { role: m.role === 'assistant' ? 'model' : 'user', parts };
             });
 
-        const latestMessage = messages[messages.length - 1];
+        // The latest prompt from the user is the second to last message in the array.
+        const latestMessage = userAndAssistantMessages[userAndAssistantMessages.length - 2];
+        if (!latestMessage || latestMessage.role !== 'user') {
+            onError(new Error("Could not find user message to send."));
+            return;
+        }
+
         let latestMessageContent: (string | {inlineData: {mimeType: string, data: string}})[] = [];
         if (typeof latestMessage.content === 'string') {
             latestMessageContent.push(latestMessage.content);
@@ -295,7 +296,6 @@ const streamChatCompletionGemini = async (
             },
         });
 
-        // FIX: The `sendMessageStream` method expects an object with a `message` property.
         const stream = await chat.sendMessageStream({ message: latestMessageContent });
         
         signal.addEventListener('abort', () => {
