@@ -295,7 +295,8 @@ const streamChatCompletionGemini = async (
             },
         });
 
-        const stream = await chat.sendMessageStream(latestMessageContent);
+        // FIX: The `sendMessageStream` method expects an object with a `message` property.
+        const stream = await chat.sendMessageStream({ message: latestMessageContent });
         
         signal.addEventListener('abort', () => {
             // There's no direct abort method on the stream in the SDK.

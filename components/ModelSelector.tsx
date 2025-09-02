@@ -64,91 +64,54 @@ interface ModelSelectorProps {
   theme: Theme;
 }
 
-const ModelCard: React.FC<{ model: Model; onSelect: () => void; onShowDetails: () => void; provider: LLMProviderConfig | null; isFetchingDetails: boolean; }> = ({ model, onSelect, onShowDetails, provider, isFetchingDetails }) => {
-  const formatBytes = (bytes?: number, decimals = 2) => {
-    if (bytes === undefined || bytes === null) return 'N/A';
-    if (bytes === 0) return '0 Bytes';
+const ModelListItem: React.FC<{ model: Model; onSelect: () => void; onShowDetails: () => void; provider: LLMProviderConfig | null; isFetchingDetails: boolean; }> = ({ model, onSelect, onShowDetails, provider, isFetchingDetails }) => {
+  const formatBytes = (bytes?: number, decimals = 1) => {
+    if (bytes === undefined || bytes === null) return null;
+    if (bytes === 0) return '0 B';
     const k = 1024;
     const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
   };
 
   const details = model.details;
-  const hasAnyDetails = details || model.size || model.created > 0;
+  const size = formatBytes(model.size);
+
+  const detailPills = [
+    details?.parameter_size && { value: details.parameter_size },
+    size && { value: size },
+    details?.family && { value: details.family },
+  ].filter(Boolean);
 
   return (
     <div
       onClick={onSelect}
-      className="flex flex-col justify-between p-4 bg-[--bg-primary] border border-[--border-primary] rounded-[--border-radius] cursor-pointer hover:bg-[--bg-hover] hover:border-[--accent-chat] transition-all duration-200 shadow-sm hover:shadow-lg"
+      className="flex items-center p-3 bg-[--bg-primary] border border-[--border-primary] rounded-[--border-radius] cursor-pointer hover:bg-[--bg-hover] hover:border-[--accent-chat] transition-all duration-200 shadow-sm hover:shadow-md"
     >
-      <div>
-        <div className="flex items-center justify-between gap-3 mb-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <Icon name="model" className="w-6 h-6 text-[--accent-chat] flex-shrink-0" />
-              <h3 className="text-lg font-semibold text-[--text-primary] truncate" title={model.id}>{model.id}</h3>
-            </div>
-            {provider?.id === 'ollama' && (
-                <button
-                    onClick={(e) => { e.stopPropagation(); onShowDetails(); }}
-                    className="p-1.5 rounded-full text-[--text-muted] hover:bg-[--bg-hover] disabled:opacity-50 disabled:cursor-wait"
-                    title="Show model details"
-                    disabled={isFetchingDetails}
-                >
-                    {isFetchingDetails ? <Icon name="spinner" className="w-5 h-5"/> : <Icon name="info" className="w-5 h-5" />}
-                </button>
-            )}
+        <div className="flex items-center gap-3 min-w-0 flex-grow">
+          <Icon name="model" className="w-5 h-5 text-[--accent-chat] flex-shrink-0" />
+          <h3 className="text-md font-semibold text-[--text-primary] truncate" title={model.id}>{model.id}</h3>
         </div>
 
-        {hasAnyDetails ? (
-          <div className="space-y-1.5 text-xs text-[--text-muted] border-t border-[--border-primary] pt-3">
-            {details?.family && (
-              <div className="flex justify-between items-center gap-2">
-                <span className="font-medium text-[--text-secondary]">Family</span>
-                <span className="font-mono bg-[--bg-tertiary] px-1.5 py-0.5 rounded truncate">{details.family}</span>
-              </div>
-            )}
-            {details?.parameter_size && (
-              <div className="flex justify-between items-center gap-2">
-                <span className="font-medium text-[--text-secondary]">Parameters</span>
-                <span className="font-mono bg-[--bg-tertiary] px-1.5 py-0.5 rounded">{details.parameter_size}</span>
-              </div>
-            )}
-            {details?.quantization_level && (
-              <div className="flex justify-between items-center gap-2">
-                <span className="font-medium text-[--text-secondary]">Quantization</span>
-                <span className="font-mono bg-[--bg-tertiary] px-1.5 py-0.5 rounded">{details.quantization_level}</span>
-              </div>
-            )}
-            {details?.num_ctx && (
-              <div className="flex justify-between items-center gap-2">
-                <span className="font-medium text-[--text-secondary]">Context</span>
-                <span className="font-mono bg-[--bg-tertiary] px-1.5 py-0.5 rounded">{details.num_ctx.toLocaleString()}</span>
-              </div>
-            )}
-            {model.size !== undefined && (
-              <div className="flex justify-between items-center gap-2">
-                <span className="font-medium text-[--text-secondary]">Size</span>
-                <span className="font-mono bg-[--bg-tertiary] px-1.5 py-0.5 rounded">{formatBytes(model.size)}</span>
-              </div>
-            )}
-            {model.created > 0 && (
-              <div className="flex justify-between items-center gap-2">
-                <span className="font-medium text-[--text-secondary]">Updated</span>
-                <span className="font-mono">{new Date(model.created * 1000).toLocaleDateString()}</span>
-              </div>
-            )}
-          </div>
-        ) : (
-           <div className="border-t border-[--border-primary] pt-3">
-             <p className="text-xs text-[--text-muted] italic">No details available.</p>
-           </div>
+        <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+            {detailPills.map((pill, index) => (
+                <span key={index} className="hidden md:inline-block text-xs font-mono bg-[--bg-tertiary] text-[--text-muted] px-2 py-1 rounded-md">
+                    {pill.value}
+                </span>
+            ))}
+        </div>
+        
+        {provider?.id === 'ollama' && (
+            <button
+                onClick={(e) => { e.stopPropagation(); onShowDetails(); }}
+                className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] disabled:opacity-50 disabled:cursor-wait ml-3"
+                title="Show model details"
+                disabled={isFetchingDetails}
+            >
+                {isFetchingDetails ? <Icon name="spinner" className="w-5 h-5"/> : <Icon name="info" className="w-5 h-5" />}
+            </button>
         )}
-      </div>
-      <button className="mt-4 w-full text-center px-4 py-2 text-sm font-medium text-[--text-on-accent] bg-[--accent-chat] rounded-lg hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-primary] focus:ring-[--border-focus]">
-        Chat with this model
-      </button>
     </div>
   );
 };
@@ -222,12 +185,12 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, onSelectModel, is
   }
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="p-4 sm:p-6 max-w-3xl mx-auto w-full">
       {detailsModalModel && <ModelDetailsModal model={detailsModalModel} onClose={() => setDetailsModalModel(null)} theme={theme} />}
       <h1 className="text-3xl font-bold text-[--text-primary] mb-6">Select a Model</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="space-y-3">
         {localModels.map((model) => (
-          <ModelCard
+          <ModelListItem
             key={model.id}
             model={model}
             onSelect={() => onSelectModel(model.id)}
