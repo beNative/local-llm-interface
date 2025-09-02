@@ -1,5 +1,6 @@
-// FIX: Use ES6 imports instead of require for better TypeScript integration.
-import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
+// FIX: The `import { ... } from 'electron'` syntax can cause TypeScript errors
+// with some module configurations. Using `require` is a robust way to import main process modules.
+const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 import * as path from 'path';
 import * as fs from 'fs';
 import { readdir, stat, readFile, writeFile, mkdir, copyFile } from 'fs/promises';

@@ -170,9 +170,10 @@ const textCompletionGemini = async (
                     if (p.type === 'image_url') {
                         const [header, data] = p.image_url.url.split(',');
                         const mimeType = header.match(/:(.*?);/)?.[1];
+                        if (!mimeType || !data) return null;
                         return { inlineData: { mimeType, data } };
                     }
-                    return {};
+                    return null;
                 }).filter(Boolean);
             }
             return { role: m.role === 'assistant' ? 'model' : 'user', parts };
@@ -240,66 +241,40 @@ const streamChatCompletionGemini = async (
         const ai = new GoogleGenAI({ apiKey });
         const systemInstruction = messages.find(m => m.role === 'system')?.content as string || undefined;
         
-        const userAndAssistantMessages = messages.filter(m => m.role === 'user' || m.role === 'assistant');
-
-        // The history is all messages except the last one (the new user prompt).
-        const history = userAndAssistantMessages
-            .slice(0, -1) 
+        // Convert our ChatMessage format to Gemini's Content format
+        const contents = messages
+            .filter(m => m.role === 'user' || m.role === 'assistant')
             .map(m => {
                 let parts: any[] = [];
                 if (typeof m.content === 'string') {
                     parts.push({ text: m.content });
-                } else {
+                } else if (Array.isArray(m.content)) {
                     parts = m.content.map(p => {
                         if (p.type === 'text') return { text: p.text };
                         if (p.type === 'image_url') {
                             const [header, data] = p.image_url.url.split(',');
                             const mimeType = header.match(/:(.*?);/)?.[1];
+                            if (!mimeType || !data) return null;
                             return { inlineData: { mimeType, data } };
                         }
-                        return {};
+                        return null;
                     }).filter(Boolean);
                 }
                 return { role: m.role === 'assistant' ? 'model' : 'user', parts };
             });
 
-        // The latest prompt from the user is the last message in the array.
-        const latestMessage = userAndAssistantMessages[userAndAssistantMessages.length - 1];
-        if (!latestMessage || latestMessage.role !== 'user') {
-            onError(new Error("Could not find user message to send."));
-            return;
-        }
-
-        let latestMessageContent: (string | {inlineData: {mimeType: string, data: string}})[] = [];
-        if (typeof latestMessage.content === 'string') {
-            latestMessageContent.push(latestMessage.content);
-        } else {
-            latestMessage.content.forEach(p => {
-                if (p.type === 'text') latestMessageContent.push(p.text);
-                if (p.type === 'image_url') {
-                    const [header, data] = p.image_url.url.split(',');
-                    const mimeType = header.match(/:(.*?);/)?.[1];
-                    if (mimeType && data) {
-                        latestMessageContent.push({ inlineData: { mimeType, data } });
-                    }
-                }
-            });
-        }
-        
-        const chat = ai.chats.create({ 
-            model: modelId, 
-            history: history as Content[],
+        const stream = await ai.models.generateContentStream({
+            model: modelId,
+            contents: contents,
             config: {
                 systemInstruction,
                 ...generationConfig,
             },
         });
-
-        const stream = await chat.sendMessageStream({ message: latestMessageContent });
         
         signal.addEventListener('abort', () => {
-            // There's no direct abort method on the stream in the SDK.
-            // This will stop processing, but the request might complete on the backend.
+            // There's no direct abort method on the stream in the SDK for stateless calls.
+            // Breaking the loop will stop processing, but the request might complete on the backend.
             logger.warn('Gemini stream abort requested. Processing will stop.');
         });
 
@@ -311,7 +286,7 @@ const streamChatCompletionGemini = async (
             }
         }
         
-        // Gemini streaming API does not provide token usage data.
+        // Gemini streaming API does not provide token usage data in chunks.
         onDone({ usage: undefined });
 
     } catch (e) {
