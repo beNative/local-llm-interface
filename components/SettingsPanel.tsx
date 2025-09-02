@@ -19,6 +19,8 @@ const PREDEFINED_COLORS = [
   '#ef4444', '#f97316', '#f59e0b', '#10b981', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899',
 ];
 
+const iconSets: IconSet[] = ['default', 'lucide', 'heroicons', 'feather', 'fontawesome', 'material'];
+
 const ColorSelector: React.FC<{ label: string; value: string; onChange: (value: string) => void;}> = ({ label, value, onChange }) => (
     <div>
         <label className="block text-sm font-medium text-[--text-muted] mb-2">{label}</label>
@@ -421,12 +423,25 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                           </div>
                         </div>
                         <div>
-                            <label htmlFor="icon-set" className="block text-sm font-medium text-[--text-muted] mb-1">Icon Set</label>
-                            <select id="icon-set" value={themeOverrides.iconSet || 'default'} onChange={e => handleThemeOverridesChange('iconSet', e.target.value as IconSet)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]">
-                                <option value="default">Default</option>
-                                <option value="lucide">Lucide</option>
-                                <option value="heroicons">Heroicons</option>
-                            </select>
+                            <label className="block text-sm font-medium text-[--text-muted] mb-2">Icon Set</label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {iconSets.map(set => {
+                                    const setName = set === 'fontawesome' ? 'Font Awesome' : set === 'material' ? 'Material' : set.charAt(0).toUpperCase() + set.slice(1);
+                                    return (
+                                        <button
+                                            key={set}
+                                            onClick={() => handleThemeOverridesChange('iconSet', set as IconSet)}
+                                            className={`px-3 py-2 text-sm rounded-lg border-2 transition-all text-center ${
+                                                (themeOverrides.iconSet || 'default') === set
+                                                    ? 'bg-[--accent-settings]/20 border-[--accent-settings] font-semibold text-[--accent-settings]'
+                                                    : 'bg-[--bg-tertiary] border-transparent hover:border-[--border-secondary] text-[--text-secondary]'
+                                            }`}
+                                        >
+                                            {setName}
+                                        </button>
+                                    )
+                                })}
+                            </div>
                         </div>
                     </div>
                  </div>

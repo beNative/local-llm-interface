@@ -4,7 +4,7 @@
 
 export type Theme = 'light' | 'dark';
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
-export type IconSet = 'default' | 'lucide' | 'heroicons';
+export type IconSet = 'default' | 'lucide' | 'heroicons' | 'feather' | 'fontawesome' | 'material';
 
 export interface LogEntry {
   timestamp: Date;
