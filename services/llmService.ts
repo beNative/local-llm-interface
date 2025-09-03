@@ -2,6 +2,53 @@ import { GoogleGenAI } from "@google/genai";
 import type { Model, ChatMessage, ChatMessageMetadata, ChatMessageUsage, GenerationConfig, ModelDetails, Config, LLMProviderConfig, ChatMessageContentPart } from '../types';
 import { logger } from './logger';
 
+// Helper function to convert messages to Gemini's format, merging consecutive messages.
+const toGeminiContents = (messages: ChatMessage[]): ({ role: 'user' | 'model'; parts: any[] })[] => {
+    const mergedContents: ({ role: 'user' | 'model'; parts: any[] })[] = [];
+    const userAssistantMessages = messages.filter(m => m.role === 'user' || m.role === 'assistant');
+
+    for (const message of userAssistantMessages) {
+        const role = message.role === 'assistant' ? 'model' : 'user';
+
+        const parts: any[] = [];
+        if (typeof message.content === 'string') {
+            if (message.content) {
+                parts.push({ text: message.content });
+            }
+        } else if (Array.isArray(message.content)) {
+            for (const p of message.content) {
+                if (p.type === 'text' && p.text) {
+                    parts.push({ text: p.text });
+                } else if (p.type === 'image_url' && p.image_url?.url) {
+                    const [header, data] = p.image_url.url.split(',');
+                    if (header && data) {
+                        const mimeType = header.match(/:(.*?);/)?.[1];
+                        if (mimeType) {
+                            parts.push({ inlineData: { mimeType, data } });
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (parts.length === 0) {
+            continue; // Skip messages with no valid parts
+        }
+
+        const lastEntry = mergedContents.length > 0 ? mergedContents[mergedContents.length - 1] : null;
+
+        if (lastEntry && lastEntry.role === role) {
+            // Merge with the last entry
+            lastEntry.parts.push(...parts);
+        } else {
+            // Add a new entry
+            mergedContents.push({ role, parts });
+        }
+    }
+
+    return mergedContents;
+};
+
 export class LLMServiceError extends Error {
   constructor(message: string) {
     super(message);
@@ -158,37 +205,8 @@ const textCompletionGemini = async (
     const ai = new GoogleGenAI({ apiKey });
 
     const systemInstruction = messages.find(m => m.role === 'system')?.content as string || undefined;
-    // FIX: A series of cascading errors indicate a syntax issue. 
-    // Rewriting message mapping logic to be more explicit and robust.
-    const contents: ({ role: 'user' | 'model'; parts: any[] })[] = [];
-    for (const m of messages) {
-        if (m.role !== 'user' && m.role !== 'assistant') {
-            continue;
-        }
-
-        const parts: any[] = [];
-        if (typeof m.content === 'string') {
-            if (m.content) parts.push({ text: m.content });
-        } else if (Array.isArray(m.content)) {
-            for (const p of m.content) {
-                if (p.type === 'text' && p.text) {
-                    parts.push({ text: p.text });
-                } else if (p.type === 'image_url' && p.image_url?.url) {
-                    const [header, data] = p.image_url.url.split(',');
-                    if (header && data) {
-                        const mimeType = header.match(/:(.*?);/)?.[1];
-                        if (mimeType) {
-                            parts.push({ inlineData: { mimeType, data } });
-                        }
-                    }
-                }
-            }
-        }
-        
-        if (parts.length > 0) {
-            contents.push({ role: m.role === 'assistant' ? 'model' : 'user', parts });
-        }
-    }
+    
+    const contents = toGeminiContents(messages);
 
     if (contents.length === 0) {
         logger.warn('No valid content to send to Gemini API after filtering.');
@@ -257,41 +275,7 @@ const streamChatCompletionGemini = async (
         const ai = new GoogleGenAI({ apiKey });
         const systemInstruction = messages.find(m => m.role === 'system')?.content as string || undefined;
         
-        // FIX: A series of cascading errors indicate a syntax issue. 
-        // Rewriting message mapping logic to be more explicit and robust, matching textCompletionGemini.
-        const contents: ({ role: 'user' | 'model'; parts: any[] })[] = [];
-        for (const m of messages) {
-            if (m.role !== 'user' && m.role !== 'assistant') {
-                continue;
-            }
-        
-            const parts: any[] = [];
-            if (typeof m.content === 'string') {
-                // Only add a text part if the content is not empty
-                if (m.content) {
-                    parts.push({ text: m.content });
-                }
-            } else if (Array.isArray(m.content)) {
-                for (const p of m.content) {
-                    if (p.type === 'text' && p.text) {
-                        parts.push({ text: p.text });
-                    } else if (p.type === 'image_url' && p.image_url?.url) {
-                        const [header, data] = p.image_url.url.split(',');
-                        if (header && data) {
-                            const mimeType = header.match(/:(.*?);/)?.[1];
-                            if (mimeType) {
-                                parts.push({ inlineData: { mimeType, data } });
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // If a message would result in empty parts, it's invalid for Gemini.
-            if (parts.length > 0) {
-                contents.push({ role: m.role === 'assistant' ? 'model' : 'user', parts });
-            }
-        }
+        const contents = toGeminiContents(messages);
 
         if (contents.length === 0) {
             logger.warn('Aborting Gemini stream: No valid content to send after filtering.');

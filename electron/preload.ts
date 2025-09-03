@@ -1,7 +1,5 @@
-// FIX: Switched from a namespace import (`import * as electron`) to named imports.
-// The previous namespace import caused TypeScript errors because properties like `contextBridge`
-// and `ipcRenderer` are top-level exports from the 'electron' module, not properties
-// on a namespace object. This resolves all "Property does not exist" errors.
+// FIX: Switched from a namespace import to named imports for `contextBridge` and `ipcRenderer`.
+// These are top-level exports from the 'electron' module and should be imported directly.
 import { contextBridge, ipcRenderer } from 'electron';
 import type { CodeProject } from '../src/types';
 

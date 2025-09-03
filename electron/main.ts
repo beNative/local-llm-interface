@@ -1,7 +1,6 @@
-// FIX: Switched from a namespace import (`import * as electron`) to named imports.
-// The previous namespace import caused TypeScript errors because properties like `app`,
-// `BrowserWindow`, etc., are top-level exports from the 'electron' module, not
-// properties on a namespace object. This resolves all "Property does not exist" errors.
+// FIX: Switched from a namespace import to named imports for core electron modules.
+// The members `app`, `BrowserWindow`, `ipcMain`, `shell`, and `dialog` are top-level
+// exports and should be imported directly, not accessed as properties on a namespace.
 import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
