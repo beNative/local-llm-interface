@@ -202,6 +202,7 @@ const textCompletionGemini = async (
     const apiKey = getApiKey(provider, apiKeys);
     if (!apiKey) throw new LLMServiceError('Google Gemini API key is not configured.');
 
+    // FIX: The GoogleGenAI constructor requires the API key to be passed in an object with the `apiKey` property.
     const ai = new GoogleGenAI({ apiKey });
 
     const systemInstruction = messages.find(m => m.role === 'system')?.content as string || undefined;
@@ -272,6 +273,7 @@ const streamChatCompletionGemini = async (
     }
 
     try {
+        // FIX: The GoogleGenAI constructor requires the API key to be passed in an object with the `apiKey` property.
         const ai = new GoogleGenAI({ apiKey });
         const systemInstruction = messages.find(m => m.role === 'system')?.content as string || undefined;
         

@@ -3,6 +3,7 @@ import type { Config, CodeProject, ProjectType, FileSystemEntry } from '../types
 import FileTree from './FileTree';
 import { logger } from '../services/logger';
 import Icon from './Icon';
+import { useTooltipTrigger } from '../hooks/useTooltipTrigger';
 
 interface EditorModalProps {
   file: { path: string, name: string };
@@ -118,17 +119,20 @@ const ProjectCard: React.FC<{
                   : project.type === 'delphi' ? 'Build Project' 
                   : 'Run Project';
     
-    const runTitle = project.type === 'webapp' 
+    const runTooltip = useTooltipTrigger(project.type === 'webapp' 
         ? 'Open this web app in your default browser' 
         : project.type === 'delphi' 
             ? `Build ${project.name}.dpr and create an executable`
-            : `Run the main entry point for this project (e.g., main.py, app.js)`;
+            : `Run the main entry point for this project (e.g., main.py, app.js)`);
 
-    const installTitle = project.type === 'python' 
+    const installTooltip = useTooltipTrigger(project.type === 'python' 
         ? "Install dependencies from requirements.txt into the project's venv" 
         : project.type === 'nodejs' 
             ? 'Install dependencies from package.json using npm' 
-            : 'Download dependencies using Maven';
+            : 'Download dependencies using Maven');
+    
+    const openFolderTooltip = useTooltipTrigger("Open project folder in your file explorer");
+    const deleteTooltip = useTooltipTrigger("Permanently delete this project and all its files. This action cannot be undone.");
 
     return (
         <div className="bg-[--bg-primary] rounded-[--border-radius] border border-[--border-primary] flex flex-col transition-shadow hover:shadow-md">
@@ -148,23 +152,23 @@ const ProjectCard: React.FC<{
                 <p className="text-xs text-[--text-muted] font-mono break-all mt-2">{project.path}</p>
             
                 <div className="grid grid-cols-2 gap-2 mt-4">
-                    <button onClick={onRun} disabled={isBusy} className="col-span-2 text-sm px-3 py-2 rounded-lg bg-[--accent-projects] text-white hover:brightness-95 disabled:opacity-60 disabled:cursor-wait flex items-center justify-center gap-2 font-semibold" title={runTitle}>
+                    <button {...runTooltip} onClick={onRun} disabled={isBusy} className="col-span-2 text-sm px-3 py-2 rounded-lg bg-[--accent-projects] text-white hover:brightness-95 disabled:opacity-60 disabled:cursor-wait flex items-center justify-center gap-2 font-semibold">
                         {isBusy ? <Icon name="spinner" className="w-5 h-5"/> : <Icon name={runIsGlobe ? 'globe' : 'play'} className="w-5 h-5" />}
                         {isBusy ? 'Working...' : runText}
                     </button>
 
                     {project.type !== 'webapp' && project.type !== 'delphi' && (
-                         <button onClick={onInstall} disabled={isBusy} className="text-xs px-3 py-1.5 rounded-lg bg-[--bg-tertiary] text-[--text-secondary] hover:bg-[--bg-hover] disabled:opacity-50" title={installTitle}>
+                         <button {...installTooltip} onClick={onInstall} disabled={isBusy} className="text-xs px-3 py-1.5 rounded-lg bg-[--bg-tertiary] text-[--text-secondary] hover:bg-[--bg-hover] disabled:opacity-50">
                             Install Deps
                         </button>
                     )}
                    
-                    <button onClick={onOpen} disabled={isBusy} className="text-xs px-3 py-1.5 rounded-lg bg-[--bg-tertiary] text-[--text-secondary] hover:bg-[--bg-hover] disabled:opacity-50 flex items-center justify-center gap-1.5" title="Open project folder in your file explorer">
+                    <button {...openFolderTooltip} onClick={onOpen} disabled={isBusy} className="text-xs px-3 py-1.5 rounded-lg bg-[--bg-tertiary] text-[--text-secondary] hover:bg-[--bg-hover] disabled:opacity-50 flex items-center justify-center gap-1.5">
                         <Icon name="folderOpen" className="w-4 h-4"/>
                         <span>Folder</span>
                     </button>
 
-                    <button onClick={onDelete} disabled={isBusy} className={`col-span-2 ${project.type !== 'webapp' && project.type !== 'delphi' ? '' : 'col-start-2'} mt-1 text-xs px-3 py-1 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900 disabled:opacity-50 flex items-center justify-center gap-1.5`} title="Permanently delete this project and all its files. This action cannot be undone.">
+                    <button {...deleteTooltip} onClick={onDelete} disabled={isBusy} className={`col-span-2 ${project.type !== 'webapp' && project.type !== 'delphi' ? '' : 'col-start-2'} mt-1 text-xs px-3 py-1 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900 disabled:opacity-50 flex items-center justify-center gap-1.5`}>
                         <Icon name="trash" className="w-4 h-4" />
                         <span>Delete</span>
                     </button>
@@ -186,6 +190,7 @@ const NewProjectForm: React.FC<{
     isBusy: boolean;
 }> = ({ basePath, projectType, onCreate, isBusy }) => {
     const [name, setName] = useState('');
+    const createTooltip = useTooltipTrigger(`Create a new ${projectType} project folder with appropriate boilerplate files`);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -207,7 +212,7 @@ const NewProjectForm: React.FC<{
                 className="flex-grow px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
                 disabled={isBusy}
             />
-            <button type="submit" disabled={!name.trim() || isBusy} className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed" title={`Create a new ${projectType} project folder with appropriate boilerplate files`}>
+            <button {...createTooltip} type="submit" disabled={!name.trim() || isBusy} className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed">
                 {isBusy ? <Icon name="spinner" className="w-5 h-5"/> : 'Create'}
             </button>
         </form>
@@ -352,6 +357,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
                    : type === 'delphi' ? config.delphiProjectsPath
                    : config.webAppsPath;
         const projects = config.projects?.filter(p => p.type === type) || [];
+        const chooseTooltip = useTooltipTrigger(`Select the base folder where your ${type} projects are, or will be, stored`);
         
         return (
              <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
@@ -368,7 +374,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
                                 value={path || 'Not set'}
                                 className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg"
                             />
-                            <button onClick={() => handleSetPath(type)} className="px-4 py-2 text-sm font-medium text-[--text-on-accent] bg-[--accent-chat] hover:brightness-95 rounded-lg" title={`Select the base folder where your ${type} projects are, or will be, stored`}>
+                            <button {...chooseTooltip} onClick={() => handleSetPath(type)} className="px-4 py-2 text-sm font-medium text-[--text-on-accent] bg-[--accent-chat] hover:brightness-95 rounded-lg">
                                 Choose...
                             </button>
                         </div>

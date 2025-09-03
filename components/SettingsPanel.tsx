@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { Config, LLMProviderConfig, Theme, ThemeOverrides, PredefinedPrompt, ColorOverrides, SystemPrompt, ToolchainStatus, Toolchain, IconSet, LLMProviderType } from '../types';
 import Icon from './Icon';
 import { DEFAULT_PROVIDERS } from '../constants';
+import { useTooltipTrigger } from '../hooks/useTooltipTrigger';
 
 interface SettingsPanelProps {
   config: Config;
@@ -89,17 +90,20 @@ const ColorSelector: React.FC<{ label: string; value: string; onChange: (value: 
     <div>
         <label className="block text-sm font-medium text-[--text-muted] mb-2">{label}</label>
         <div className="flex flex-wrap gap-2">
-            {PREDEFINED_COLORS.map(color => (
-                <button
-                    key={color}
-                    type="button"
-                    onClick={() => onChange(color)}
-                    className={`w-7 h-7 rounded-full border-2 transition-all ${value.toLowerCase() === color.toLowerCase() ? 'ring-2 ring-offset-2 ring-offset-[--bg-secondary] ring-[--border-focus] border-[--border-focus]' : 'border-transparent hover:border-[--border-secondary]'}`}
-                    style={{ backgroundColor: color }}
-                    aria-label={color}
-                    title={color}
-                />
-            ))}
+            {PREDEFINED_COLORS.map(color => {
+                const tooltipProps = useTooltipTrigger(color);
+                return (
+                    <button
+                        key={color}
+                        type="button"
+                        {...tooltipProps}
+                        onClick={() => onChange(color)}
+                        className={`w-7 h-7 rounded-full border-2 transition-all ${value.toLowerCase() === color.toLowerCase() ? 'ring-2 ring-offset-2 ring-offset-[--bg-secondary] ring-[--border-focus] border-[--border-focus]' : 'border-transparent hover:border-[--border-secondary]'}`}
+                        style={{ backgroundColor: color }}
+                        aria-label={color}
+                    />
+                )
+            })}
         </div>
     </div>
 );

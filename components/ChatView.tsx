@@ -29,6 +29,7 @@ import FileCodeIcon from './icons/FileCodeIcon';
 import SlidersIcon from './icons/SlidersIcon';
 import SparklesIcon from './icons/SparklesIcon';
 import ProviderIcon from './ProviderIcon';
+import { useTooltipTrigger } from '../hooks/useTooltipTrigger';
 
 const ContextSources: React.FC<{ files: string[] }> = ({ files }) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -49,9 +50,10 @@ const ContextSources: React.FC<{ files: string[] }> = ({ files }) => {
             </button>
             {isExpanded && (
                 <div className="p-2 border-t border-[--assistant-message-text-color]/10 font-mono">
-                    {fileNames.map((name, index) => (
-                        <div key={index} className="truncate" title={files[index]}>{name}</div>
-                    ))}
+                    {fileNames.map((name, index) => {
+                        const tooltipProps = useTooltipTrigger(files[index]);
+                        return <div key={index} {...tooltipProps} className="truncate">{name}</div>
+                    })}
                 </div>
             )}
         </div>
@@ -333,6 +335,9 @@ const CodeBlock = React.memo(({ node, inline, className, children, theme, isElec
     error: null,
   });
 
+  const copyTooltip = useTooltipTrigger(isCopied ? 'Copied!' : 'Copy code to clipboard');
+  const saveTooltip = useTooltipTrigger('Save to Project');
+
   const codeText = String(children).replace(/\n$/, '');
   const match = /language-(\w+)/.exec(className || '');
   
@@ -358,6 +363,9 @@ const CodeBlock = React.memo(({ node, inline, className, children, theme, isElec
   const activeProject = activeProjectId ? projects.find((p: CodeProject) => p.id === activeProjectId) : null;
   const isRunnableInProject = activeProject && activeProject.type === getProjectTypeForLang(lang);
   const executionContextName = isRunnableInProject ? activeProject.name : 'Standalone';
+
+  const runTooltip = useTooltipTrigger(isWebApp ? "Open HTML in a new browser window" : `Run code in ${executionContextName} context`);
+  const contextTooltip = useTooltipTrigger(`Execution context: ${executionContextName}`);
 
 
   const handleCopy = () => {
@@ -443,14 +451,14 @@ const CodeBlock = React.memo(({ node, inline, className, children, theme, isElec
         <span className="font-sans text-[--text-muted]">{lang || 'code'}</span>
         <div className="flex items-center gap-2">
           <button 
+            {...copyTooltip}
             onClick={handleCopy}
             className="text-[--text-muted] hover:text-[--text-primary] px-2 py-1 rounded"
-            title="Copy code to clipboard"
           >
             {isCopied ? 'Copied!' : 'Copy code'}
           </button>
           {canSave && (
-            <button onClick={() => onSaveRequest(codeText, lang)} className="flex items-center gap-1.5 text-[--text-muted] hover:text-[--text-primary] px-2 py-1 rounded" title="Save to Project">
+            <button {...saveTooltip} onClick={() => onSaveRequest(codeText, lang)} className="flex items-center gap-1.5 text-[--text-muted] hover:text-[--text-primary] px-2 py-1 rounded">
               <FilePlusIcon className="w-3.5 h-3.5" />
               Save
             </button>
@@ -458,16 +466,16 @@ const CodeBlock = React.memo(({ node, inline, className, children, theme, isElec
           {canRunCode && (
             <div className="flex items-center gap-2 pl-2 border-l border-gray-300 dark:border-gray-600">
               {isElectron && (isPython || isNode) && (
-                <div className="flex items-center gap-1.5 text-xs px-2 py-1 text-[--text-muted] bg-[--bg-tertiary]/80 border border-[--border-secondary]/50 rounded-md" title={`Execution context: ${executionContextName}`}>
+                <div {...contextTooltip} className="flex items-center gap-1.5 text-xs px-2 py-1 text-[--text-muted] bg-[--bg-tertiary]/80 border border-[--border-secondary]/50 rounded-md">
                     <TerminalIcon className="w-3 h-3" />
                     <span>{executionContextName}</span>
                 </div>
               )}
               <button
+                  {...runTooltip}
                   onClick={handleRun}
                   disabled={runState.isLoading}
                   className="flex items-center gap-1.5 text-[--text-muted] hover:text-[--text-primary] px-2 py-1 rounded disabled:cursor-not-allowed disabled:opacity-50"
-                  title={isWebApp ? "Open HTML in a new browser window" : `Run code in ${executionContextName} context`}
               >
                   <RunIcon className="w-3 h-3"/>
                   {runButtonText}
@@ -663,7 +671,9 @@ interface ChatViewProps {
   onRejectModification: (filePath: string) => void;
 }
 
-const ChatView: React.FC<ChatViewProps> = ({ session, provider, onSendMessage, isResponding, retrievalStatus, thinkingText, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onSetSessionGenerationConfig, onAcceptModification, onRejectModification }) => {
+// FIX: Changed from a const assignment to a function declaration with a default export
+// to resolve a "no default export" error in the App component.
+export default function ChatView({ session, provider, onSendMessage, isResponding, retrievalStatus, thinkingText, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onSetSessionGenerationConfig, onAcceptModification, onRejectModification }: ChatViewProps) {
   const [input, setInput] = useState('');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [saveModalState, setSaveModalState] = useState<{ code: string; lang: string; activeProjectId: string | null } | null>(null);
@@ -690,6 +700,19 @@ const ChatView: React.FC<ChatViewProps> = ({ session, provider, onSendMessage, i
   const currentSystemPrompt = systemPrompts.find(p => p.id === session.systemPromptId);
   const currentPersonaName = currentSystemPrompt ? currentSystemPrompt.title : 'Default Assistant';
   const currentPersonaContent = currentSystemPrompt ? currentSystemPrompt.content : DEFAULT_SYSTEM_PROMPT;
+  
+  const titleTooltip = useTooltipTrigger("Click to rename");
+  const modelTooltip = useTooltipTrigger("Start new chat with a different model");
+  const personaTooltip = useTooltipTrigger(currentPersonaContent);
+  const paramsTooltip = useTooltipTrigger("Adjust model parameters");
+  const projectContextTooltip = useTooltipTrigger("Select a project to enable project-aware features like file modification and smart context.");
+  const smartContextTooltip = useTooltipTrigger("When enabled, the AI will first analyze your prompt to find the most relevant files in the selected project. It will then read their content to provide a more accurate, context-aware answer.");
+  const removeImgTooltip = useTooltipTrigger("Remove image");
+  const attachImgTooltip = useTooltipTrigger("Attach image");
+  const predefinedPromptsTooltip = useTooltipTrigger("Use a predefined prompt");
+  const stopGenTooltip = useTooltipTrigger("Stop generating");
+  const sendMsgTooltip = useTooltipTrigger("Send message");
+  
 
   useEffect(() => {
     setEditedTitle(sessionName);
@@ -941,8 +964,8 @@ const ChatView: React.FC<ChatViewProps> = ({ session, provider, onSendMessage, i
               />
             ) : (
               <h2 
+                {...titleTooltip}
                 className="text-lg font-semibold text-[--text-primary] truncate cursor-pointer hover:bg-[--bg-hover] px-2 -ml-2 py-1 rounded-lg"
-                title="Click to rename"
                 onClick={() => setIsEditingTitle(true)}
               >
                 {session.name}
@@ -951,9 +974,9 @@ const ChatView: React.FC<ChatViewProps> = ({ session, provider, onSendMessage, i
             <div className='flex items-center gap-3'>
               <div className="relative" ref={modelSelectorRef}>
                   <button 
+                      {...modelTooltip}
                       onClick={() => setIsModelSelectorOpen(prev => !prev)} 
                       className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] px-2 -ml-2 py-0.5 rounded-lg hover:bg-[--bg-hover]"
-                      title="Start new chat with a different model"
                   >
                       <span className="truncate max-w-xs">{provider?.name} / {session.modelId}</span>
                       <ChevronDownIcon className={`w-3 h-3 transition-transform ${isModelSelectorOpen ? 'rotate-180' : ''}`} />
@@ -978,9 +1001,9 @@ const ChatView: React.FC<ChatViewProps> = ({ session, provider, onSendMessage, i
               </div>
                <div className="relative" ref={personaSelectorRef}>
                 <button 
+                    {...personaTooltip}
                     onClick={() => setIsPersonaSelectorOpen(prev => !prev)} 
                     className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] px-2 -ml-2 py-0.5 rounded-lg hover:bg-[--bg-hover]"
-                    title={currentPersonaContent}
                 >
                     <IdentityIcon className="w-3.5 h-3.5" />
                     <span className="truncate max-w-xs">Persona: {currentPersonaName}</span>
@@ -998,27 +1021,30 @@ const ChatView: React.FC<ChatViewProps> = ({ session, provider, onSendMessage, i
                         >
                             Default Assistant
                         </button>
-                        {systemPrompts.map(prompt => (
-                            <button 
-                                key={prompt.id}
-                                onClick={() => {
-                                    onSetSessionSystemPrompt(prompt.id);
-                                    setIsPersonaSelectorOpen(false);
-                                }}
-                                className="w-full text-left block px-3 py-1.5 text-sm text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
-                                title={prompt.content}
-                            >
-                                {prompt.title}
-                            </button>
-                        ))}
+                        {systemPrompts.map(prompt => {
+                            const promptTooltip = useTooltipTrigger(prompt.content);
+                            return (
+                                <button 
+                                    {...promptTooltip}
+                                    key={prompt.id}
+                                    onClick={() => {
+                                        onSetSessionSystemPrompt(prompt.id);
+                                        setIsPersonaSelectorOpen(false);
+                                    }}
+                                    className="w-full text-left block px-3 py-1.5 text-sm text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
+                                >
+                                    {prompt.title}
+                                </button>
+                            )
+                        })}
                     </div>
                 )}
               </div>
                <div className="relative" ref={paramsSelectorRef}>
                 <button 
+                    {...paramsTooltip}
                     onClick={() => setIsParamsOpen(prev => !prev)} 
                     className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] px-2 -ml-2 py-0.5 rounded-lg hover:bg-[--bg-hover]"
-                    title="Adjust model parameters"
                 >
                     <SlidersIcon className="w-3.5 h-3.5" />
                     <span>Parameters</span>
@@ -1091,166 +1117,135 @@ const ChatView: React.FC<ChatViewProps> = ({ session, provider, onSendMessage, i
               <span>Context:</span>
             </label>
             <select
+              {...projectContextTooltip}
               id="project-context-select"
               value={activeProjectId || ''}
               onChange={(e) => onSetActiveProject(e.target.value || null)}
               className="text-sm text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus] w-full max-w-xs truncate"
               aria-label="Select active project for context"
-              title="Select a project to enable project-aware features like file modification and smart context."
             >
               <option value="">No Project Context</option>
               {projects.map(p => {
                 const projectTypeText = p.type.charAt(0).toUpperCase() + p.type.slice(1);
                 const optionText = `${p.name} (${projectTypeText})`;
-                return <option key={p.id} value={p.id} title={optionText}>{optionText}</option>
+                return <option key={p.id} value={p.id}>{optionText}</option>
               })}
             </select>
             {activeProjectId && (
                 <label 
+                    {...smartContextTooltip}
                     className="flex items-center gap-2 cursor-pointer" 
-                    title="When enabled, the AI will first analyze your prompt to find the most relevant files in the selected project. It will then read their content to provide a more accurate, context-aware answer."
                 >
                     <BrainCircuitIcon className={`w-5 h-5 ${isSmartContextEnabled ? 'text-[--accent-chat]' : 'text-[--text-muted]'}`} />
                     <span className="text-sm text-[--text-muted] hidden lg:inline">Smart Context</span>
                     <div className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" checked={isSmartContextEnabled} onChange={() => setIsSmartContextEnabled(s => !s)} className="sr-only peer" />
-                        <div className="w-11 h-6 bg-[--bg-tertiary] peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[--border-focus] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[--accent-chat]"></div>
+                        <input 
+                            type="checkbox" 
+                            checked={isSmartContextEnabled} 
+                            onChange={(e) => setIsSmartContextEnabled(e.target.checked)} 
+                            className="sr-only peer" 
+                            id="smart-context-toggle"
+                        />
+                        <div className="w-11 h-6 bg-[--bg-tertiary] rounded-full peer peer-checked:bg-[--accent-chat] peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[--border-focus] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
                     </div>
                 </label>
             )}
           </div>
         )}
       </header>
-      <main
-        className="flex-1 overflow-y-auto p-6 space-y-6"
-        style={{
-            backgroundColor: 'var(--chat-bg-color)',
-            fontFamily: 'var(--chat-font-family)',
-            fontSize: 'var(--chat-font-size)',
-        }}
-       >
-        {filteredMessages.map((msg, index) => (
-            <MemoizedChatMessage
-                key={index}
-                msg={msg}
-                prevMessage={filteredMessages[index - 1]}
-                markdownComponents={markdownComponents}
-                onAcceptModification={onAcceptModification}
-                onRejectModification={onRejectModification}
-                theme={theme}
-                isResponding={isResponding && index === filteredMessages.length - 1}
-            />
-        ))}
-        {thinkingText !== null && <ThinkingIndicator content={thinkingText} />}
-        <div ref={messagesEndRef} />
+      <main className="flex-1 overflow-y-auto p-4 space-y-6">
+          {filteredMessages.map((msg, index) => (
+              <MemoizedChatMessage
+                  key={`${msg.role}-${index}`}
+                  msg={msg}
+                  prevMessage={filteredMessages[index-1]}
+                  markdownComponents={markdownComponents}
+                  onAcceptModification={onAcceptModification}
+                  onRejectModification={onRejectModification}
+                  theme={theme}
+                  isResponding={isResponding && index === filteredMessages.length - 1}
+              />
+          ))}
+          {thinkingText && <ThinkingIndicator content={thinkingText} />}
+          <div ref={messagesEndRef} />
       </main>
-      <footer className="p-4 bg-[--bg-primary] border-t border-[--border-primary]">
-        {retrievalStatus === 'retrieving' && (
-            <div className="flex items-center gap-2 text-xs text-[--text-muted] mb-2 px-1">
-                <SpinnerIcon className="w-4 h-4" />
-                <span>Finding relevant files...</span>
-            </div>
-        )}
-        {attachedImage && (
-            <div className="relative w-20 h-20 mb-2 border border-[--border-secondary] rounded-lg p-1">
-                <img src={attachedImage} className="w-full h-full object-cover rounded-md" alt="Attachment preview"/>
-                <button 
-                    onClick={() => setAttachedImage(null)} 
-                    className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-0.5 hover:bg-red-700 transition-colors"
-                    aria-label="Remove image"
-                    title="Remove image"
-                >
-                    <XIcon className="w-4 h-4" />
-                </button>
-            </div>
-        )}
-        <div className="relative">
-           <input
-            type="file"
-            ref={fileInputRef}
-            onChange={(e) => handleImageChange(e.target.files ? e.target.files[0] : null)}
-            accept="image/*"
-            className="hidden"
-           />
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Type your message, or drag & drop an image..."
-            rows={1}
-            disabled={isResponding}
-            className="w-full pl-24 pr-14 py-3 bg-[--bg-tertiary] text-[--text-primary] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[--border-focus] disabled:cursor-not-allowed max-h-48 overflow-y-auto"
-          />
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center divide-x divide-[--border-secondary]">
-              <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isResponding}
-                  className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] hover:text-[--text-primary] disabled:opacity-50"
-                  title="Attach image"
-              >
-                  <PaperclipIcon className="w-5 h-5" />
-              </button>
-              <div className="pl-2">
-                <button
-                    ref={promptsButtonRef}
-                    onClick={() => setIsPromptsOpen(prev => !prev)}
-                    disabled={isResponding || predefinedPrompts.length === 0}
-                    className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] hover:text-[--text-primary] disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Use a predefined prompt"
-                >
-                    <BookmarkIcon className="w-5 h-5" />
-                </button>
-                {isPromptsOpen && predefinedPrompts.length > 0 && (
-                  <div 
-                    ref={promptsPopoverRef}
-                    className="absolute bottom-full mb-2 w-72 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto"
-                  >
-                    <div className="p-2 text-xs font-semibold text-[--text-muted] border-b border-[--border-primary]">Select a prompt</div>
-                    {predefinedPrompts.map(prompt => (
-                      <button 
-                        key={prompt.id}
-                        onClick={() => handleSelectPrompt(prompt.content)}
-                        className="w-full text-left block px-3 py-2 text-sm text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
-                        title={prompt.content}
-                      >
-                        <p className="font-semibold truncate">{prompt.title}</p>
-                        <p className="text-xs text-[--text-muted] truncate mt-0.5">{prompt.content}</p>
+      <footer className="p-4 bg-[--bg-primary] border-t border-[--border-primary] flex-shrink-0">
+          <div className="relative">
+              {attachedImage && (
+                  <div className="absolute bottom-full left-0 mb-2 p-2 bg-[--bg-secondary] border border-[--border-primary] rounded-lg">
+                      <img src={attachedImage} alt="Attachment preview" className="h-20 w-20 object-cover rounded" />
+                      <button {...removeImgTooltip} onClick={() => setAttachedImage(null)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5">
+                          <XIcon className="w-3 h-3" />
                       </button>
-                    ))}
                   </div>
-                )}
+              )}
+              <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  placeholder="Type your message or drop an image..."
+                  className="w-full pl-12 pr-28 py-3 text-base bg-[--bg-secondary] rounded-full focus:outline-none focus:ring-2 focus:ring-[--border-focus] resize-none overflow-y-hidden"
+                  rows={1}
+                  disabled={isResponding}
+              />
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  <input type="file" ref={fileInputRef} onChange={e => handleImageChange(e.target.files ? e.target.files[0] : null)} accept="image/*" className="hidden" />
+                  <button {...attachImgTooltip} onClick={() => fileInputRef.current?.click()} className="p-2 text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-full">
+                      <PaperclipIcon className="w-5 h-5" />
+                  </button>
+                  <div className="relative">
+                      <button 
+                          ref={promptsButtonRef}
+                          {...predefinedPromptsTooltip} 
+                          onClick={() => setIsPromptsOpen(p => !p)} 
+                          className="p-2 text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-full"
+                      >
+                          <BookmarkIcon className="w-5 h-5" />
+                      </button>
+                      {isPromptsOpen && (
+                          <div ref={promptsPopoverRef} className="absolute bottom-full left-0 mb-2 w-72 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
+                              <div className="p-2 text-xs font-semibold text-[--text-muted] border-b border-[--border-primary]">Saved Prompts</div>
+                              {predefinedPrompts.length > 0 ? (
+                                  predefinedPrompts.map(p => (
+                                      <button 
+                                          key={p.id}
+                                          onClick={() => handleSelectPrompt(p.content)}
+                                          title={p.content}
+                                          className="w-full text-left block px-3 py-1.5 text-sm text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary] truncate"
+                                      >
+                                          {p.title}
+                                      </button>
+                                  ))
+                              ) : (
+                                  <p className="p-3 text-sm text-center text-[--text-muted]">No prompts saved yet. Add some in Settings.</p>
+                              )}
+                          </div>
+                      )}
+                  </div>
+              </div>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {isResponding ? (
+                      <button {...stopGenTooltip} onClick={onStopGeneration} className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600">
+                          <StopIcon className="w-5 h-5" />
+                      </button>
+                  ) : (
+                      <button {...sendMsgTooltip} onClick={handleSend} disabled={!input.trim() && !attachedImage} className="p-2 bg-[--accent-chat] text-[--user-message-text-color] rounded-full disabled:opacity-50 disabled:cursor-not-allowed">
+                          <SendIcon className="w-5 h-5" />
+                      </button>
+                  )}
               </div>
           </div>
-          {isResponding ? (
-            <button
-              onClick={onStopGeneration}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors"
-              title="Stop generating"
-            >
-              <StopIcon className="w-5 h-5" />
-            </button>
-          ) : (
-            <button
-              onClick={handleSend}
-              disabled={!input.trim() && !attachedImage}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full bg-[--accent-chat] text-white hover:brightness-90 disabled:bg-indigo-300 dark:disabled:bg-indigo-800 disabled:cursor-not-allowed transition-all"
-              title="Send message"
-            >
-              <SendIcon className="w-5 h-5" />
-            </button>
-          )}
-        </div>
       </footer>
-       {isDraggingOver && (
-            <div className="absolute inset-0 bg-[--bg-backdrop] backdrop-blur-sm flex items-center justify-center pointer-events-none z-50">
-                <div className="p-8 border-2 border-dashed border-[--border-focus] rounded-xl bg-[--bg-secondary]">
-                    <p className="text-xl font-semibold text-[--text-primary]">Drop image to attach</p>
-                </div>
-            </div>
-        )}
+
+      {isDraggingOver && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center pointer-events-none z-30">
+              <div className="text-center text-white p-8 bg-black/30 rounded-lg backdrop-blur-sm">
+                  <PaperclipIcon className="w-16 h-16 mx-auto mb-4" />
+                  <h3 className="text-2xl font-bold">Drop your image here</h3>
+              </div>
+          </div>
+      )}
     </div>
   );
-};
-
-export default ChatView;
+}

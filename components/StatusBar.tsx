@@ -5,6 +5,7 @@ import OpenAIIcon from './icons/OpenAIIcon';
 import GoogleGeminiIcon from './icons/GoogleGeminiIcon';
 import Icon from './Icon';
 import type { LLMProviderConfig, SystemStats, Model } from '../types';
+import { useTooltipTrigger } from '../hooks/useTooltipTrigger';
 
 
 interface StatusBarProps {
@@ -44,6 +45,14 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
     const modelRef = useRef<HTMLDivElement>(null);
     
     const activeProvider = providers.find(p => p.id === selectedProviderId);
+    
+    const providerTooltip = useTooltipTrigger(statusText);
+    const modelTooltip = useTooltipTrigger("Select a model to start a new chat");
+    const projectTooltip = useTooltipTrigger(`Active Project Context: ${activeProject}`);
+    const cpuTooltip = useTooltipTrigger("System-wide CPU Usage");
+    const gpuTooltip = useTooltipTrigger(stats?.gpu !== undefined && stats.gpu >= 0 ? `System-wide GPU Usage: ${stats.gpu.toFixed(0)}%` : "System-wide GPU Usage (N/A or Requires NVIDIA GPU)");
+    const ramTooltip = useTooltipTrigger("System-wide RAM Usage");
+
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -78,7 +87,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
             {/* Left Side */}
             <div className="flex items-center gap-4">
                  <div className="relative" ref={providerRef}>
-                    <button onClick={() => setIsProviderPopoverOpen(p => !p)} className="flex items-center gap-2 p-1 rounded hover:bg-[--bg-hover]" title={statusText}>
+                    <button {...providerTooltip} onClick={() => setIsProviderPopoverOpen(p => !p)} className="flex items-center gap-2 p-1 rounded hover:bg-[--bg-hover]">
                         <ProviderIcon className="w-4 h-4" />
                         <span className={`w-2 h-2 rounded-full ${statusDotClass}`}></span>
                         <span className="hidden sm:inline">{activeProvider?.name || 'No Provider'}</span>
@@ -102,7 +111,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
                 </div>
                 <div className="w-px h-4 bg-[--border-primary]" />
                  <div className="relative" ref={modelRef}>
-                    <button onClick={() => setIsModelPopoverOpen(p => !p)} className="flex items-center gap-2 p-1 rounded hover:bg-[--bg-hover]" title="Select a model to start a new chat" disabled={models.length === 0}>
+                    <button {...modelTooltip} onClick={() => setIsModelPopoverOpen(p => !p)} className="flex items-center gap-2 p-1 rounded hover:bg-[--bg-hover]" disabled={models.length === 0}>
                         <Icon name="model" className="w-4 h-4" />
                         <span className="truncate max-w-48">{activeModel || (models.length > 0 ? 'Select Model' : 'No Models')}</span>
                     </button>
@@ -127,7 +136,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
                   {activeProject && (
                     <>
                         <div className="w-px h-4 bg-[--border-primary]" />
-                        <div className="flex items-center gap-2 p-1" title={`Active Project Context: ${activeProject}`}>
+                        <div {...projectTooltip} className="flex items-center gap-2 p-1">
                            <Icon name="code" className="w-4 h-4" />
                            <span className="truncate max-w-48">{activeProject}</span>
                         </div>
@@ -137,7 +146,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
             
             {/* Right Side */}
             <div className="flex items-center gap-6">
-                 <div className="flex items-center gap-2" title="System-wide CPU Usage">
+                 <div {...cpuTooltip} className="flex items-center gap-2">
                     <Icon name="cpu" className="w-4 h-4" />
                      {stats ? (
                         <>
@@ -150,7 +159,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
                         <span>--%</span>
                     )}
                 </div>
-                <div className="flex items-center gap-2" title={stats?.gpu !== undefined && stats.gpu >= 0 ? `System-wide GPU Usage: ${stats.gpu.toFixed(0)}%` : "System-wide GPU Usage (Requires NVIDIA GPU)"}>
+                <div {...gpuTooltip} className="flex items-center gap-2">
                     <Icon name="gpu" className="w-4 h-4" />
                      {stats && stats.gpu >= 0 ? (
                         <>
@@ -163,7 +172,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
                         <span>--%</span>
                     )}
                 </div>
-                <div className="flex items-center gap-2" title="System-wide RAM Usage">
+                <div {...ramTooltip} className="flex items-center gap-2">
                     <Icon name="ram" className="w-4 h-4" />
                     {stats ? (
                         <>

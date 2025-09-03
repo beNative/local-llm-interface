@@ -1,6 +1,7 @@
 import React from 'react';
 import type { ChatSession } from '../types';
 import Icon from './Icon';
+import { useTooltipTrigger } from '../hooks/useTooltipTrigger';
 
 interface SessionSidebarProps {
   sessions: ChatSession[];
@@ -12,13 +13,17 @@ interface SessionSidebarProps {
 }
 
 const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSessionId, onNewChat, onSelectSession, onDeleteSession, onGenerateSessionName }) => {
+  const newChatTooltip = useTooltipTrigger('Start a new conversation');
+  const generateNameTooltip = useTooltipTrigger('Generate name');
+  const deleteSessionTooltip = useTooltipTrigger('Delete session');
+
   return (
     <aside className="h-full bg-[--bg-secondary] border-r border-[--border-primary] flex flex-col">
       <div className="p-3 flex-shrink-0">
         <button
+          {...newChatTooltip}
           onClick={onNewChat}
           className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg text-white bg-[--accent-chat] hover:brightness-95 transition-all shadow-sm"
-          title="Start a new conversation"
         >
           <Icon name="plus" className="w-4 h-4" />
           New Chat
@@ -46,22 +51,22 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
             </button>
             <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-transparent rounded-md">
               <button
+                {...generateNameTooltip}
                 onClick={(e) => {
                   e.stopPropagation();
                   onGenerateSessionName(session.id);
                 }}
                 className="p-1.5 rounded-md text-[--text-muted] hover:bg-[--accent-chat]/10 hover:text-[--accent-chat]"
-                title="Generate name"
               >
                 <Icon name="sparkles" className="w-4 h-4" />
               </button>
               <button
+                {...deleteSessionTooltip}
                 onClick={(e) => {
                   e.stopPropagation();
                   onDeleteSession(session.id);
                 }}
                 className="p-1.5 rounded-md text-[--text-muted] hover:bg-red-500/10 hover:text-red-500"
-                title="Delete session"
               >
                 <Icon name="trash" className="w-4 h-4" />
               </button>

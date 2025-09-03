@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { logger } from '../services/logger';
 import type { LogEntry, LogLevel } from '../types';
 import Icon from './Icon';
+import { useTooltipTrigger } from '../hooks/useTooltipTrigger';
 
 interface LoggingPanelProps {
   onClose: () => void;
@@ -24,6 +25,10 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
   
   const logContainerRef = useRef<HTMLDivElement>(null);
   const isResizing = useRef(false);
+  
+  const copyTooltip = useTooltipTrigger(isCopied ? 'Copied!' : 'Copy Logs');
+  const clearTooltip = useTooltipTrigger('Clear Logs');
+  const closeTooltip = useTooltipTrigger('Close Panel');
 
   useEffect(() => {
     const handleLogs = (newLogs: LogEntry[]) => setAllLogs(newLogs);
@@ -120,13 +125,13 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={copyLogs} className="p-1.5 rounded text-[--text-muted] hover:bg-[--bg-hover]" title={isCopied ? 'Copied!' : 'Copy Logs'}>
+          <button {...copyTooltip} onClick={copyLogs} className="p-1.5 rounded text-[--text-muted] hover:bg-[--bg-hover]">
             <Icon name="clipboard" className="w-4 h-4" />
           </button>
-          <button onClick={logger.clearLogs} className="p-1.5 rounded text-[--text-muted] hover:bg-[--bg-hover]" title="Clear Logs">
+          <button {...clearTooltip} onClick={logger.clearLogs} className="p-1.5 rounded text-[--text-muted] hover:bg-[--bg-hover]">
             <Icon name="trash" className="w-4 h-4" />
           </button>
-          <button onClick={onClose} className="p-1.5 rounded text-[--text-muted] hover:bg-[--bg-hover]" title="Close Panel">
+          <button {...closeTooltip} onClick={onClose} className="p-1.5 rounded text-[--text-muted] hover:bg-[--bg-hover]">
              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
           </button>
         </div>

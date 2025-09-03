@@ -4,6 +4,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { fetchOllamaModelDetails, LLMServiceError } from '../services/llmService';
 import Icon from './Icon';
+import { useTooltipTrigger } from '../hooks/useTooltipTrigger';
 
 interface ModelDetailsModalProps {
   model: Model;
@@ -65,6 +66,9 @@ interface ModelSelectorProps {
 }
 
 const ModelListItem: React.FC<{ model: Model; onSelect: () => void; onShowDetails: () => void; provider: LLMProviderConfig | null; isFetchingDetails: boolean; }> = ({ model, onSelect, onShowDetails, provider, isFetchingDetails }) => {
+  const modelNameTooltip = useTooltipTrigger(model.id);
+  const detailsTooltip = useTooltipTrigger("Show model details");
+
   const formatBytes = (bytes?: number, decimals = 1) => {
     if (bytes === undefined || bytes === null) return null;
     if (bytes === 0) return '0 B';
@@ -91,7 +95,7 @@ const ModelListItem: React.FC<{ model: Model; onSelect: () => void; onShowDetail
     >
         <div className="flex items-center gap-3 min-w-0 flex-grow">
           <Icon name="model" className="w-5 h-5 text-[--accent-chat] flex-shrink-0" />
-          <h3 className="text-md font-semibold text-[--text-primary] truncate" title={model.id}>{model.id}</h3>
+          <h3 {...modelNameTooltip} className="text-md font-semibold text-[--text-primary] truncate">{model.id}</h3>
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0 ml-4">
@@ -104,9 +108,9 @@ const ModelListItem: React.FC<{ model: Model; onSelect: () => void; onShowDetail
         
         {provider?.id === 'ollama' && (
             <button
+                {...detailsTooltip}
                 onClick={(e) => { e.stopPropagation(); onShowDetails(); }}
                 className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] disabled:opacity-50 disabled:cursor-wait ml-3"
-                title="Show model details"
                 disabled={isFetchingDetails}
             >
                 {isFetchingDetails ? <Icon name="spinner" className="w-5 h-5"/> : <Icon name="info" className="w-5 h-5" />}
