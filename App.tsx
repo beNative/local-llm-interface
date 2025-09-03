@@ -199,27 +199,48 @@ const App: React.FC = () => {
           
           loadedConfig.providers = newProviders;
           loadedConfig.selectedProviderId = newSelectedId;
-
-          // Migrate sessions
-          if (loadedConfig.sessions) {
-              loadedConfig.sessions = (loadedConfig.sessions as any[]).map((s: any) => {
-                  if (s.provider) {
-                      let providerId = 'ollama'; // default
-                      if (s.provider === 'LMStudio') providerId = 'lmstudio';
-                      else if (s.provider === 'OpenAI') providerId = 'openai';
-                      else if (s.provider === 'Google Gemini') providerId = 'google-gemini';
-                      else if (s.provider === 'Custom') providerId = newSelectedId;
-                      
-                      const { provider, ...rest } = s;
-                      return { ...rest, providerId };
-                  }
-                  return s;
-              });
-          }
           delete oldConf.provider;
           delete oldConf.baseUrl;
       }
       
+      // SESSION SANITIZATION & MIGRATION
+      if (loadedConfig.sessions) {
+          let migratedCount = 0;
+          loadedConfig.sessions = (loadedConfig.sessions as any[]).map((s: any): ChatSession => {
+              let needsMigration = false;
+              let migratedSession = { ...s };
+
+              // Case 1: Old session with `provider` field
+              if (s.provider && !s.providerId) {
+                  let providerId = 'ollama'; // default
+                  if (s.provider === 'LMStudio') providerId = 'lmstudio';
+                  else if (s.provider === 'OpenAI') providerId = 'openai';
+                  else if (s.provider === 'Google Gemini') providerId = 'google-gemini';
+                  else if (s.provider === 'Custom') providerId = loadedConfig.selectedProviderId || 'custom-migrated';
+                  
+                  migratedSession.providerId = providerId;
+                  delete migratedSession.provider;
+                  needsMigration = true;
+              }
+              
+              // Case 2: Session somehow missing providerId (orphan)
+              if (!migratedSession.providerId) {
+                  migratedSession.providerId = loadedConfig.selectedProviderId || 'ollama';
+                  needsMigration = true;
+                  logger.warn(`Session "${s.name}" (${s.id}) was missing a providerId. Assigned fallback: ${migratedSession.providerId}`);
+              }
+
+              if (needsMigration) {
+                  migratedCount++;
+              }
+              return migratedSession as ChatSession;
+          });
+
+          if (migratedCount > 0) {
+              logger.info(`Sanitized/migrated ${migratedCount} sessions to include a valid providerId.`);
+          }
+      }
+
       setConfig(loadedConfig);
       logger.setConfig({ logToFile: loadedConfig.logToFile });
     };
