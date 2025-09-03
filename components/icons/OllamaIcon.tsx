@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 const OllamaIcon = ({ className }: { className?: string }) => (

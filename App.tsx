@@ -1048,48 +1048,46 @@ const App: React.FC = () => {
             <ThemeSwitcher theme={config?.theme || 'dark'} onToggle={handleThemeToggle} />
           </div>
         </header>
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <main className="flex-1 flex overflow-hidden">
-            {view === 'chat' && activeSession && (
-              <>
-                <div style={{ width: `${sidebarWidth}px` }} className="flex-shrink-0 h-full">
-                  <SessionSidebar
-                    sessions={sessions}
-                    activeSessionId={activeSessionId || null}
-                    onNewChat={handleNewChat}
-                    onSelectSession={handleSelectSession}
-                    onDeleteSession={handleDeleteSession}
-                    onGenerateSessionName={handleManualGenerateSessionName}
-                  />
-                </div>
-                <div
-                  onMouseDown={handleResizeMouseDown}
-                  className="w-1.5 flex-shrink-0 cursor-col-resize bg-[--bg-tertiary] hover:bg-[--border-focus] transition-colors duration-200"
-                  aria-label="Resize sidebar"
-                  role="separator"
-                ></div>
-              </>
-            )}
-            <div className="flex-1 overflow-hidden">
-                {renderContent()}
-            </div>
-          </main>
-          {isElectron && config && (
-              <StatusBar
-                  stats={systemStats}
-                  connectionStatus={connectionStatus}
-                  statusText={statusText}
-                  providers={providers}
-                  selectedProviderId={selectedProviderId}
-                  activeModel={activeSession?.modelId || null}
-                  activeProject={activeProjectName}
-                  models={models}
-                  onSelectModel={handleSelectModel}
-                  onChangeProvider={handleProviderChange}
-              />
+        <main className="flex-1 flex overflow-hidden">
+          {view === 'chat' && activeSession && (
+            <>
+              <div style={{ width: `${sidebarWidth}px` }} className="flex-shrink-0 h-full">
+                <SessionSidebar
+                  sessions={sessions}
+                  activeSessionId={activeSessionId || null}
+                  onNewChat={handleNewChat}
+                  onSelectSession={handleSelectSession}
+                  onDeleteSession={handleDeleteSession}
+                  onGenerateSessionName={handleManualGenerateSessionName}
+                />
+              </div>
+              <div
+                onMouseDown={handleResizeMouseDown}
+                className="w-1.5 flex-shrink-0 cursor-col-resize bg-[--bg-tertiary] hover:bg-[--border-focus] transition-colors duration-200"
+                aria-label="Resize sidebar"
+                role="separator"
+              ></div>
+            </>
           )}
-        </div>
+          <div className="flex-1 overflow-hidden">
+              {renderContent()}
+          </div>
+        </main>
         {isLogPanelVisible && <LoggingPanel onClose={() => setIsLogPanelVisible(false)} />}
+        {isElectron && config && (
+            <StatusBar
+                stats={systemStats}
+                connectionStatus={connectionStatus}
+                statusText={statusText}
+                providers={providers}
+                selectedProviderId={selectedProviderId}
+                activeModel={activeSession?.modelId || null}
+                activeProject={activeProjectName}
+                models={models}
+                onSelectModel={handleSelectModel}
+                onChangeProvider={handleProviderChange}
+            />
+        )}
       </div>
     </IconProvider>
   );

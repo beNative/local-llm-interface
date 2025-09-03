@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { logger } from '../services/logger';
 import type { LogEntry, LogLevel } from '../types';
@@ -94,7 +92,7 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
   return (
     <div 
       style={{ height: `${height}px` }}
-      className="fixed bottom-0 left-0 right-0 z-40 flex flex-col bg-[--bg-secondary] shadow-[0_-2px_15px_-3px_rgba(0,0,0,0.1)]"
+      className="relative flex flex-col bg-[--bg-secondary] shadow-[0_-2px_15px_-3px_rgba(0,0,0,0.1)] flex-shrink-0"
     >
       <div 
         onMouseDown={startResizing}

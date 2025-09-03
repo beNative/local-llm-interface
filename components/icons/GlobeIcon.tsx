@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 const GlobeIcon = ({ className }: { className?: string }) => (
