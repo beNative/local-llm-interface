@@ -445,7 +445,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
       switch (activeSection) {
           case 'general':
               return (
-                <div className="space-y-8">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                   {(editingProvider || isAddingProvider) && (
                     <ProviderEditorModal
                       provider={editingProvider}
@@ -509,7 +509,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                         </div>
                   </div>
                   {isElectron && (
-                     <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
+                     <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm xl:col-span-2">
                         <h3 className="text-xl font-semibold text-[--text-secondary] mb-4">Logging</h3>
                         <label className="flex items-center gap-3 cursor-pointer mt-2">
                             <input type="checkbox" checked={!!localConfig.logToFile} onChange={handleLogToFileChange} className="w-4 h-4 rounded text-indigo-600 bg-[--bg-tertiary] border-[--border-secondary] focus:ring-indigo-500" />
@@ -535,60 +535,62 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                             <button onClick={() => setActiveAppearanceTab('dark')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${activeAppearanceTab === 'dark' ? 'border-[--border-focus] text-[--text-primary]' : 'border-transparent text-[--text-muted] hover:border-gray-400'}`}>Dark Theme</button>
                         </nav>
                     </div>
-                    <div className="space-y-6 pt-6">
-                        <div>
-                          <ColorSelector label="Chat Background" value={activeColorOverrides.chatBg || activeThemeDefaults.chatBg} onChange={v => handleColorOverrideChange('chatBg', v)} />
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                            <div className="space-y-4 p-4 rounded-lg border border-[--border-secondary] bg-[--bg-secondary]">
-                                <PreviewBox label="User Message Preview" bgColor={activeColorOverrides.userMessageBg || activeThemeDefaults.userMessageBg} textColor={activeColorOverrides.userMessageColor || activeThemeDefaults.userMessageColor} />
-                                <ColorSelector label="Background Color" value={activeColorOverrides.userMessageBg || activeThemeDefaults.userMessageBg} onChange={v => handleColorOverrideChange('userMessageBg', v)} />
-                                <ColorSelector label="Text Color" value={activeColorOverrides.userMessageColor || activeThemeDefaults.userMessageColor} onChange={v => handleColorOverrideChange('userMessageColor', v)} />
+                    <div className="pt-6 grid grid-cols-1 lg:grid-cols-5 gap-6">
+                        <div className="lg:col-span-3 space-y-6">
+                            <div>
+                                <ColorSelector label="Chat Background" value={activeColorOverrides.chatBg || activeThemeDefaults.chatBg} onChange={v => handleColorOverrideChange('chatBg', v)} />
                             </div>
-                            <div className="space-y-4 p-4 rounded-lg border border-[--border-secondary] bg-[--bg-secondary]">
-                                <PreviewBox label="Assistant Message Preview" bgColor={activeColorOverrides.assistantMessageBg || activeThemeDefaults.assistantMessageBg} textColor={activeColorOverrides.assistantMessageColor || activeThemeDefaults.assistantMessageColor} />
-                                <ColorSelector label="Background Color" value={activeColorOverrides.assistantMessageBg || activeThemeDefaults.assistantMessageBg} onChange={v => handleColorOverrideChange('assistantMessageBg', v)} />
-                                <ColorSelector label="Text Color" value={activeColorOverrides.assistantMessageColor || activeThemeDefaults.assistantMessageColor} onChange={v => handleColorOverrideChange('assistantMessageColor', v)} />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <div className="space-y-4 p-4 rounded-lg border border-[--border-secondary] bg-[--bg-secondary]">
+                                    <PreviewBox label="User Message Preview" bgColor={activeColorOverrides.userMessageBg || activeThemeDefaults.userMessageBg} textColor={activeColorOverrides.userMessageColor || activeThemeDefaults.userMessageColor} />
+                                    <ColorSelector label="Background Color" value={activeColorOverrides.userMessageBg || activeThemeDefaults.userMessageBg} onChange={v => handleColorOverrideChange('userMessageBg', v)} />
+                                    <ColorSelector label="Text Color" value={activeColorOverrides.userMessageColor || activeThemeDefaults.userMessageColor} onChange={v => handleColorOverrideChange('userMessageColor', v)} />
+                                </div>
+                                <div className="space-y-4 p-4 rounded-lg border border-[--border-secondary] bg-[--bg-secondary]">
+                                    <PreviewBox label="Assistant Message Preview" bgColor={activeColorOverrides.assistantMessageBg || activeThemeDefaults.assistantMessageBg} textColor={activeColorOverrides.assistantMessageColor || activeThemeDefaults.assistantMessageColor} />
+                                    <ColorSelector label="Background Color" value={activeColorOverrides.assistantMessageBg || activeThemeDefaults.assistantMessageBg} onChange={v => handleColorOverrideChange('assistantMessageBg', v)} />
+                                    <ColorSelector label="Text Color" value={activeColorOverrides.assistantMessageColor || activeThemeDefaults.assistantMessageColor} onChange={v => handleColorOverrideChange('assistantMessageColor', v)} />
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div className="border-t border-[--border-primary] mt-6 pt-6 space-y-4">
-                        <h4 className="text-md font-semibold text-[--text-secondary] mb-2">Interface Customization (Global)</h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                                <label htmlFor="font-family" className="block text-sm font-medium text-[--text-muted] mb-1">Font Family</label>
-                                <select id="font-family" value={themeOverrides.fontFamily || 'sans-serif'} onChange={e => handleThemeOverridesChange('fontFamily', e.target.value)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]">
-                                    <option value="sans-serif" style={{ fontFamily: 'sans-serif' }}>System Default</option>
-                                    <option value="serif" style={{ fontFamily: 'serif' }}>Serif</option>
-                                    <option value="monospace" style={{ fontFamily: 'monospace' }}>Monospace</option>
-                                    <option value="Verdana, Geneva, Tahoma, sans-serif" style={{ fontFamily: 'Verdana, Geneva, Tahoma, sans-serif' }}>Verdana</option>
-                                    <option value="Georgia, Cambria, 'Times New Roman', Times, serif" style={{ fontFamily: "Georgia, Cambria, 'Times New Roman', Times, serif" }}>Georgia</option>
-                                </select>
-                          </div>
-                          <div>
-                                <label htmlFor="font-size" className="block text-sm font-medium text-[--text-muted] mb-1">Font Size (px)</label>
-                                <input type="number" id="font-size" value={themeOverrides.fontSize || 16} onChange={e => handleThemeOverridesChange('fontSize', e.target.valueAsNumber)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]" placeholder="16"/>
-                          </div>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-[--text-muted] mb-2">Icon Set</label>
-                            <div className="grid grid-cols-3 gap-2">
-                                {iconSets.map(set => {
-                                    const setName = set === 'fontawesome' ? 'Font Awesome' : set === 'material' ? 'Material' : set.charAt(0).toUpperCase() + set.slice(1);
-                                    return (
-                                        <button
-                                            key={set}
-                                            onClick={() => handleThemeOverridesChange('iconSet', set as IconSet)}
-                                            className={`px-3 py-2 text-sm rounded-lg border-2 transition-all text-center ${
-                                                (themeOverrides.iconSet || 'default') === set
-                                                    ? 'bg-[--accent-settings]/20 border-[--accent-settings] font-semibold text-[--accent-settings]'
-                                                    : 'bg-[--bg-tertiary] border-transparent hover:border-[--border-secondary] text-[--text-secondary]'
-                                            }`}
-                                        >
-                                            {setName}
-                                        </button>
-                                    )
-                                })}
+                        <div className="lg:col-span-2 space-y-4 lg:border-l lg:pl-6 lg:border-[--border-primary]">
+                            <h4 className="text-md font-semibold text-[--text-secondary] mb-2">Interface Customization (Global)</h4>
+                            <div className="grid grid-cols-1 gap-4">
+                                <div>
+                                    <label htmlFor="font-family" className="block text-sm font-medium text-[--text-muted] mb-1">Font Family</label>
+                                    <select id="font-family" value={themeOverrides.fontFamily || 'sans-serif'} onChange={e => handleThemeOverridesChange('fontFamily', e.target.value)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]">
+                                        <option value="sans-serif" style={{ fontFamily: 'sans-serif' }}>System Default</option>
+                                        <option value="serif" style={{ fontFamily: 'serif' }}>Serif</option>
+                                        <option value="monospace" style={{ fontFamily: 'monospace' }}>Monospace</option>
+                                        <option value="Verdana, Geneva, Tahoma, sans-serif" style={{ fontFamily: 'Verdana, Geneva, Tahoma, sans-serif' }}>Verdana</option>
+                                        <option value="Georgia, Cambria, 'Times New Roman', Times, serif" style={{ fontFamily: "Georgia, Cambria, 'Times New Roman', Times, serif" }}>Georgia</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label htmlFor="font-size" className="block text-sm font-medium text-[--text-muted] mb-1">Font Size (px)</label>
+                                    <input type="number" id="font-size" value={themeOverrides.fontSize || 16} onChange={e => handleThemeOverridesChange('fontSize', e.target.valueAsNumber)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]" placeholder="16"/>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-[--text-muted] mb-2">Icon Set</label>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                    {iconSets.map(set => {
+                                        const setName = set === 'fontawesome' ? 'Font Awesome' : set === 'material' ? 'Material' : set.charAt(0).toUpperCase() + set.slice(1);
+                                        return (
+                                            <button
+                                                key={set}
+                                                onClick={() => handleThemeOverridesChange('iconSet', set as IconSet)}
+                                                className={`px-3 py-2 text-sm rounded-lg border-2 transition-all text-center ${
+                                                    (themeOverrides.iconSet || 'default') === set
+                                                        ? 'bg-[--accent-settings]/20 border-[--accent-settings] font-semibold text-[--accent-settings]'
+                                                        : 'bg-[--bg-tertiary] border-transparent hover:border-[--border-secondary] text-[--text-secondary]'
+                                                }`}
+                                            >
+                                                {setName}
+                                            </button>
+                                        )
+                                    })}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -596,7 +598,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
               );
           case 'content':
               return (
-                 <div className="space-y-8">
+                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                     <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
                         <h3 className="text-xl font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">Predefined Prompts</h3>
                         <div className="space-y-4">
@@ -641,8 +643,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
               return (
                   <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
                       <h3 className="text-xl font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">Toolchains</h3>
-                      <div className="space-y-6">
-                        <p className="text-sm text-[--text-muted] -mt-2">Configure the specific compilers and interpreters to use for creating and running projects.</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                        <p className="text-sm text-[--text-muted] -mt-2 sm:col-span-2">Configure the specific compilers and interpreters to use for creating and running projects.</p>
                         <ToolchainSelector label="Python Interpreter" isLoading={isLoadingTools} toolchains={toolchains?.python || []} selectedValue={localConfig.selectedPythonPath} onChange={(v) => handleToolchainChange('selectedPythonPath', v)} />
                         <ToolchainSelector label="Java Development Kit (JDK)" isLoading={isLoadingTools} toolchains={toolchains?.java || []} selectedValue={localConfig.selectedJavaPath} onChange={(v) => handleToolchainChange('selectedJavaPath', v)} />
                         <ToolchainSelector label="Node.js Executable" isLoading={isLoadingTools} toolchains={toolchains?.nodejs || []} selectedValue={localConfig.selectedNodePath} onChange={(v) => handleToolchainChange('selectedNodePath', v)} />
@@ -673,10 +675,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
         </nav>
       </aside>
 
-      <main className="flex-1 overflow-y-auto p-6 md:p-8">
-        <div className="max-w-3xl mx-auto">
-            {renderContent()}
-        </div>
+      <main className="flex-1 overflow-y-auto p-6">
+        {renderContent()}
       </main>
     </div>
   );
