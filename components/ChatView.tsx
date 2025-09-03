@@ -1185,7 +1185,7 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyPress}
                   placeholder="Type your message or drop an image..."
-                  className="w-full pl-12 pr-28 py-3 text-base bg-[--bg-secondary] rounded-full focus:outline-none focus:ring-2 focus:ring-[--border-focus] resize-none overflow-y-hidden"
+                  className="w-full pl-24 pr-28 py-3 text-base bg-[--bg-secondary] rounded-full focus:outline-none focus:ring-2 focus:ring-[--border-focus] resize-none overflow-y-hidden"
                   rows={1}
                   disabled={isResponding}
               />

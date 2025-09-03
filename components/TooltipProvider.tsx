@@ -109,8 +109,7 @@ export const TooltipProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   useEffect(() => {
-      // FIX: The clearTimeout function expects one argument, but was being called with zero.
-      // This ensures the timeout ID stored in the ref is passed to clearTimeout.
+      // Fix: Pass the timeout ID to clearTimeout to prevent a runtime error.
       return () => clearTimeout(hideTimeoutRef.current);
   }, []);
 
