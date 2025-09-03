@@ -18,8 +18,16 @@ import type { ApiRequest, ApiResponse, CodeProject, ProjectType, Toolchain, Tool
 // Esbuild, our bundler, will correctly define it at build time for the Node.js platform.
 declare const __dirname: string;
 
+// Determine the base path for app data. For portability, we store settings
+// in the same directory as the executable when packaged. In development,
+// we store it in the project root.
+const appDataPath = app.isPackaged
+  ? path.dirname(app.getPath('exe'))
+  : app.getAppPath();
+
 // The path where user settings will be stored.
-const settingsPath = path.join(app.getPath('userData'), 'settings.json');
+const settingsPath = path.join(appDataPath, 'settings.json');
+
 
 /**
  * Reads the settings from the JSON file.
