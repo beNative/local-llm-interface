@@ -7,9 +7,11 @@ import DefaultBrainCircuitIcon from './icons/BrainCircuitIcon';
 import DefaultCheckIcon from './icons/CheckIcon';
 import DefaultChevronDownIcon from './icons/ChevronDownIcon';
 import DefaultChevronRightIcon from './icons/ChevronRightIcon';
+import DefaultChevronUpIcon from './icons/ChevronUpIcon';
 import DefaultClipboardIcon from './icons/ClipboardIcon';
 import DefaultCodeIcon from './icons/CodeIcon';
 import DefaultCpuIcon from './icons/CpuIcon';
+import DefaultDownloadCloudIcon from './icons/DownloadCloudIcon';
 import DefaultFileIcon from './icons/FileIcon';
 import DefaultFileCodeIcon from './icons/FileCodeIcon';
 import DefaultFilePlusIcon from './icons/FilePlusIcon';
@@ -51,9 +53,11 @@ import {
     Check as LucideCheck,
     ChevronDown as LucideChevronDown,
     ChevronRight as LucideChevronRight,
+    ChevronUp as LucideChevronUp,
     Clipboard as LucideClipboard,
     Code as LucideCode,
     Cpu as LucideCpu,
+    DownloadCloud as LucideDownloadCloud,
     File as LucideFile,
     FileCode as LucideFileCode,
     FilePlus as LucideFilePlus,
@@ -96,9 +100,11 @@ import {
     CheckIcon as HeroCheck,
     ChevronDownIcon as HeroChevronDown,
     ChevronRightIcon as HeroChevronRight,
+    ChevronUpIcon as HeroChevronUp,
     ClipboardIcon as HeroClipboard,
     CodeBracketIcon as HeroCode,
     CpuChipIcon as HeroCpu,
+    ArrowDownTrayIcon as HeroDownloadCloud,
     DocumentIcon as HeroFile,
     CodeBracketSquareIcon as HeroFileCode,
     DocumentPlusIcon as HeroFilePlus,
@@ -139,12 +145,12 @@ import * as Feather from 'react-feather';
 
 // Font Awesome
 import {
-    FaBookmark, FaBrain, FaCheck, FaChevronDown, FaChevronRight, FaClipboard, FaCode, FaMicrochip, FaFile, FaFileCode, FaFileMedical, FaFileAlt, FaFolder, FaFolderOpen, FaGlobe, FaServer as FaServerIcon, FaUserCog, FaInfoCircle, FaLightbulb, FaCommentMedical, FaComment, FaCube, FaMoon, FaPalette, FaPaperclip, FaPlay, FaPlus, FaMemory, FaSearch, FaPaperPlane, FaCog, FaSlidersH, FaMagic, FaSpinner, FaStop, FaSun, FaTerminal, FaTrash, FaTimes, FaTimesCircle
+    FaBookmark, FaBrain, FaCheck, FaChevronDown, FaChevronRight, FaChevronUp, FaClipboard, FaCode, FaMicrochip, FaCloudDownloadAlt as FaDownloadCloud, FaFile, FaFileCode, FaFileMedical, FaFileAlt, FaFolder, FaFolderOpen, FaGlobe, FaServer as FaServerIcon, FaUserCog, FaInfoCircle, FaLightbulb, FaCommentMedical, FaComment, FaCube, FaMoon, FaPalette, FaPaperclip, FaPlay, FaPlus, FaMemory, FaSearch, FaPaperPlane, FaCog, FaSlidersH, FaMagic, FaSpinner, FaStop, FaSun, FaTerminal, FaTrash, FaTimes, FaTimesCircle
 } from 'react-icons/fa';
 
 // Material Design
 import {
-    MdBookmark, MdPsychology, MdCheck, MdExpandMore, MdChevronRight, MdContentPaste, MdCode, MdDeveloperBoard, MdInsertDriveFile, MdSource, MdNoteAdd, MdDescription, MdFolder, MdFolderOpen, MdPublic, MdDns, MdAccountBox, MdInfo, MdLightbulb, MdAddComment, MdChat, MdViewInAr, MdBrightness2, MdPalette, MdAttachFile, MdPlayArrow, MdAdd, MdMemory, MdSearch, MdSend, MdSettings, MdTune, MdAutoAwesome, MdCached, MdStop, MdWbSunny, MdTerminal, MdDelete, MdClose, MdCancel
+    MdBookmark, MdPsychology, MdCheck, MdExpandMore, MdChevronRight, MdExpandLess as MdChevronUp, MdContentPaste, MdCode, MdDeveloperBoard, MdCloudDownload as MdDownloadCloud, MdInsertDriveFile, MdSource, MdNoteAdd, MdDescription, MdFolder, MdFolderOpen, MdPublic, MdDns, MdAccountBox, MdInfo, MdLightbulb, MdAddComment, MdChat, MdViewInAr, MdBrightness2, MdPalette, MdAttachFile, MdPlayArrow, MdAdd, MdMemory, MdSearch, MdSend, MdSettings, MdTune, MdAutoAwesome, MdCached, MdStop, MdWbSunny, MdTerminal, MdDelete, MdClose, MdCancel
 } from 'react-icons/md';
 
 
@@ -159,9 +165,11 @@ const iconMap = {
         check: DefaultCheckIcon,
         chevronDown: DefaultChevronDownIcon,
         chevronRight: DefaultChevronRightIcon,
+        chevronUp: DefaultChevronUpIcon,
         clipboard: DefaultClipboardIcon,
         code: DefaultCodeIcon,
         cpu: DefaultCpuIcon,
+        downloadCloud: DefaultDownloadCloudIcon,
         file: DefaultFileIcon,
         fileCode: DefaultFileCodeIcon,
         filePlus: DefaultFilePlusIcon,
@@ -202,9 +210,11 @@ const iconMap = {
         check: LucideCheck,
         chevronDown: LucideChevronDown,
         chevronRight: LucideChevronRight,
+        chevronUp: LucideChevronUp,
         clipboard: LucideClipboard,
         code: LucideCode,
         cpu: LucideCpu,
+        downloadCloud: LucideDownloadCloud,
         file: LucideFile,
         fileCode: LucideFileCode,
         filePlus: LucideFilePlus,
@@ -245,9 +255,11 @@ const iconMap = {
         check: HeroCheck,
         chevronDown: HeroChevronDown,
         chevronRight: HeroChevronRight,
+        chevronUp: HeroChevronUp,
         clipboard: HeroClipboard,
         code: HeroCode,
         cpu: HeroCpu,
+        downloadCloud: HeroDownloadCloud,
         file: HeroFile,
         fileCode: HeroFileCode,
         filePlus: HeroFilePlus,
@@ -288,9 +300,11 @@ const iconMap = {
         check: Feather.Check,
         chevronDown: Feather.ChevronDown,
         chevronRight: Feather.ChevronRight,
+        chevronUp: Feather.ChevronUp,
         clipboard: Feather.Clipboard,
         code: Feather.Code,
         cpu: Feather.Cpu,
+        downloadCloud: Feather.DownloadCloud,
         file: Feather.File,
         fileCode: Feather.Code, // Using Code as a substitute for non-existent FileCode
         filePlus: Feather.FilePlus,
@@ -331,9 +345,11 @@ const iconMap = {
         check: FaCheck,
         chevronDown: FaChevronDown,
         chevronRight: FaChevronRight,
+        chevronUp: FaChevronUp,
         clipboard: FaClipboard,
         code: FaCode,
         cpu: FaMicrochip,
+        downloadCloud: FaDownloadCloud,
         file: FaFile,
         fileCode: FaFileCode,
         filePlus: FaFileMedical,
@@ -374,9 +390,11 @@ const iconMap = {
         check: MdCheck,
         chevronDown: MdExpandMore,
         chevronRight: MdChevronRight,
+        chevronUp: MdChevronUp,
         clipboard: MdContentPaste,
         code: MdCode,
         cpu: MdDeveloperBoard,
+        downloadCloud: MdDownloadCloud,
         file: MdInsertDriveFile,
         fileCode: MdSource,
         filePlus: MdNoteAdd,

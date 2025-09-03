@@ -115,9 +115,9 @@ const ProjectCard: React.FC<{
                     : 'text-purple-500';
 
     const runIsGlobe = project.type === 'webapp';
-    const runText = project.type === 'webapp' ? 'Run in Browser' 
-                  : project.type === 'delphi' ? 'Build Project' 
-                  : 'Run Project';
+    const runText = project.type === 'webapp' ? 'Open' 
+                  : project.type === 'delphi' ? 'Build' 
+                  : 'Run';
     
     const runTooltip = useTooltipTrigger(project.type === 'webapp' 
         ? 'Open this web app in your default browser' 
@@ -133,15 +133,13 @@ const ProjectCard: React.FC<{
     
     const openFolderTooltip = useTooltipTrigger("Open project folder in your file explorer");
     const deleteTooltip = useTooltipTrigger("Permanently delete this project and all its files. This action cannot be undone.");
+    const expandTooltip = useTooltipTrigger(isExpanded ? "Collapse file explorer" : "Expand file explorer");
 
     return (
-        <div className="bg-[--bg-primary] rounded-[--border-radius] border border-[--border-primary] flex flex-col transition-shadow hover:shadow-md">
+        <div className={`bg-[--bg-primary] rounded-[--border-radius] border border-[--border-primary] flex flex-col transition-all duration-200 ${isExpanded ? 'shadow-xl ring-2 ring-[--accent-projects]/50' : 'hover:shadow-md'}`}>
             <div className="p-4">
-                <div 
-                    className="flex items-start gap-3 mb-2 cursor-pointer"
-                    onClick={onToggleExpand}
-                >
-                    <Icon name="code" className={`w-6 h-6 ${typeColor} flex-shrink-0 mt-0.5`} />
+                <div className="flex items-center gap-3 mb-2">
+                    <Icon name="code" className={`w-6 h-6 ${typeColor} flex-shrink-0`} />
                     <div className="flex-grow min-w-0">
                       <h4 className="text-lg font-semibold text-[--text-primary] truncate">{project.name}</h4>
                       <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-[--bg-tertiary] text-[--text-secondary]">
@@ -149,29 +147,32 @@ const ProjectCard: React.FC<{
                       </span>
                     </div>
                 </div>
-                <p className="text-xs text-[--text-muted] font-mono break-all mt-2">{project.path}</p>
+                
+                <p className="text-xs text-[--text-muted] font-mono break-all h-8 overflow-hidden" title={project.path}>{project.path}</p>
             
-                <div className="grid grid-cols-2 gap-2 mt-4">
-                    <button {...runTooltip} onClick={onRun} disabled={isBusy} className="col-span-2 text-sm px-3 py-2 rounded-lg bg-[--accent-projects] text-white hover:brightness-95 disabled:opacity-60 disabled:cursor-wait flex items-center justify-center gap-2 font-semibold">
+                <div className="flex items-center justify-between mt-4">
+                    <button {...runTooltip} onClick={onRun} disabled={isBusy} className="text-sm px-4 py-2 rounded-lg bg-[--accent-projects] text-white hover:brightness-95 disabled:opacity-60 disabled:cursor-wait flex items-center justify-center gap-2 font-semibold">
                         {isBusy ? <Icon name="spinner" className="w-5 h-5"/> : <Icon name={runIsGlobe ? 'globe' : 'play'} className="w-5 h-5" />}
                         {isBusy ? 'Working...' : runText}
                     </button>
 
-                    {project.type !== 'webapp' && project.type !== 'delphi' && (
-                         <button {...installTooltip} onClick={onInstall} disabled={isBusy} className="text-xs px-3 py-1.5 rounded-lg bg-[--bg-tertiary] text-[--text-secondary] hover:bg-[--bg-hover] disabled:opacity-50">
-                            Install Deps
+                    <div className="flex items-center gap-1">
+                        {project.type !== 'webapp' && project.type !== 'delphi' && (
+                             <button {...installTooltip} onClick={onInstall} disabled={isBusy} className="p-2 rounded-lg text-[--text-muted] hover:bg-[--bg-hover] disabled:opacity-50">
+                                <Icon name="downloadCloud" className="w-5 h-5" />
+                            </button>
+                        )}
+                        <button {...openFolderTooltip} onClick={onOpen} disabled={isBusy} className="p-2 rounded-lg text-[--text-muted] hover:bg-[--bg-hover] disabled:opacity-50">
+                            <Icon name="folderOpen" className="w-5 h-5"/>
                         </button>
-                    )}
-                   
-                    <button {...openFolderTooltip} onClick={onOpen} disabled={isBusy} className="text-xs px-3 py-1.5 rounded-lg bg-[--bg-tertiary] text-[--text-secondary] hover:bg-[--bg-hover] disabled:opacity-50 flex items-center justify-center gap-1.5">
-                        <Icon name="folderOpen" className="w-4 h-4"/>
-                        <span>Folder</span>
-                    </button>
-
-                    <button {...deleteTooltip} onClick={onDelete} disabled={isBusy} className={`col-span-2 ${project.type !== 'webapp' && project.type !== 'delphi' ? '' : 'col-start-2'} mt-1 text-xs px-3 py-1 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900 disabled:opacity-50 flex items-center justify-center gap-1.5`}>
-                        <Icon name="trash" className="w-4 h-4" />
-                        <span>Delete</span>
-                    </button>
+                        <button {...deleteTooltip} onClick={onDelete} disabled={isBusy} className="p-2 rounded-lg text-[--text-muted] hover:text-red-500 hover:bg-red-500/10 disabled:opacity-50">
+                            <Icon name="trash" className="w-5 h-5" />
+                        </button>
+                        <div className="w-px h-5 bg-[--border-secondary] mx-1" />
+                        <button {...expandTooltip} onClick={onToggleExpand} className="p-2 rounded-lg text-[--text-muted] hover:bg-[--bg-hover]">
+                            <Icon name={isExpanded ? 'chevronUp' : 'chevronDown'} className="w-5 h-5"/>
+                        </button>
+                    </div>
                 </div>
             </div>
             {isExpanded && (
@@ -360,45 +361,60 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
         const chooseTooltip = useTooltipTrigger(`Select the base folder where your ${type} projects are, or will be, stored`);
         
         return (
-             <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
-                <h3 className="text-lg font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">{title}</h3>
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-[--text-muted] mb-1">
-                        Projects Base Directory
-                        </label>
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                readOnly
-                                value={path || 'Not set'}
-                                className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg"
-                            />
+             <div className="space-y-6">
+                <div className="bg-[--bg-primary] p-4 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <h3 className="text-lg font-semibold text-[--text-secondary]">{title}</h3>
+                            <p className="text-sm text-[--text-muted] mt-1">
+                                Base Directory: <span className="font-mono bg-[--bg-tertiary] px-2 py-1 rounded">{path || 'Not set'}</span>
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
                             <button {...chooseTooltip} onClick={() => handleSetPath(type)} className="px-4 py-2 text-sm font-medium text-[--text-on-accent] bg-[--accent-chat] hover:brightness-95 rounded-lg">
                                 Choose...
                             </button>
                         </div>
                     </div>
-                    {path && <NewProjectForm basePath={path} projectType={type} onCreate={(name) => handleCreateProject(type, name)} isBusy={busyProjects.has('new_project')} />}
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4">
-                       {projects.map(p => (
-                            <ProjectCard 
-                                key={p.id}
-                                project={p}
-                                isBusy={busyProjects.has(p.id)}
-                                onDelete={() => handleDeleteProject(p)}
-                                onInstall={() => handleInstallDeps(p)}
-                                onRun={() => handleRunProjectWithBusyState(p)}
-                                onOpen={() => handleOpenFolder(p)}
-                                isExpanded={expandedProjectId === p.id}
-                                onToggleExpand={() => handleToggleExpand(p.id)}
-                                onFileClick={handleFileClick}
-                            />
-                       ))}
-                    </div>
-                    {path && projects.length === 0 && <p className="text-sm text-center py-4 text-[--text-muted]">No {type} projects yet. Create one above.</p>}
+                    {path && (
+                        <div className="mt-4 pt-4 border-t border-[--border-primary]">
+                            <NewProjectForm basePath={path} projectType={type} onCreate={(name) => handleCreateProject(type, name)} isBusy={busyProjects.has('new_project')} />
+                        </div>
+                    )}
                 </div>
+
+                {path ? (
+                    projects.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+                           {projects.map(p => (
+                                <ProjectCard 
+                                    key={p.id}
+                                    project={p}
+                                    isBusy={busyProjects.has(p.id)}
+                                    onDelete={() => handleDeleteProject(p)}
+                                    onInstall={() => handleInstallDeps(p)}
+                                    onRun={() => handleRunProjectWithBusyState(p)}
+                                    onOpen={() => handleOpenFolder(p)}
+                                    isExpanded={expandedProjectId === p.id}
+                                    onToggleExpand={() => handleToggleExpand(p.id)}
+                                    onFileClick={handleFileClick}
+                                />
+                           ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-12 text-[--text-muted]">
+                            <Icon name="folder" className="w-12 h-12 mx-auto mb-4"/>
+                            <p className="text-lg">No {type} projects yet.</p>
+                            <p>Use the form above to create your first one.</p>
+                        </div>
+                    )
+                ) : (
+                     <div className="text-center py-12 text-[--text-muted]">
+                        <Icon name="folderOpen" className="w-12 h-12 mx-auto mb-4"/>
+                        <h4 className="text-lg font-semibold text-[--text-secondary]">Set a Base Directory</h4>
+                        <p>Choose a folder on your computer to store your {type} projects.</p>
+                    </div>
+                )}
             </div>
         );
     }
@@ -407,7 +423,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
     <>
     {editingFile && <EditorModal file={editingFile} onClose={() => onSetEditingFile(null)} onAddToChat={onInjectContentForChat} />}
     <div className="p-4 sm:p-6 h-full overflow-y-auto bg-[--bg-secondary]">
-      <div className="max-w-4xl mx-auto">
+      <div>
         <h1 className="flex items-center gap-3 text-3xl font-bold mb-8" style={{color: 'var(--accent-projects)'}}>
           <Icon name="code" className="w-8 h-8"/>
           Projects
