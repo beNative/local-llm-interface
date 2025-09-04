@@ -48,7 +48,7 @@ export interface SystemPrompt {
 export type ProjectType = 'python' | 'nodejs' | 'java' | 'delphi' | 'webapp';
 
 export interface CodeProject {
-  id: string;
+  id:string;
   name: string;
   type: ProjectType;
   path: string;
@@ -97,6 +97,29 @@ export interface Model {
   details?: ModelDetails;
 }
 
+// --- Tool Use / Function Calling Types ---
+export interface Tool {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: object; // JSON Schema object
+  };
+}
+
+export interface ToolCall {
+  id: string;
+  type: 'function';
+  function: {
+    name:string;
+    arguments: string; // A JSON string of arguments
+  };
+  result?: any; // The result after execution
+  approved?: boolean; // For UI state
+}
+
+
+// --- Chat Message Types ---
 export interface ChatMessageContentPartText {
   type: 'text';
   text: string;
@@ -126,7 +149,8 @@ export interface ChatMessageMetadata {
   };
 }
 
-export interface ChatMessage {
+// A standard message from a user or assistant (text response)
+export interface StandardChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string | ChatMessageContentPart[];
   metadata?: ChatMessageMetadata;
@@ -134,7 +158,33 @@ export interface ChatMessage {
     filePath: string;
     status: 'pending' | 'accepted' | 'rejected';
   };
+  tool_calls?: never;
+  tool_call_id?: never;
 }
+
+// A message from the assistant requesting one or more tool calls
+export interface AssistantToolCallMessage {
+  role: 'assistant';
+  content: string | null; // May contain text, but often null when calling tools
+  tool_calls: ToolCall[];
+  metadata?: ChatMessageMetadata;
+  fileModification?: never;
+  tool_call_id?: never;
+}
+
+// A message from the application providing the result of a tool call
+export interface ToolResponseMessage {
+  role: 'tool';
+  tool_call_id: string;
+  name: string;
+  content: string; // The result of the tool, serialized as a string
+  metadata?: never;
+  fileModification?: never;
+  tool_calls?: never;
+}
+
+export type ChatMessage = StandardChatMessage | AssistantToolCallMessage | ToolResponseMessage;
+
 
 export interface GenerationConfig {
   temperature?: number;

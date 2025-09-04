@@ -76,6 +76,7 @@ electron.contextBridge.exposeInMainWorld('electronAPI', {
   installProjectDeps: (project: any) => electron.ipcRenderer.invoke('project:install-deps', project),
   runScriptInProject: (args: any) => electron.ipcRenderer.invoke('project:run-script', args),
   runProject: (project: CodeProject) => electron.ipcRenderer.invoke('project:run', project),
+  projectRunCommand: (args: { projectPath: string, command: string }) => electron.ipcRenderer.invoke('project:run-command', args),
 
   // File System APIs for Project Viewer/Editor
   readProjectDir: (dirPath: string) => electron.ipcRenderer.invoke('project:read-dir', dirPath),
@@ -83,6 +84,7 @@ electron.contextBridge.exposeInMainWorld('electronAPI', {
   writeProjectFile: (filePath: string, content: string) => electron.ipcRenderer.invoke('project:write-file', filePath, content),
   projectGetFileTree: (projectPath: string) => electron.ipcRenderer.invoke('project:get-file-tree', projectPath),
   projectGetAllFiles: (projectPath: string) => electron.ipcRenderer.invoke('project:get-all-files', projectPath),
+  projectListFilesRecursive: (projectPath: string) => electron.ipcRenderer.invoke('project:list-files-recursive', projectPath),
   projectAddFileFromPath: (args: {sourcePath: string, targetDir: string}) => electron.ipcRenderer.invoke('project:add-file-from-path', args),
   projectFindFile: (args: { projectPath: string, fileName: string }) => electron.ipcRenderer.invoke('project:find-file', args),
 

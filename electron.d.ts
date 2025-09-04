@@ -29,6 +29,7 @@ export interface IElectronAPI {
   installProjectDeps: (project: CodeProject) => Promise<{ stdout: string; stderr: string }>;
   runScriptInProject: (args: { project: CodeProject; code: string }) => Promise<{ stdout: string; stderr: string }>;
   runProject: (project: CodeProject) => Promise<{ stdout: string; stderr: string }>;
+  projectRunCommand: (args: { projectPath: string, command: string }) => Promise<{ stdout: string; stderr: string }>;
 
   // File System APIs for Project Viewer/Editor
   readProjectDir: (dirPath: string) => Promise<FileSystemEntry[]>;
@@ -36,6 +37,7 @@ export interface IElectronAPI {
   writeProjectFile: (filePath: string, content: string) => Promise<void>;
   projectGetFileTree: (projectPath: string) => Promise<string>;
   projectGetAllFiles: (projectPath: string) => Promise<{name: string, path: string}[]>;
+  projectListFilesRecursive: (projectPath: string) => Promise<string[]>;
   projectAddFileFromPath: (args: {sourcePath: string, targetDir: string}) => Promise<void>;
   projectFindFile: (args: { projectPath: string, fileName: string }) => Promise<string | null>;
 

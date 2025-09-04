@@ -236,7 +236,7 @@ async function detectDelphiCompilers(): Promise<Toolchain[]> {
     }
 }
 
-const ignoredDirsAndFiles = new Set(['.git', 'node_modules', 'venv', 'target', '.DS_Store', 'dist', 'release']);
+const ignoredDirsAndFiles = new Set(['.git', 'node_modules', 'venv', 'target', '.DS_Store', 'dist', 'release', '__pycache__']);
 
 let previousCpuTimes = os.cpus().map(cpu => {
     let total = 0;
@@ -858,7 +858,7 @@ end.
         
         const dirents = await readdir(dirPath, { withFileTypes: true });
         const files = await Promise.all(dirents.map(async (dirent) => {
-            if (dirent.name === '.git' || dirent.name === 'node_modules' || dirent.name === 'venv' || dirent.name === 'target') {
+            if (ignoredDirsAndFiles.has(dirent.name)) {
                 return null;
             }
             return {
@@ -916,6 +916,19 @@ end.
     electron.ipcMain.handle('project:get-all-files', async (_, projectPath: string) => {
         if (!isPathInAllowedBase(projectPath)) throw new Error('Access denied to path.');
         return await getAllFilesRecursive(projectPath);
+    });
+
+    electron.ipcMain.handle('project:list-files-recursive', async (_, projectPath: string): Promise<string[]> => {
+        if (!isPathInAllowedBase(projectPath)) throw new Error('Access denied to path.');
+        const allFiles = await getAllFilesRecursive(projectPath);
+        return allFiles.map(f => path.relative(projectPath, f.path));
+    });
+
+    electron.ipcMain.handle('project:run-command', async (_, { projectPath, command }: { projectPath: string, command: string }) => {
+        if (!isPathInAllowedBase(projectPath)) throw new Error('Access denied to path.');
+        const [cmd, ...args] = command.split(' ');
+        console.log(`Running command in project: ${cmd} with args: ${args.join(' ')} in ${projectPath}`);
+        return await runCommand(cmd, args, projectPath);
     });
 
     electron.ipcMain.handle('project:find-file', async (_, { projectPath, fileName }: { projectPath: string, fileName: string }) => {
