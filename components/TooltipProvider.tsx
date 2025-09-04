@@ -109,7 +109,7 @@ export const TooltipProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   useEffect(() => {
-      // FIX: Pass the timeout ID to clearTimeout to prevent a runtime error.
+      // FIX: Pass the timeout ID returned by setTimeout to clearTimeout to prevent a runtime error.
       return () => clearTimeout(hideTimeoutRef.current);
   }, []);
 

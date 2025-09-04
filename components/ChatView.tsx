@@ -1154,19 +1154,42 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
         )}
       </header>
       <main className="flex-1 overflow-y-auto p-4 space-y-6">
-          {filteredMessages.map((msg, index) => (
-              <MemoizedChatMessage
-                  key={`${msg.role}-${index}`}
-                  msg={msg}
-                  prevMessage={filteredMessages[index-1]}
-                  markdownComponents={markdownComponents}
-                  onAcceptModification={onAcceptModification}
-                  onRejectModification={onRejectModification}
-                  theme={theme}
-                  isResponding={isResponding && index === filteredMessages.length - 1}
-              />
-          ))}
-          {thinkingText && <ThinkingIndicator content={thinkingText} />}
+          {filteredMessages.map((msg, index) => {
+              const isLastMessage = index === filteredMessages.length - 1;
+              if (isLastMessage && isResponding && msg.role === 'assistant') {
+                  return (
+                      <React.Fragment key="responding-assistant-fragment">
+                          {thinkingText && <ThinkingIndicator content={thinkingText} />}
+                          {/* Only render message bubble if it has content OR if we are not in a thinking phase */}
+                          {(msg.content || !thinkingText) &&
+                              <MemoizedChatMessage
+                                  key={`${msg.role}-${index}`}
+                                  msg={msg}
+                                  prevMessage={filteredMessages[index - 1]}
+                                  markdownComponents={markdownComponents}
+                                  onAcceptModification={onAcceptModification}
+                                  onRejectModification={onRejectModification}
+                                  theme={theme}
+                                  isResponding={true}
+                              />
+                          }
+                      </React.Fragment>
+                  );
+              }
+              return (
+                  <MemoizedChatMessage
+                      key={`${msg.role}-${index}`}
+                      msg={msg}
+                      prevMessage={filteredMessages[index - 1]}
+                      markdownComponents={markdownComponents}
+                      onAcceptModification={onAcceptModification}
+                      onRejectModification={onRejectModification}
+                      theme={theme}
+                      isResponding={false}
+                  />
+              );
+          })}
+          {retrievalStatus === 'retrieving' && <ThinkingIndicator content="Analyzing project to find relevant context..." />}
           <div ref={messagesEndRef} />
       </main>
       <footer className="p-4 bg-[--bg-primary] border-t border-[--border-primary] flex-shrink-0">
