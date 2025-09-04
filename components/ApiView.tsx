@@ -33,6 +33,7 @@ const ApiView: React.FC<ApiViewProps> = ({ isElectron, theme, config, models, on
     const [apiRequest, setApiRequest] = useState<ApiRequest | null>(null);
     const [apiResponse, setApiResponse] = useState<ApiResponse | null>(null);
     const [selectedModelId, setSelectedModelId] = useState<string>('');
+    const [isJsonMode, setIsJsonMode] = useState(true);
     
     const syntaxTheme = theme === 'dark' ? atomDark : coy;
     const recentPrompts = config?.apiRecentPrompts || [];
@@ -44,6 +45,7 @@ const ApiView: React.FC<ApiViewProps> = ({ isElectron, theme, config, models, on
     
     const clearHistoryTooltip = useTooltipTrigger('Clear history');
     const sendRequestTooltip = useTooltipTrigger('Send the configured HTTP request');
+    const jsonModeTooltip = useTooltipTrigger('Forces the model to output valid JSON. Recommended for reliability. Disable for models that do not support this feature.');
 
     useEffect(() => {
         if (models.length > 0 && !selectedModelId) {
@@ -85,7 +87,7 @@ const ApiView: React.FC<ApiViewProps> = ({ isElectron, theme, config, models, on
   "headers": { "Content-Type": "application/json" },
   "body": "object | string (For JSON content-types, provide a valid JSON object. For other content-types, provide a string. For GET requests, this should be null.)"
 }
-Only output the raw JSON object. Do not include any other text, explanations, or markdown code fences. Just the JSON.`;
+Only output the raw JSON object. Do not include any other text, explanations, or markdown code fences. Just the JSON. The 'body' property must be a valid JSON object or null.`;
         
         const userPrompt = `Based on the following user description, generate the components for an HTTP API request.
 Description: "${prompt}"`;
@@ -96,7 +98,13 @@ Description: "${prompt}"`;
         ];
         
         try {
-            const responseText = await generateTextCompletion(activeProvider, config.apiKeys, selectedModelId, messages);
+            const responseText = await generateTextCompletion(
+                activeProvider,
+                config.apiKeys,
+                selectedModelId,
+                messages,
+                { jsonMode: isJsonMode }
+            );
             
             const jsonMatch = responseText.match(/```(json)?\s*([\s\S]*?)\s*```/);
             const jsonText = jsonMatch ? jsonMatch[2] : responseText;
@@ -259,6 +267,19 @@ Description: "${prompt}"`;
                             )}
                         </select>
                     </div>
+                     <label {...jsonModeTooltip} className="flex items-center justify-between cursor-pointer">
+                        <span className="text-sm text-[--text-muted]">Guaranteed JSON Mode</span>
+                         <div className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={isJsonMode}
+                                onChange={(e) => setIsJsonMode(e.target.checked)}
+                                className="sr-only peer"
+                                id="json-mode-toggle"
+                            />
+                            <div className="w-11 h-6 bg-[--bg-tertiary] rounded-full peer peer-checked:bg-[--accent-api] peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[--border-focus] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+                        </div>
+                    </label>
                     <button onClick={handleGenerateRequest} disabled={!prompt || !selectedModelId || isLoading} className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-[--text-on-accent] bg-[--accent-api] rounded-lg hover:brightness-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-primary] focus:ring-[--border-focus] disabled:opacity-60 disabled:cursor-not-allowed">
                         {isLoading && !apiRequest ? <Icon name="spinner" className="w-5 h-5"/> : 'Generate Request'}
                     </button>
@@ -353,7 +374,7 @@ Description: "${prompt}"`;
                             <h4 className="text-sm font-medium text-[--text-muted]">Headers</h4>
                             <div className="p-2 bg-[--bg-tertiary] rounded-lg font-mono text-xs max-h-32 overflow-y-auto">
                                 {Object.entries(apiResponse.headers).map(([key, value]) => (
-                                    <p key={key} className="truncate"><span className="font-bold text-[--text-muted]">{key}:</span> {value}</p>
+                                    <p key={key} className="truncate"><span className="font-bold text-[--text-muted]">{key}:</span> {Array.isArray(value) ? value.join(', ') : value}</p>
                                 ))}
                             </div>
                          </div>
