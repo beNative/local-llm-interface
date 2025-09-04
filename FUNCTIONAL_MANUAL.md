@@ -20,7 +20,7 @@ The header is always visible and contains the primary navigation and control ele
 
 At the very bottom of the window, the status bar provides real-time feedback on the application's health and context:
 - **Left Side (Context)**: Shows the current LLM provider (e.g., Ollama), connection status, active model, and active project context.
-- **Right Side (Performance)**: Displays real-time, system-wide CPU and Memory usage.
+- **Right Side (Performance)**: Displays real-time, system-wide CPU, GPU, and Memory usage.
 
 ## 2. Command Palette
 
@@ -36,12 +36,14 @@ Just start typing to filter the list and press `Enter` to execute the selected c
 The "Settings" tab allows you to configure every aspect of the application. The view is organized with a clean navigation sidebar on the left and content cards on the right.
 
 ### General
-- **Connection**: A dropdown to quickly select a pre-configured profile (Ollama, LMStudio, Custom) and edit the Base URL.
+- **Connection**: Select your LLM provider (Ollama, LMStudio, OpenAI, etc.). Add, edit, and delete custom OpenAI-compatible providers.
+- **API Keys**: Securely enter and store API keys for providers that require them.
 - **Logging**: Enable or disable saving logs to a file.
 
 ### Personalization
 - **Appearance**: Configure colors separately for Light and Dark themes. Use a palette of predefined colors or input custom hex codes for the chat background, user messages, and assistant messages. Preview your changes in real-time.
-- **Font Settings**: Change the global font family (Sans-serif, Serif, Monospace) and font size for the chat interface.
+- **Font Settings**: Change the global font family and font size for the chat interface.
+- **Icon Set**: Choose from several included icon packs (Default, Lucide, Heroicons, etc.) to change the application's entire icon theme.
 
 ### Content
 - **Predefined Prompts**: Create and manage a list of frequently used prompts that you can quickly insert into the chat input.
@@ -81,6 +83,7 @@ The "Projects" tab is a powerful feature for managing local code projects and in
 The "API Client" is a new view designed for testing and interacting with HTTP APIs.
 - **Natural Language Prompt**: Describe the request you want to make (e.g., "get all users from the jsonplaceholder api").
 - **Generate Request**: The application uses the selected LLM to automatically generate the full HTTP request, including the correct method, URL, headers, and body.
+- **Guaranteed JSON Mode**: A toggle, enabled by default, that instructs compatible models to return a valid JSON object. This dramatically increases the reliability of request generation. Disable it only if your model doesn't support this feature.
 - **Edit Request**: You can manually edit any part of the generated request before sending it. The UI is cleanly organized into Request and Response panels.
 - **Send & View Response**: Send the request and view the detailed response, including status code, headers, and a syntax-highlighted body.
 
@@ -90,7 +93,7 @@ When you start the app or create a new chat, you are presented with the Model Se
 
 - **Model Cards**: Each model is displayed on a polished card with available details like its family, parameter size, and quantization level.
 - **Detailed Info (Ollama)**: For Ollama models, an **Info icon** is available on the card. Clicking this icon opens a modal displaying advanced technical details, including its context window size (`num_ctx`) and the full content of its `Modelfile`.
-- **Start Chat**: Click the "Chat with this model" button on any model card to start a new chat session.
+- **Start Chat**: Click any model card to start a new chat session.
 
 ## 7. Chat View
 
@@ -101,23 +104,19 @@ The chat view is the primary interface for interacting with the LLM.
 - **Session List**: All your conversations are listed here. Each entry now shows the session title and, in a smaller font, the model that was used for that conversation.
 - **Session Actions**: Hover over a session to reveal buttons for automatically generating a name or deleting the session.
 
-### Advanced Context Tools (Desktop App Only)
-
-- **Project Context Selector**: A "Context" dropdown appears in the header. When you select a project, the AI becomes aware of its structure.
-- **Smart Context (RAG)**: A toggle appears next to the project selector. When enabled, the chat enters a powerful Retrieval-Augmented Generation mode:
-  1.  **Retrieval**: The AI first analyzes your prompt and the project's file list to determine which files are most relevant to your question. A "Finding relevant files..." status will appear.
-  2.  **Generation**: The app reads the content of those files and injects it as context into the final prompt sent to the LLM.
-  3.  **Transparency**: The AI's response will include a "Context from N files" dropdown, showing you exactly which files it chose to read.
-
-### Personas
-- A "Persona" dropdown in the header allows you to select one of your saved System Prompts. This will change the AI's behavior for the current chat session.
-
-### Model Parameters
-A "Parameters" dropdown in the header allows you to adjust generation parameters for the current chat session:
-- **Temperature**: Controls the randomness of the output. Higher values (e.g., 1.2) make the output more creative, while lower values (e.g., 0.5) make it more deterministic.
-- **Top-K**: Narrows the model's choices to the K most likely words at each step of generation.
-- **Top-P**: (Nucleus Sampling) Narrows the model's choices to a cumulative probability mass. For example, a Top-P of 0.9 means the model only considers words that make up the top 90% of the probability distribution.
-These settings are saved with the session.
+### Agentic Tool Use (Function Calling)
+When a project is selected as your context, the chat transforms into a powerful agent capable of taking action on your behalf.
+- **Available Tools**: The AI gains access to a set of tools to interact with your project:
+  - `listFiles`: To browse the file structure.
+  - `readFile`: To read the content of specific files.
+  - `writeFile`: To create new files or modify existing ones.
+  - `runTerminalCommand`: To execute shell commands like `npm install`.
+- **How It Works**: You can ask for complex tasks like, "List all `.js` files in the `src` directory, then read `app.js` and tell me what it does."
+- **Interactive Tool Dashboard**: When the AI decides to use tools, a new "Tool Call" panel appears in the chat. This panel transparently shows you:
+  - Which tools the AI is calling.
+  - The exact parameters for each call.
+  - The results of the execution after it's complete.
+- **Security First - Approval Required**: For any action that modifies your system (`writeFile`, `runTerminalCommand`), a modal will appear, pausing the AI. It lists the "dangerous" actions and requires your explicit approval for each one before it can proceed. Safe actions like reading files are approved automatically.
 
 ### AI-Assisted File Modifications
 - When you have a project selected as context, you can ask the AI to modify a file (e.g., "refactor `utils.py` to be more efficient").

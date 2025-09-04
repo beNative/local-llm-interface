@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.0] - 2024-07-05
+
+### Added
+- **Agentic Tool Use / Function Calling**: Transformed the chat into a true agent. When a project context is active, the AI can now use tools to interact with the file system and run terminal commands (`listFiles`, `readFile`, `writeFile`, `runTerminalCommand`).
+- **Interactive Tool Dashboard**: A new UI appears in the chat when the AI uses tools, showing the exact commands and parameters.
+- **Security Approval Flow**: For any dangerous actions (writing files, running commands), a modal now appears requiring explicit user approval before the AI can proceed.
+- **Guaranteed JSON Mode**: Added a "Guaranteed JSON Mode" toggle to the API Client. This instructs compatible models (Ollama, LMStudio, Gemini) to return valid, structured JSON, dramatically improving the reliability of the "Generate Request" feature.
+
+### Changed
+- Updated all documentation files (README, Manuals) to reflect the new agentic capabilities and JSON mode.
+
 ## [1.8.0] - 2024-06-30
 
 ### Changed
