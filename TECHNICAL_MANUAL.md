@@ -44,15 +44,28 @@ The application employs a simple, centralized state management model. The root `
 The renderer process is sandboxed and cannot directly access Node.js APIs. Communication with the main process is handled via IPC:
 
 - `electron/preload.ts` exposes a `window.electronAPI` object to the renderer.
-- This API includes functions like `getSettings`, `saveSettings`, `runPython`, `projectGetFileTree`, `api:make-request`, `detect:toolchains`, and `project:find-file`.
-- When a renderer function like `window.electronAPI.projectGetFileTree(path)` is called, it sends an IPC message to the main process. The main process's handler for `project:get-file-tree` recursively scans the project directory, generates a text-based file tree, and returns it.
+- This API includes functions like `getSettings`, `saveSettings`, `runPython`, `projectGetFileTree`, `api:make-request`, `detect:toolchains`, `projectRunCommand`, and `project:find-file`.
+- When a renderer function like `window.electronAPI.projectRunCommand({ projectPath, command })` is called, it sends an IPC message to the main process. The main process's handler for `project:run-command` executes the shell command within the specified project directory and returns the `stdout` and `stderr`.
 
 ## 6. Key Feature Implementation
 
-### Retrieval-Augmented Generation (RAG)
-The "Smart Context" feature is a RAG pipeline implemented in `App.tsx`. It consists of a two-step LLM call process:
-1.  **Retrieval Step**: A pre-flight request is made to the LLM. The prompt includes the user's query and the project's file tree (obtained via IPC). The LLM is instructed to act as a "retrieval expert" and return a JSON array of the most relevant file paths.
-2.  **Generation Step**: The application reads the content of the files identified in the retrieval step (using IPC calls to `project:read-file`). This content is concatenated and injected into a new, augmented system prompt. The final request, containing the original user query and the retrieved file content, is then sent to the LLM to generate the answer.
+### Guaranteed JSON Mode
+This feature improves the reliability of the API Client by instructing the model to return a structured JSON response.
+- **Implementation**: The logic resides in `services/llmService.ts` within the `textCompletionOpenAI` and `textCompletionGemini` functions.
+- **Mechanism**: When the `jsonMode` flag is `true` in the `generationConfig`:
+  - For OpenAI-compatible endpoints (Ollama, LMStudio), the request payload includes `response_format: { type: 'json_object' }`.
+  - For Google Gemini, the request configuration includes `responseMimeType: 'application/json'`.
+- **UI**: The "Guaranteed JSON Mode" toggle in `components/ApiView.tsx` controls this flag.
+
+### Tool Use / Function Calling
+This transforms the chat into an agent. The entire workflow is orchestrated by the `processConversationTurn` and `handleToolApproval` functions in `App.tsx`.
+1.  **Tool Definition**: A static list of available `Tool` objects is defined in `App.tsx`. These tools (`listFiles`, `readFile`, `writeFile`, `runTerminalCommand`) are passed to the LLM service.
+2.  **API Call**: `services/llmService.ts`'s `streamChatCompletion` function includes the `tools` array in the request to the LLM.
+3.  **Response Parsing**: The service streams the response, watching for `tool_calls` chunks. It carefully assembles streamed JSON fragments into complete `ToolCall` objects.
+4.  **Approval Flow**: Back in `App.tsx`, if the response contains tool calls, they are stored in the `pendingToolCalls` state, which triggers the `ToolCallApprovalModal`. The modal distinguishes between safe (read-only) and dangerous (write/execute) tools, requiring explicit user consent for the latter.
+5.  **Tool Execution**: In `handleToolApproval`, the approved tool calls are executed. The `executeToolCall` function acts as a router, mapping the tool name to the corresponding `electronAPI` function (e.g., `listFiles` -> `window.electronAPI.projectListFilesRecursive`). These functions are implemented in `electron/main.ts` and perform the actual system operations.
+6.  **Sending Results**: The output from each tool is formatted into a `ToolResponseMessage`.
+7.  **Final Response**: The original conversation history, plus the assistant's `tool_calls` message, and the new `ToolResponseMessage` messages are sent back to the LLM in a new call to `processConversationTurn`. The model uses the tool results to formulate its final, synthesized answer to the user.
 
 ### AI-Assisted File Modification
 This workflow is also managed in `App.tsx`:
@@ -62,24 +75,15 @@ This workflow is also managed in `App.tsx`:
 4.  **Diff Rendering**: The AI's response (the new file content) is passed to the `FileModificationView.tsx` component. This component fetches the original file content again and uses the `diff-match-patch` library to compute and render a color-coded, line-by-line diff, which is presented to the user for review.
 5.  **Action Handling**: The user's "Accept" or "Reject" action updates the chat message's state and, if accepted, uses an IPC call (`project:write-file`) to save the new content to disk.
 
-### Ollama Model Introspection
-To provide users with more insight into the models they are using, a new function `fetchOllamaModelDetails` was added to `llmService.ts`. This function communicates with Ollama's non-standard `/api/show` endpoint to retrieve detailed information about a model, including its `Modelfile`, template, and parameter string. This information is then displayed in a modal in the `ModelSelector` view.
-
 ### Chat Performance Optimization
 The chat view faced a performance degradation issue in long conversations, where input latency increased significantly. This was caused by the re-rendering of the entire message list on every keystroke in the input box. The issue was resolved by memoizing the individual chat message component (`MemoizedChatMessage` using `React.memo`). This ensures that only the message components whose props have changed (e.g., the last message being streamed) are re-rendered, while the rest of the conversation history is not, leading to a consistently smooth user experience regardless of conversation length.
-
-### Code Block Intelligence
-The `ChatView` component implements a heuristic-based language detection function (`detectLang`) to identify the programming language within markdown code blocks when one is not specified. This allows for robust syntax highlighting via `react-syntax-highlighter` and dynamically enables language-specific actions (e.g., running Python code, saving to a Node.js project).
-
-### API Client Robustness
-The `ApiView` component's request generation logic has been hardened to handle variations in the LLM's JSON output. It now flexibly parses HTTP headers (accepting both arrays of objects and plain objects) and safely stringifies the request body, preventing crashes from malformed or improperly escaped model responses.
 
 ### Services Deep Dive
 
 - **`llmService.ts`**: Handles all communication with the LLM server.
   - `fetchModels`: Sends a GET request to the `/models` endpoint.
   - `streamChatCompletion`: Sends a POST request to `/chat/completions` with `stream: true`. It uses the Fetch API's `ReadableStream` to process chunks of data as they arrive, providing a real-time chat experience.
-  - `generateTextCompletion`: A non-streaming version used for internal tasks like RAG retrieval and API client generation.
+  - `generateTextCompletion`: A non-streaming version used for internal tasks like API client generation.
 - **`logger.ts`**: Implemented as a singleton class. It maintains an in-memory array of log entries and uses a subscriber pattern to notify components (like the `LoggingPanel`) of new logs.
 
 ## 7. Build Process

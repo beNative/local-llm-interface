@@ -734,7 +734,8 @@ const App: React.FC = () => {
           content: activeSession?.messages[activeSession.messages.length - 1].content || null,
           tool_calls: approvedCalls,
       };
-      updateSessionMessages(activeSessionId, [...(activeSession?.messages.slice(0, -1) || []), updatedToolCallMsg]);
+      // FIX: Explicitly cast to ChatMessage to resolve discriminated union error
+      updateSessionMessages(activeSessionId, [...(activeSession?.messages.slice(0, -1) || []), updatedToolCallMsg as ChatMessage]);
       
       for (const call of approvedCalls) {
           let result: any;

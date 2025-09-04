@@ -8,20 +8,20 @@ A user-friendly desktop application to chat with locally installed LLMs serviced
 - **Model Discovery**: Automatically fetches and displays a list of available models from the connected service.
 - **Detailed Model Info**: View technical details for Ollama models, including context window size and Modelfile content, before starting a chat.
 - **Polished Chat Interface**: A clean, modern chat view for interacting with your chosen model.
-- **Model Parameter Tuning**: Fine-tune model responses with adjustable parameters like Temperature, Top-K, and Top-P, right from the chat interface.
+- **Agentic Tool Use (Function Calling)**: Transform the AI into an active agent that can browse project files, read/write content, and execute terminal commands to fulfill complex requests.
+- **Secure by Design**: Any potentially dangerous AI action (writing files, running commands) requires explicit user approval via an interactive modal before it can be executed.
 - **AI-Assisted File Modifications**: Ask the AI to refactor or modify project files directly from the chat. Review the proposed changes in an interactive diff view and apply them with a single click.
-- **Smart Context (RAG)**: When a project is selected, the AI can automatically identify and read the most relevant files to answer your query, providing highly accurate, context-aware responses.
 - **Versatile API Client**: A dedicated view to generate, edit, and send HTTP requests using natural language prompts, perfect for testing APIs.
+- **Guaranteed JSON Output**: An optional mode in the API client that instructs compatible models to return valid, structured JSON, dramatically improving reliability.
 - **Advanced Project Management**: Full support for Python (venv), Node.js (npm), Java (Maven), Delphi, and static Web App projects.
-- **Drag-and-Drop File Adding**: Easily add files to your projects by dragging them from your file explorer onto a folder in the project tree.
 - **In-App File Editor**: A built-in file viewer and editor to browse and modify your project files without leaving the application.
 - **Code Execution**: Run Python/Node.js code snippets or entire projects directly from the interface.
 - **System Prompts (Personas)**: Create and switch between different AI personas (e.g., "Senior DevOps Engineer") to tailor responses for specific tasks.
 - **Command Palette**: A Spotlight-style interface (`Cmd/Ctrl+K`) to instantly search and navigate to chats, projects, files, and application views.
 - **Multimodal Chat**: Attach images to your prompts for models that support it.
-- **Advanced Customization**: Customize chat colors, font family, and font size in the Settings panel.
+- **Advanced Customization**: Customize chat colors, font family, font size, and icon sets in the Settings panel.
 - **Toolchain Detection**: Automatically detects installed development toolchains (Python, Java, Node.js, Delphi) and allows you to select which one to use.
-- **System-Wide Status Bar**: Displays real-time system-wide CPU and Memory usage for performance monitoring.
+- **System-Wide Status Bar**: Displays real-time system-wide CPU, GPU, and Memory usage for performance monitoring.
 - **Advanced Logging**: A dockable, filterable logging panel shows all internal application events for easy debugging.
 - **Persistent Settings**: Remembers your connection settings, projects, and theme preference between sessions.
 - **Light & Dark Themes**: Switch between themes to suit your preference.
