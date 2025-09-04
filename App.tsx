@@ -437,6 +437,63 @@ const App: React.FC = () => {
     });
   }, []);
 
+  // FIX: Refactor appendToLastMessage to have a simpler, more type-safe signature
+  // that only handles content chunks, which is its only use case. This avoids
+  // complex and error-prone type gymnastics with discriminated unions.
+  const appendToLastMessage = useCallback((sessionId: string, contentChunk: string) => {
+    setConfig(c => {
+        if (!c) return c;
+        const newSessions = (c.sessions || []).map(session => {
+            if (session.id !== sessionId || session.messages.length === 0) {
+                return session;
+            }
+
+            const lastMsgIndex = session.messages.length - 1;
+            const lastMsg = session.messages[lastMsgIndex];
+            
+            if (lastMsg.role === 'tool') {
+                return session;
+            }
+
+            const newMessages = [...session.messages];
+            const msgToUpdate = { ...newMessages[lastMsgIndex] };
+
+            if (typeof msgToUpdate.content === 'string' || !msgToUpdate.content) {
+                msgToUpdate.content = (msgToUpdate.content || '') + contentChunk;
+            } else if (Array.isArray(msgToUpdate.content)) {
+                let appended = false;
+                for (let i = msgToUpdate.content.length - 1; i >= 0; i--) {
+                    const part = msgToUpdate.content[i];
+                    if (part.type === 'text') {
+                        part.text += contentChunk;
+                        appended = true;
+                        break;
+                    }
+                }
+                if (!appended) {
+                    msgToUpdate.content.push({ type: 'text', text: contentChunk });
+                }
+            }
+            
+            newMessages[lastMsgIndex] = msgToUpdate as ChatMessage;
+
+            return { ...session, messages: newMessages };
+        });
+
+        return { ...c, sessions: newSessions };
+    });
+  }, []);
+
+  const updateSessionMessages = useCallback((sessionId: string, messages: ChatMessage[]) => {
+      setConfig(c => {
+          if (!c) return c;
+          return {
+              ...c,
+              sessions: c.sessions!.map(s => s.id === sessionId ? { ...s, messages } : s)
+          };
+      });
+  }, []);
+
   const generateSessionName = useCallback(async (session: ChatSession) => {
       if (!config || !config.providers) return;
       
@@ -446,18 +503,16 @@ const App: React.FC = () => {
           return;
       }
 
+      // FIX: The content of a message can be an array of parts. This logic now correctly
+      // extracts the text from such messages to form the conversation summary.
       const conversation = session.messages
           .filter(m => ['user', 'assistant'].includes(m.role) && m.content)
           .slice(0, 2) // Base title on first exchange
           .map(m => {
             if (Array.isArray(m.content)) {
                 const textPart = m.content.find((p): p is { type: 'text', text: string } => p.type === 'text');
-                if (textPart) {
-                  return `${m.role}: ${textPart.text || '[image]'}`;
-                }
-                return `${m.role}: [image]`;
+                return `${m.role}: ${textPart ? textPart.text : '[image]'}`;
             }
-            // FIX: The content of a message can be null, which cannot be directly used in a template literal.
             return `${m.role}: ${m.content || ''}`;
           })
           .join('\n');
@@ -471,7 +526,6 @@ const App: React.FC = () => {
       
       try {
           logger.info(`Generating session title for session ${session.id}`);
-          // FIX: The generateTextCompletion function expects a ChatMessage[] where content is a string for this use case.
           const messagesForCompletion: ChatMessage[] = [{ role: 'user', content: prompt }];
           const title = await generateTextCompletion(providerForSession, config.apiKeys, session.modelId, messagesForCompletion);
           const cleanedTitle = title.trim().replace(/^"|"$/g, '');
@@ -570,42 +624,6 @@ const App: React.FC = () => {
     });
   };
 
-  const appendToLastMessage = useCallback((sessionId: string, update: Partial<ChatMessage>) => {
-    setConfig(c => {
-        if (!c) return c;
-        const targetSession = c.sessions?.find(s => s.id === sessionId);
-        if (!targetSession || targetSession.messages.length === 0) return c;
-        const lastMsg = targetSession.messages[targetSession.messages.length - 1];
-        
-        const updatedMsg: ChatMessage = { 
-          ...lastMsg,
-          ...update,
-          content: ('content' in update && update.content !== undefined) 
-            ? ((lastMsg.content || '') as string) + (update.content as string)
-            : lastMsg.content,
-        };
-        
-        return { 
-          ...c, 
-          sessions: c.sessions!.map(s => 
-            s.id === sessionId 
-              ? { ...s, messages: [...s.messages.slice(0, -1), updatedMsg] } 
-              : s
-          ) 
-        };
-    });
-  }, []);
-
-  const updateSessionMessages = useCallback((sessionId: string, messages: ChatMessage[]) => {
-      setConfig(c => {
-          if (!c) return c;
-          return {
-              ...c,
-              sessions: c.sessions!.map(s => s.id === sessionId ? { ...s, messages } : s)
-          };
-      });
-  }, []);
-
   const executeToolCall = async (project: CodeProject, toolCall: ToolCall): Promise<any> => {
       const { name, arguments: argsStr } = toolCall.function;
       logger.info(`Executing tool: ${name} with args: ${argsStr}`);
@@ -621,9 +639,16 @@ const App: React.FC = () => {
                   return await window.electronAPI!.readProjectFile(fullPath);
               }
               case 'writeFile': {
+                  // The approval flow needs the original content for a diff. We must read it *before* writing.
                   const fullPath = await window.electronAPI!.projectFindFile({ projectPath: project.path, fileName: args.path }) || `${project.path}/${args.path}`;
+                  let originalContent = null;
+                  try {
+                    originalContent = await window.electronAPI!.readProjectFile(fullPath);
+                  } catch (e) {
+                    // File doesn't exist, which is fine for writeFile.
+                  }
                   await window.electronAPI!.writeProjectFile(fullPath, args.content);
-                  return `Successfully wrote ${args.content.length} bytes to ${args.path}.`;
+                  return { success: true, originalContent };
               }
               case 'runTerminalCommand': {
                   const { stdout, stderr } = await window.electronAPI!.projectRunCommand({ projectPath: project.path, command: args.command });
@@ -640,14 +665,13 @@ const App: React.FC = () => {
   };
 
   const processConversationTurn = useCallback(async (sessionId: string, messages: ChatMessage[]) => {
-      if (!config || !activeProjectId) return;
+      if (!config) return;
 
       const session = config.sessions?.find(s => s.id === sessionId);
-      const project = config.projects?.find(p => p.id === activeProjectId);
       const providerForSession = config.providers?.find(p => p.id === session?.providerId);
 
-      if (!session || !providerForSession || !project) {
-          logger.error("Tool call initiated without session, provider, or project context.");
+      if (!session || !providerForSession) {
+          logger.error("Cannot process turn: Session or provider not found.");
           return;
       }
       
@@ -659,12 +683,17 @@ const App: React.FC = () => {
       streamBuffer.current = '';
       inThinkBlockRef.current = false;
 
-      const tools: Tool[] = [
-        { type: 'function', function: { name: 'listFiles', description: 'Recursively lists all files and directories within the project, returning an array of relative paths.', parameters: { type: 'object', properties: {} } } },
-        { type: 'function', function: { name: 'readFile', description: "Reads a file's content.", parameters: { type: 'object', properties: { path: { type: 'string', description: 'The relative path to the file from the project root.' } }, required: ['path'] } } },
-        { type: 'function', function: { name: 'writeFile', description: "Writes content to a file, overwriting it if it exists.", parameters: { type: 'object', properties: { path: { type: 'string', description: 'The relative path to the file from the project root.' }, content: { type: 'string', description: 'The new file content.' } }, required: ['path', 'content'] } } },
-        { type: 'function', function: { name: 'runTerminalCommand', description: "Executes a shell command in the project's root directory.", parameters: { type: 'object', properties: { command: { type: 'string', description: 'The command to execute.' } }, required: ['command'] } } },
-      ];
+      let tools: Tool[] | undefined = undefined;
+      const project = config.projects?.find(p => p.id === activeProjectId);
+
+      if (project && isElectron) {
+          tools = [
+            { type: 'function', function: { name: 'listFiles', description: 'Recursively lists all files and directories within the project, returning an array of relative paths.', parameters: { type: 'object', properties: {} } } },
+            { type: 'function', function: { name: 'readFile', description: "Reads a file's content.", parameters: { type: 'object', properties: { path: { type: 'string', description: 'The relative path to the file from the project root.' } }, required: ['path'] } } },
+            { type: 'function', function: { name: 'writeFile', description: "Writes content to a file, overwriting it if it exists or creating it if it doesn't.", parameters: { type: 'object', properties: { path: { type: 'string', description: 'The relative path to the file from the project root.' }, content: { type: 'string', description: 'The new file content.' } }, required: ['path', 'content'] } } },
+            { type: 'function', function: { name: 'runTerminalCommand', description: "Executes a shell command in the project's root directory.", parameters: { type: 'object', properties: { command: { type: 'string', description: 'The command to execute.' } }, required: ['command'] } } },
+          ];
+      }
 
       let accumulatedContent = '';
       let accumulatedToolCalls: ToolCall[] = [];
@@ -674,7 +703,7 @@ const App: React.FC = () => {
           (chunk) => { // onChunk
               if (chunk.type === 'content') {
                   accumulatedContent += chunk.text;
-                  appendToLastMessage(sessionId, { content: chunk.text });
+                  appendToLastMessage(sessionId, chunk.text);
               } else if (chunk.type === 'tool_calls') {
                   accumulatedToolCalls.push(...chunk.tool_calls);
               }
@@ -685,36 +714,39 @@ const App: React.FC = () => {
              setIsResponding(false);
           },
           (metadata) => { // onDone
-              setIsResponding(false);
-              const finalMessages = [...session.messages];
-              const lastMsg = finalMessages[finalMessages.length - 1];
-
-              if (lastMsg.role === 'assistant') {
-                  lastMsg.metadata = { ...lastMsg.metadata, ...metadata };
-              }
+              const finalMessages = [...session.messages.slice(0, -1)]; // Remove placeholder
+              let lastMsg: ChatMessage;
 
               if (accumulatedToolCalls.length > 0) {
-                  const toolCallMsg: AssistantToolCallMessage = {
+                  lastMsg = {
                       role: 'assistant',
                       content: accumulatedContent || null,
                       tool_calls: accumulatedToolCalls,
                       metadata,
                   };
-                  // FIX: Explicitly cast the new message to ChatMessage to resolve type error with discriminated union.
-                  updateSessionMessages(sessionId, [...messages, toolCallMsg as ChatMessage]);
                   setPendingToolCalls(accumulatedToolCalls); // Trigger approval modal
               } else {
-                  updateSessionMessages(sessionId, finalMessages);
+                  lastMsg = {
+                      role: 'assistant',
+                      content: accumulatedContent,
+                      metadata,
+                  };
+                   setIsResponding(false);
               }
+
+              updateSessionMessages(sessionId, [...messages, lastMsg]);
           },
           session.generationConfig
       );
 
-  }, [config, activeProjectId, appendToLastMessage, updateSessionMessages]);
+  }, [config, activeProjectId, appendToLastMessage, updateSessionMessages, isElectron]);
 
 
   const handleToolApproval = async (approvedCalls: ToolCall[]) => {
       if (!activeSessionId || !activeProjectId || !config) return;
+      
+      const currentSession = config.sessions?.find(s => s.id === activeSessionId);
+      if (!currentSession) return;
 
       setPendingToolCalls(null);
       setIsResponding(true);
@@ -728,15 +760,15 @@ const App: React.FC = () => {
 
       const toolResults: ToolResponseMessage[] = [];
 
-      // Update the UI immediately to show tools are running
+      // Update the UI immediately to show tools are running and approved/denied
       const updatedToolCallMsg: AssistantToolCallMessage = {
           role: 'assistant',
-          content: activeSession?.messages[activeSession.messages.length - 1].content || null,
+          content: currentSession.messages[currentSession.messages.length - 1].content || null,
           tool_calls: approvedCalls,
       };
-      // FIX: Explicitly cast to ChatMessage to resolve discriminated union error
-      updateSessionMessages(activeSessionId, [...(activeSession?.messages.slice(0, -1) || []), updatedToolCallMsg as ChatMessage]);
+      updateSessionMessages(activeSessionId, [...currentSession.messages.slice(0, -1), updatedToolCallMsg]);
       
+      let allResults = [];
       for (const call of approvedCalls) {
           let result: any;
           if (call.approved) {
@@ -744,6 +776,7 @@ const App: React.FC = () => {
           } else {
               result = "Tool execution was denied by the user.";
           }
+          allResults.push({ ...call, result });
           
           toolResults.push({
               role: 'tool',
@@ -755,13 +788,13 @@ const App: React.FC = () => {
           // Update UI with result as it comes
           const finalToolCallMsg: AssistantToolCallMessage = {
               role: 'assistant',
-              content: activeSession?.messages[activeSession.messages.length - 1].content || null,
-              tool_calls: approvedCalls.map(c => c.id === call.id ? { ...c, result } : c),
+              content: currentSession.messages[currentSession.messages.length - 1].content || null,
+              tool_calls: allResults,
           };
-          updateSessionMessages(activeSessionId, [...(activeSession?.messages.slice(0, -1) || []), finalToolCallMsg, ...toolResults]);
+          updateSessionMessages(activeSessionId, [...currentSession.messages.slice(0, -1), finalToolCallMsg]);
       }
       
-      const newMessages = [...activeSession!.messages, ...toolResults];
+      const newMessages = [...currentSession.messages.slice(0, -1), { ...updatedToolCallMsg, tool_calls: allResults }, ...toolResults];
       await processConversationTurn(activeSessionId, newMessages);
   };
   
@@ -773,24 +806,12 @@ const App: React.FC = () => {
     const session = config.sessions?.find(s => s.id === sessionId);
     if (!session) return;
 
-    const providerForSession = config.providers?.find(p => p.id === session.providerId);
-    if (!providerForSession) return;
-
     const isFirstUserMessage = session.messages.filter(m => m.role === 'user').length === 0;
 
     const userMessage: StandardChatMessage = { role: 'user', content };
     const assistantPlaceholder: StandardChatMessage = { role: 'assistant', content: '' };
     const messagesWithUser = [...session.messages, userMessage];
     updateSessionMessages(sessionId, [...messagesWithUser, assistantPlaceholder]);
-
-    // RAG logic (simplified for brevity, main logic now in processConversationTurn)
-    if (options?.useRAG && activeProjectId) {
-      setRetrievalStatus('retrieving');
-      // In a real scenario, you'd perform RAG here and augment messagesForApi
-      // For now, we'll just show the indicator and let tool use handle file access.
-      // The main RAG logic could be a tool itself!
-      setTimeout(() => setRetrievalStatus('idle'), 1500); // Simulate retrieval
-    }
     
     await processConversationTurn(sessionId, messagesWithUser);
 
@@ -803,7 +824,7 @@ const App: React.FC = () => {
         });
     }
 
-  }, [config, activeProjectId, generateSessionName, updateSessionMessages, processConversationTurn]);
+  }, [config, generateSessionName, updateSessionMessages, processConversationTurn]);
 
   const handleAcceptModification = async (filePath: string, newContent: string) => {
     if (!window.electronAPI) return;
