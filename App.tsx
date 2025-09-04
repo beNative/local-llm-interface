@@ -696,6 +696,8 @@ const App: React.FC = () => {
     setConfig(c => ({ ...c!, sessions: c!.sessions!.map(s => s.id === sessionId ? updatedSession : s) }));
     setIsResponding(true);
     setThinkingText(null);
+    
+    const finalAnswerTagRegex = /<\/?(answer|final|final_answer)>/gi;
 
     await streamChatCompletion(
       providerForSession,
@@ -718,7 +720,7 @@ const App: React.FC = () => {
                   const contentPart = streamBuffer.current.substring(0, thinkStart);
                   if (contentPart) {
                       setThinkingText(null);
-                      appendContentToLastMessage(sessionId, contentPart);
+                      appendContentToLastMessage(sessionId, contentPart.replace(finalAnswerTagRegex, ''));
                   }
 
                   const thinkingPart = streamBuffer.current.substring(thinkStart + '◁think▷'.length, thinkEnd);
@@ -734,7 +736,7 @@ const App: React.FC = () => {
                   const contentPart = streamBuffer.current;
                   if (contentPart) {
                       setThinkingText(null);
-                      appendContentToLastMessage(sessionId, contentPart);
+                      appendContentToLastMessage(sessionId, contentPart.replace(finalAnswerTagRegex, ''));
                       streamBuffer.current = '';
                   }
               }
@@ -756,7 +758,7 @@ const App: React.FC = () => {
       },
       (metadata: ChatMessageMetadata) => {
         if (streamBuffer.current) {
-            appendContentToLastMessage(sessionId, streamBuffer.current);
+            appendContentToLastMessage(sessionId, streamBuffer.current.replace(finalAnswerTagRegex, ''));
             streamBuffer.current = '';
         }
 
