@@ -114,6 +114,7 @@ const App: React.FC = () => {
   const streamBuffer = useRef<string>('');
   const [sidebarWidth, setSidebarWidth] = useState(256);
   const isResizingRef = useRef(false);
+  const inThinkBlockRef = useRef<boolean>(false);
 
 
   // Derived state from config
@@ -601,6 +602,7 @@ const App: React.FC = () => {
     
     const controller = new AbortController();
     abortControllerRef.current = controller;
+    inThinkBlockRef.current = false;
     accumulatedThinkingText.current = null;
     streamBuffer.current = '';
 
@@ -706,38 +708,62 @@ const App: React.FC = () => {
       messagesForApi,
       controller.signal,
       (chunk: StreamChunk) => {
+          if (controller.signal.aborted) return;
           if (chunk.type === 'reasoning') {
               accumulatedThinkingText.current = (accumulatedThinkingText.current || '') + chunk.text;
               setThinkingText(accumulatedThinkingText.current);
           } else if (chunk.type === 'content') {
               streamBuffer.current += chunk.text;
-              let thinkStart, thinkEnd;
+              let changed = true;
+              while(changed) {
+                  changed = false;
 
-              while (
-                  (thinkStart = streamBuffer.current.indexOf('◁think▷')) !== -1 &&
-                  (thinkEnd = streamBuffer.current.indexOf('◁/think▷')) > thinkStart
-              ) {
-                  const contentPart = streamBuffer.current.substring(0, thinkStart);
-                  if (contentPart) {
-                      setThinkingText(null);
-                      appendContentToLastMessage(sessionId, contentPart.replace(finalAnswerTagRegex, ''));
-                  }
+                  const thinkStart = streamBuffer.current.indexOf('◁think▷');
+                  const thinkEnd = streamBuffer.current.indexOf('◁/think▷');
 
-                  const thinkingPart = streamBuffer.current.substring(thinkStart + '◁think▷'.length, thinkEnd);
-                  if(thinkingPart) {
-                      accumulatedThinkingText.current = (accumulatedThinkingText.current || '') + thinkingPart;
-                      setThinkingText(accumulatedThinkingText.current);
-                  }
-                  
-                  streamBuffer.current = streamBuffer.current.substring(thinkEnd + '◁/think▷'.length);
-              }
-
-              if (streamBuffer.current.indexOf('◁think▷') === -1) {
-                  const contentPart = streamBuffer.current;
-                  if (contentPart) {
-                      setThinkingText(null);
-                      appendContentToLastMessage(sessionId, contentPart.replace(finalAnswerTagRegex, ''));
-                      streamBuffer.current = '';
+                  if (inThinkBlockRef.current) {
+                      if (thinkEnd !== -1) {
+                          // In a think block, and it ends here.
+                          const thinkingPart = streamBuffer.current.substring(0, thinkEnd);
+                          if (thinkingPart) {
+                              accumulatedThinkingText.current = (accumulatedThinkingText.current || '') + thinkingPart;
+                              setThinkingText(accumulatedThinkingText.current);
+                          }
+                          streamBuffer.current = streamBuffer.current.substring(thinkEnd + '◁/think▷'.length);
+                          inThinkBlockRef.current = false;
+                          changed = true;
+                      } else {
+                          // Still in a think block, no end tag found in buffer. Consume buffer as thinking.
+                          accumulatedThinkingText.current = (accumulatedThinkingText.current || '') + streamBuffer.current;
+                          setThinkingText(accumulatedThinkingText.current);
+                          streamBuffer.current = '';
+                      }
+                  } else { // Not in a think block
+                      if (thinkStart !== -1 && (thinkEnd === -1 || thinkStart < thinkEnd)) {
+                          // A think block starts.
+                          const contentPart = streamBuffer.current.substring(0, thinkStart);
+                          if (contentPart) {
+                              setThinkingText(null);
+                              appendContentToLastMessage(sessionId, contentPart.replace(finalAnswerTagRegex, ''));
+                          }
+                          streamBuffer.current = streamBuffer.current.substring(thinkStart + '◁think▷'.length);
+                          inThinkBlockRef.current = true;
+                          changed = true;
+                      } else if (thinkEnd !== -1) {
+                          // An orphaned closing tag. Treat preceding content as thinking.
+                          const thinkingPart = streamBuffer.current.substring(0, thinkEnd);
+                          if (thinkingPart) {
+                              accumulatedThinkingText.current = (accumulatedThinkingText.current || '') + thinkingPart;
+                              setThinkingText(accumulatedThinkingText.current);
+                          }
+                          streamBuffer.current = streamBuffer.current.substring(thinkEnd + '◁/think▷'.length);
+                          changed = true;
+                      } else {
+                          // No tags found, all content.
+                          setThinkingText(null);
+                          appendContentToLastMessage(sessionId, streamBuffer.current.replace(finalAnswerTagRegex, ''));
+                          streamBuffer.current = '';
+                      }
                   }
               }
           }
@@ -757,6 +783,12 @@ const App: React.FC = () => {
         abortControllerRef.current = null;
       },
       (metadata: ChatMessageMetadata) => {
+        if (inThinkBlockRef.current && streamBuffer.current) {
+            // Stream ended mid-thought. Treat the rest of the buffer as thinking.
+            accumulatedThinkingText.current = (accumulatedThinkingText.current || '') + streamBuffer.current;
+            streamBuffer.current = '';
+        }
+
         if (streamBuffer.current) {
             appendContentToLastMessage(sessionId, streamBuffer.current.replace(finalAnswerTagRegex, ''));
             streamBuffer.current = '';
