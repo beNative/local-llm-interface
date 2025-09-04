@@ -111,6 +111,7 @@ const App: React.FC = () => {
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const accumulatedThinkingText = useRef<string | null>(null);
+  const streamBuffer = useRef<string>('');
   const [sidebarWidth, setSidebarWidth] = useState(256);
   const isResizingRef = useRef(false);
 
@@ -562,6 +563,20 @@ const App: React.FC = () => {
     });
   };
 
+  const appendContentToLastMessage = useCallback((sessionId: string, content: string) => {
+    setConfig(c => {
+        if (!c) return c;
+        const targetSession = c.sessions?.find(s => s.id === sessionId);
+        if (!targetSession) return c;
+        const lastMsg = targetSession.messages[targetSession.messages.length - 1];
+        if (lastMsg?.role === 'assistant') {
+            const updatedMsg: ChatMessage = { ...lastMsg, content: (lastMsg.content as string) + content };
+            return { ...c, sessions: c.sessions!.map(s => s.id === sessionId ? { ...s, messages: [...s.messages.slice(0, -1), updatedMsg] } : s) };
+        }
+        return c;
+    });
+  }, []);
+
   const handleSendMessage = useCallback(async (content: string | ChatMessageContentPart[], options?: { useRAG: boolean }) => {
     if (!config || !config.providers || !config.activeSessionId) {
         logger.error("SendMessage was called, but an active session or configuration is missing. Aborting.");
@@ -587,6 +602,7 @@ const App: React.FC = () => {
     const controller = new AbortController();
     abortControllerRef.current = controller;
     accumulatedThinkingText.current = null;
+    streamBuffer.current = '';
 
     const userMessageContent = Array.isArray(content) ? (content.find(p => p.type === 'text') as { type: 'text', text: string } | undefined)?.text || '' : content;
     const modificationRegex = /(?:refactor|modify|change|update|add to|edit|implement|create|write|delete)\s+(?:in\s+)?(?:the\s+file\s+)?([\w./\\-]+)/i;
@@ -688,23 +704,41 @@ const App: React.FC = () => {
       messagesForApi,
       controller.signal,
       (chunk: StreamChunk) => {
-        if (chunk.type === 'reasoning') {
-            accumulatedThinkingText.current = (accumulatedThinkingText.current || '') + chunk.text;
-            setThinkingText(accumulatedThinkingText.current);
-        } else if (chunk.type === 'content') {
-            setThinkingText(null);
-            setConfig(c => {
-                if (!c) return c;
-                const targetSession = c.sessions?.find(s => s.id === sessionId);
-                if (!targetSession) return c;
-                const lastMsg = targetSession.messages[targetSession.messages.length - 1];
-                if (lastMsg?.role === 'assistant') {
-                    const updatedMsg: ChatMessage = { ...lastMsg, content: (lastMsg.content as string) + chunk.text };
-                    return { ...c, sessions: c.sessions!.map(s => s.id === sessionId ? { ...s, messages: [...s.messages.slice(0, -1), updatedMsg] } : s) };
-                }
-                return c;
-            });
-        }
+          if (chunk.type === 'reasoning') {
+              accumulatedThinkingText.current = (accumulatedThinkingText.current || '') + chunk.text;
+              setThinkingText(accumulatedThinkingText.current);
+          } else if (chunk.type === 'content') {
+              streamBuffer.current += chunk.text;
+              let thinkStart, thinkEnd;
+
+              while (
+                  (thinkStart = streamBuffer.current.indexOf('◁think▷')) !== -1 &&
+                  (thinkEnd = streamBuffer.current.indexOf('◁/think▷')) > thinkStart
+              ) {
+                  const contentPart = streamBuffer.current.substring(0, thinkStart);
+                  if (contentPart) {
+                      setThinkingText(null);
+                      appendContentToLastMessage(sessionId, contentPart);
+                  }
+
+                  const thinkingPart = streamBuffer.current.substring(thinkStart + '◁think▷'.length, thinkEnd);
+                  if(thinkingPart) {
+                      accumulatedThinkingText.current = (accumulatedThinkingText.current || '') + thinkingPart;
+                      setThinkingText(accumulatedThinkingText.current);
+                  }
+                  
+                  streamBuffer.current = streamBuffer.current.substring(thinkEnd + '◁/think▷'.length);
+              }
+
+              if (streamBuffer.current.indexOf('◁think▷') === -1) {
+                  const contentPart = streamBuffer.current;
+                  if (contentPart) {
+                      setThinkingText(null);
+                      appendContentToLastMessage(sessionId, contentPart);
+                      streamBuffer.current = '';
+                  }
+              }
+          }
       },
       (err) => {
         const errorMsgContent = `Sorry, an error occurred: ${err.message}`;
@@ -721,6 +755,11 @@ const App: React.FC = () => {
         abortControllerRef.current = null;
       },
       (metadata: ChatMessageMetadata) => {
+        if (streamBuffer.current) {
+            appendContentToLastMessage(sessionId, streamBuffer.current);
+            streamBuffer.current = '';
+        }
+
         const finalThinkingText = accumulatedThinkingText.current;
         setIsResponding(false);
         setRetrievalStatus('idle');
@@ -759,7 +798,7 @@ const App: React.FC = () => {
       },
       session.generationConfig
     );
-  }, [config, activeProjectId, generateSessionName]);
+  }, [config, activeProjectId, generateSessionName, appendContentToLastMessage]);
 
   const handleAcceptModification = async (filePath: string, newContent: string) => {
     if (!window.electronAPI) return;
