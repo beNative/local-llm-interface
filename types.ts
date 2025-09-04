@@ -1,46 +1,17 @@
-export type Theme = 'light' | 'dark';
+// This file contains shared type definitions used across the application.
+
+// General Utility Types
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
+export type Theme = 'light' | 'dark';
 export type IconSet = 'default' | 'lucide' | 'heroicons' | 'feather' | 'fontawesome' | 'material';
 
-export interface LogEntry {
-  timestamp: Date;
-  level: LogLevel;
-  message: string;
-}
-
-export type LLMProviderType = 'openai-compatible' | 'google-gemini';
-
-export interface LLMProviderConfig {
-  id: string; // unique identifier, e.g., 'ollama', 'openai', 'custom-glm'
-  name: string; // display name, e.g., 'Ollama', 'OpenAI', 'My GLM'
-  baseUrl: string;
-  type: LLMProviderType;
-  apiKeyName?: string; // e.g., 'openAI', 'google', 'custom_glm_key'
-  isCustom: boolean; // flag to indicate if it's user-added
-}
-
-export type ProjectType = 'python' | 'nodejs' | 'webapp' | 'java' | 'delphi';
-
-export interface CodeProject {
-  id: string;
-  name: string;
-  type: ProjectType;
-  path: string; // Full path to the project directory
-}
-
-export interface FileSystemEntry {
-  name: string;
-  path: string; // Full path
-  isDirectory: boolean;
-  children?: FileSystemEntry[]; // For tree view state
-}
-
+// Configuration and Settings
 export interface ColorOverrides {
+  chatBg?: string;
   userMessageBg?: string;
   userMessageColor?: string;
   assistantMessageBg?: string;
   assistantMessageColor?: string;
-  chatBg?: string;
 }
 
 export interface ThemeOverrides {
@@ -51,20 +22,15 @@ export interface ThemeOverrides {
   iconSet?: IconSet;
 }
 
-export interface GenerationConfig {
-  temperature?: number;
-  topK?: number;
-  topP?: number;
-}
+export type LLMProviderType = 'openai-compatible' | 'google-gemini';
 
-export interface ChatSession {
+export interface LLMProviderConfig {
   id: string;
   name: string;
-  modelId: string;
-  providerId: string;
-  messages: ChatMessage[];
-  systemPromptId?: string | null;
-  generationConfig?: GenerationConfig;
+  baseUrl: string;
+  type: LLMProviderType;
+  apiKeyName?: string;
+  isCustom: boolean;
 }
 
 export interface PredefinedPrompt {
@@ -79,25 +45,21 @@ export interface SystemPrompt {
   content: string;
 }
 
-export interface Toolchain {
-  path: string;
-  version?: string;
+export type ProjectType = 'python' | 'nodejs' | 'java' | 'delphi' | 'webapp';
+
+export interface CodeProject {
+  id: string;
   name: string;
-}
-export interface ToolchainStatus {
-    python: Toolchain[];
-    java: Toolchain[];
-    nodejs: Toolchain[];
-    delphi: Toolchain[];
+  type: ProjectType;
+  path: string;
 }
 
 export interface Config {
-  providers?: LLMProviderConfig[];
+  providers: LLMProviderConfig[];
   selectedProviderId?: string;
-  theme?: Theme;
+  theme: Theme;
   themeOverrides?: ThemeOverrides;
   logToFile?: boolean;
-  apiKeys?: Record<string, string | undefined>;
   pythonProjectsPath?: string;
   nodejsProjectsPath?: string;
   webAppsPath?: string;
@@ -109,56 +71,59 @@ export interface Config {
   activeSessionId?: string;
   predefinedPrompts?: PredefinedPrompt[];
   systemPrompts?: SystemPrompt[];
-  // Toolchain paths
+  apiKeys?: Record<string, string>;
   selectedPythonPath?: string;
   selectedJavaPath?: string;
   selectedNodePath?: string;
   selectedDelphiPath?: string;
 }
 
+// Language Model and Chat Types
 export interface ModelDetails {
-  format: string;
-  family: string;
-  families: string[] | null;
-  parameter_size: string;
-  quantization_level: string;
-  // Ollama specific details from /api/show
   modelfile?: string;
   parameters?: string;
   template?: string;
-  num_ctx?: number;
+  family?: string;
+  parameter_size?: string;
 }
 
 export interface Model {
   id: string;
-  name: string; // Ollama uses 'name', OpenAI-compat uses 'id'
+  name: string;
   object: string;
   created: number;
   owned_by: string;
-  // Ollama specific fields
-  modified_at?: string;
   size?: number;
-  digest?: string;
   details?: ModelDetails;
 }
 
-export type ChatMessageContentPart =
-  | { type: 'text'; text: string }
-  | { type: 'image_url'; image_url: { url: string } };
+export interface ChatMessageContentPartText {
+  type: 'text';
+  text: string;
+}
+
+export interface ChatMessageContentPartImage {
+  type: 'image_url';
+  image_url: {
+    url: string; // data URI
+  };
+}
+
+export type ChatMessageContentPart = ChatMessageContentPartText | ChatMessageContentPartImage;
 
 export interface ChatMessageUsage {
-  prompt_tokens?: number;
-  completion_tokens?: number;
-  total_tokens?: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
 }
 
 export interface ChatMessageMetadata {
   usage?: ChatMessageUsage;
-  speed?: number; // tokens per second
+  speed?: number; // tokens/sec
+  thinking?: string;
   ragContext?: {
     files: string[];
   };
-  thinking?: string;
 }
 
 export interface ChatMessage {
@@ -171,6 +136,44 @@ export interface ChatMessage {
   };
 }
 
+export interface GenerationConfig {
+  temperature?: number;
+  topK?: number;
+  topP?: number;
+  jsonMode?: boolean;
+}
+
+export interface ChatSession {
+  id: string;
+  name: string;
+  modelId: string;
+  providerId: string;
+  messages: ChatMessage[];
+  systemPromptId: string | null;
+  generationConfig?: GenerationConfig;
+}
+
+// File System and Project Types
+export interface FileSystemEntry {
+  name: string;
+  path: string;
+  isDirectory: boolean;
+}
+
+export interface Toolchain {
+  path: string;
+  version: string;
+  name: string;
+}
+
+export interface ToolchainStatus {
+  python: Toolchain[];
+  java: Toolchain[];
+  nodejs: Toolchain[];
+  delphi: Toolchain[];
+}
+
+// API Client Types
 export type ApiHttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
 
 export interface ApiRequest {
@@ -183,10 +186,11 @@ export interface ApiRequest {
 export interface ApiResponse {
   status: number;
   statusText: string;
-  headers: Record<string, string | string[] | undefined>;
+  headers: Record<string, any>;
   body: string;
 }
 
+// Electron-specific Types
 export interface SystemStats {
   cpu: number;
   memory: {
@@ -194,4 +198,10 @@ export interface SystemStats {
     total: number;
   };
   gpu?: number;
+}
+
+export interface LogEntry {
+  timestamp: Date;
+  level: LogLevel;
+  message: string;
 }

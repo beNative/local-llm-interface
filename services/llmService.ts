@@ -174,6 +174,9 @@ const textCompletionOpenAI = async (
         if (generationConfig.temperature !== undefined) options.temperature = generationConfig.temperature;
         if (generationConfig.topK !== undefined) options.top_k = generationConfig.topK;
         if (generationConfig.topP !== undefined) options.top_p = generationConfig.topP;
+        if (generationConfig.jsonMode) {
+            options.response_format = { type: 'json_object' };
+        }
     }
 
     const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -202,7 +205,6 @@ const textCompletionGemini = async (
     const apiKey = getApiKey(provider, apiKeys);
     if (!apiKey) throw new LLMServiceError('Google Gemini API key is not configured.');
 
-    // FIX: The GoogleGenAI constructor requires the API key to be passed in an object with the `apiKey` property.
     const ai = new GoogleGenAI({ apiKey });
 
     const systemInstruction = messages.find(m => m.role === 'system')?.content as string || undefined;
@@ -213,14 +215,20 @@ const textCompletionGemini = async (
         logger.warn('No valid content to send to Gemini API after filtering.');
         return '';
     }
+    
+    const config: Record<string, any> = {
+        ...generationConfig,
+        systemInstruction,
+    };
+
+    if (generationConfig?.jsonMode) {
+        config.responseMimeType = "application/json";
+    }
 
     const response = await ai.models.generateContent({
         model: modelId,
         contents: contents,
-        config: {
-            ...generationConfig,
-            systemInstruction,
-        },
+        config: config,
     });
     
     return response.text;
@@ -273,7 +281,6 @@ const streamChatCompletionGemini = async (
     }
 
     try {
-        // FIX: The GoogleGenAI constructor requires the API key to be passed in an object with the `apiKey` property.
         const ai = new GoogleGenAI({ apiKey });
         const systemInstruction = messages.find(m => m.role === 'system')?.content as string || undefined;
         
