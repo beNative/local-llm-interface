@@ -1,51 +1,79 @@
 import { GoogleGenAI } from "@google/genai";
-import type { Model, ChatMessage, ChatMessageMetadata, ChatMessageUsage, GenerationConfig, ModelDetails, Config, LLMProviderConfig, ChatMessageContentPart } from '../types';
+import type { Model, ChatMessage, ChatMessageMetadata, ChatMessageUsage, GenerationConfig, ModelDetails, Config, LLMProviderConfig, ChatMessageContentPart, Tool, ToolCall, ToolResponseMessage } from '../types';
 import { logger } from './logger';
 
 // Helper function to convert messages to Gemini's format, merging consecutive messages.
 const toGeminiContents = (messages: ChatMessage[]): ({ role: 'user' | 'model'; parts: any[] })[] => {
     const mergedContents: ({ role: 'user' | 'model'; parts: any[] })[] = [];
-    const userAssistantMessages = messages.filter(m => m.role === 'user' || m.role === 'assistant');
+    // Gemini API expects alternating user/model roles. Filter out system messages.
+    // FIX: This filter was too restrictive, removing 'tool' role messages which are necessary for function calling responses.
+    const relevantMessages = messages.filter(m => m.role !== 'system');
 
-    for (const message of userAssistantMessages) {
-        const role = message.role === 'assistant' ? 'model' : 'user';
+    // FIX: Iterate over relevantMessages instead of a list that filters out tool responses.
+    for (const message of relevantMessages) {
+        if ('tool_calls' in message && message.tool_calls) {
+            // This is a tool call request, handle accordingly
+            const role = 'model'; // Tool calls are from the model
+            const parts = message.tool_calls.map(tc => ({
+                functionCall: {
+                    name: tc.function.name,
+                    args: JSON.parse(tc.function.arguments),
+                }
+            }));
 
-        const parts: any[] = [];
-        if (typeof message.content === 'string') {
-            if (message.content) {
-                parts.push({ text: message.content });
+            if (parts.length > 0) {
+                 mergedContents.push({ role, parts });
             }
-        } else if (Array.isArray(message.content)) {
-            for (const p of message.content) {
-                if (p.type === 'text' && p.text) {
-                    parts.push({ text: p.text });
-                } else if (p.type === 'image_url' && p.image_url?.url) {
-                    const [header, data] = p.image_url.url.split(',');
-                    if (header && data) {
-                        const mimeType = header.match(/:(.*?);/)?.[1];
-                        if (mimeType) {
-                            parts.push({ inlineData: { mimeType, data } });
+        // FIX: Use a more specific check for ToolResponseMessage and handle it correctly.
+        } else if (message.role === 'tool') {
+            // This is a tool response, handle accordingly
+            const role = 'user'; // Tool responses are mapped to a "function" role, which is user-like
+            const parts = [{
+                functionResponse: {
+                    name: (message as ToolResponseMessage).name,
+                    response: {
+                        content: message.content,
+                    },
+                }
+            }];
+            mergedContents.push({ role, parts });
+        } else {
+             // This is a standard text/image message
+            const role = message.role === 'assistant' ? 'model' : 'user';
+            const parts: any[] = [];
+            if (typeof message.content === 'string') {
+                if (message.content) {
+                    parts.push({ text: message.content });
+                }
+            } else if (Array.isArray(message.content)) {
+                for (const p of message.content) {
+                    if (p.type === 'text' && p.text) {
+                        parts.push({ text: p.text });
+                    } else if (p.type === 'image_url' && p.image_url?.url) {
+                        const [header, data] = p.image_url.url.split(',');
+                        if (header && data) {
+                            const mimeType = header.match(/:(.*?);/)?.[1];
+                            if (mimeType) {
+                                parts.push({ inlineData: { mimeType, data } });
+                            }
                         }
                     }
                 }
             }
-        }
-        
-        if (parts.length === 0) {
-            continue; // Skip messages with no valid parts
-        }
+            
+            if (parts.length === 0) {
+                continue; // Skip messages with no valid parts
+            }
+             // Gemini requires alternating roles. If the new message has the same role as the last one, we must must merge.
+            const lastEntry = mergedContents.length > 0 ? mergedContents[mergedContents.length - 1] : null;
 
-        const lastEntry = mergedContents.length > 0 ? mergedContents[mergedContents.length - 1] : null;
-
-        if (lastEntry && lastEntry.role === role) {
-            // Merge with the last entry
-            lastEntry.parts.push(...parts);
-        } else {
-            // Add a new entry
-            mergedContents.push({ role, parts });
+            if (lastEntry && lastEntry.role === role) {
+                lastEntry.parts.push(...parts);
+            } else {
+                mergedContents.push({ role, parts });
+            }
         }
     }
-
     return mergedContents;
 };
 
@@ -58,7 +86,8 @@ export class LLMServiceError extends Error {
 
 export type StreamChunk = 
   { type: 'content'; text: string } | 
-  { type: 'reasoning'; text: string };
+  { type: 'reasoning'; text: string } |
+  { type: 'tool_calls', tool_calls: ToolCall[] };
 
 const getApiKey = (provider: LLMProviderConfig, apiKeys: Config['apiKeys']): string | undefined => {
     if (!provider.apiKeyName) return undefined;
@@ -268,6 +297,7 @@ const streamChatCompletionGemini = async (
     apiKeys: Config['apiKeys'],
     modelId: string,
     messages: ChatMessage[],
+    tools: Tool[] | undefined,
     signal: AbortSignal,
     onChunk: (chunk: StreamChunk) => void,
     onError: (error: Error) => void,
@@ -283,7 +313,6 @@ const streamChatCompletionGemini = async (
     try {
         const ai = new GoogleGenAI({ apiKey });
         const systemInstruction = messages.find(m => m.role === 'system')?.content as string || undefined;
-        
         const contents = toGeminiContents(messages);
 
         if (contents.length === 0) {
@@ -292,18 +321,20 @@ const streamChatCompletionGemini = async (
             return;
         }
 
+        const genAiTools = tools?.map(t => ({ functionDeclarations: [t.function] }));
+
         const stream = await ai.models.generateContentStream({
             model: modelId,
             contents: contents,
             config: {
                 systemInstruction,
                 ...generationConfig,
+                // FIX: The 'tools' property belongs inside the 'config' object.
+                tools: genAiTools,
             },
         });
         
         signal.addEventListener('abort', () => {
-            // There's no direct abort method on the stream in the SDK for stateless calls.
-            // Breaking the loop will stop processing, but the request might complete on the backend.
             logger.warn('Gemini stream abort requested. Processing will stop.');
         });
 
@@ -313,9 +344,26 @@ const streamChatCompletionGemini = async (
             if (text) {
                 onChunk({ type: 'content', text });
             }
+            const functionCalls = chunk.candidates?.[0].content.parts.filter(p => p.functionCall).map(p => p.functionCall);
+            if(functionCalls && functionCalls.length > 0) {
+                const tool_calls: ToolCall[] = functionCalls.map((fc: any) => {
+                    // FIX: crypto.randomBytes is a Node.js API. Replaced with browser-compatible crypto.getRandomValues.
+                    const buffer = new Uint8Array(8);
+                    window.crypto.getRandomValues(buffer);
+                    const idSuffix = Array.from(buffer, byte => ('0' + byte.toString(16)).slice(-2)).join('');
+                    return {
+                        id: `call_${idSuffix}`,
+                        type: 'function',
+                        function: {
+                            name: fc.name,
+                            arguments: JSON.stringify(fc.args),
+                        }
+                    };
+                });
+                onChunk({ type: 'tool_calls', tool_calls });
+            }
         }
         
-        // Gemini streaming API does not provide token usage data in chunks.
         onDone({ usage: undefined });
 
     } catch (e) {
@@ -329,6 +377,7 @@ export const streamChatCompletion = async (
   apiKeys: Config['apiKeys'],
   modelId: string,
   messages: ChatMessage[],
+  tools: Tool[] | undefined,
   signal: AbortSignal,
   onChunk: (chunk: StreamChunk) => void,
   onError: (error: Error) => void,
@@ -339,7 +388,7 @@ export const streamChatCompletion = async (
   let usage: ChatMessageUsage | undefined = undefined;
   
   if (provider.type === 'google-gemini') {
-      streamChatCompletionGemini(provider, apiKeys, modelId, messages, signal, onChunk, onError, onDone, generationConfig);
+      streamChatCompletionGemini(provider, apiKeys, modelId, messages, tools, signal, onChunk, onError, onDone, generationConfig);
       return;
   }
   
@@ -361,10 +410,16 @@ export const streamChatCompletion = async (
         if (generationConfig.topP !== undefined) options.top_p = generationConfig.topP;
     }
 
+    const body: Record<string, any> = { model: modelId, messages, stream: true, ...options };
+    if (tools && tools.length > 0) {
+      body.tools = tools;
+      body.tool_choice = "auto";
+    }
+
     const response = await fetch(`${provider.baseUrl}/chat/completions`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ model: modelId, messages, stream: true, ...options }),
+      body: JSON.stringify(body),
       signal,
     });
 
@@ -377,6 +432,8 @@ export const streamChatCompletion = async (
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
+
+    let toolCallChunks: { [key: number]: { id: string, name: string, arguments: string } } = {};
 
     while (true) {
         const { done, value } = await reader.read();
@@ -403,7 +460,32 @@ export const streamChatCompletion = async (
                   const json = JSON.parse(data);
                   const delta = json.choices?.[0]?.delta;
                   if (delta?.content) onChunk({ type: 'content', text: delta.content });
-                  if (delta?.reasoning_content) onChunk({ type: 'reasoning', text: delta.reasoning_content });
+                  
+                  // Handle tool call streaming
+                  if (delta?.tool_calls) {
+                      for (const toolCall of delta.tool_calls) {
+                          const index = toolCall.index;
+                          if (!toolCallChunks[index]) {
+                              toolCallChunks[index] = { id: '', name: '', arguments: '' };
+                          }
+                          if (toolCall.id) toolCallChunks[index].id = toolCall.id;
+                          if (toolCall.function?.name) toolCallChunks[index].name += toolCall.function.name;
+                          if (toolCall.function?.arguments) toolCallChunks[index].arguments += toolCall.function.arguments;
+                      }
+                  }
+
+                  if (json.choices?.[0]?.finish_reason === 'tool_calls') {
+                        const final_tool_calls: ToolCall[] = Object.values(toolCallChunks).map(tc => ({
+                            id: tc.id,
+                            type: 'function',
+                            function: { name: tc.name, arguments: tc.arguments }
+                        }));
+                        if (final_tool_calls.length > 0) {
+                            onChunk({ type: 'tool_calls', tool_calls: final_tool_calls });
+                        }
+                        toolCallChunks = {};
+                  }
+
                   if (json.usage) usage = json.usage;
                   if (json.done === true && json.prompt_eval_count !== undefined) {
                       usage = {

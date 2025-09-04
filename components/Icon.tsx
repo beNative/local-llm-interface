@@ -20,6 +20,7 @@ import DefaultFolderIcon from './icons/FolderIcon';
 import DefaultFolderOpenIcon from './icons/FolderOpenIcon';
 import DefaultGlobeIcon from './icons/GlobeIcon';
 import DefaultGpuIcon from './icons/GpuIcon';
+import DefaultHammerIcon from './icons/HammerIcon';
 import DefaultIdentityIcon from './icons/IdentityIcon';
 import DefaultInfoIcon from './icons/InfoIcon';
 import DefaultLightbulbIcon from './icons/LightbulbIcon';
@@ -66,6 +67,7 @@ import {
     FolderOpen as LucideFolderOpen,
     Globe as LucideGlobe,
     HardDrive as LucideGpu,
+    Hammer as LucideHammer,
     UserCog as LucideIdentity,
     Info as LucideInfo,
     Lightbulb as LucideLightbulb,
@@ -113,6 +115,7 @@ import {
     FolderOpenIcon as HeroFolderOpen,
     GlobeAltIcon as HeroGlobe,
     ComputerDesktopIcon as HeroGpu,
+    WrenchScrewdriverIcon as HeroHammer,
     UserCircleIcon as HeroIdentity,
     InformationCircleIcon as HeroInfo,
     LightBulbIcon as HeroLightbulb,
@@ -145,12 +148,12 @@ import * as Feather from 'react-feather';
 
 // Font Awesome
 import {
-    FaBookmark, FaBrain, FaCheck, FaChevronDown, FaChevronRight, FaChevronUp, FaClipboard, FaCode, FaMicrochip, FaCloudDownloadAlt as FaDownloadCloud, FaFile, FaFileCode, FaFileMedical, FaFileAlt, FaFolder, FaFolderOpen, FaGlobe, FaServer as FaServerIcon, FaUserCog, FaInfoCircle, FaLightbulb, FaCommentMedical, FaComment, FaCube, FaMoon, FaPalette, FaPaperclip, FaPlay, FaPlus, FaMemory, FaSearch, FaPaperPlane, FaCog, FaSlidersH, FaMagic, FaSpinner, FaStop, FaSun, FaTerminal, FaTrash, FaTimes, FaTimesCircle
+    FaBookmark, FaBrain, FaCheck, FaChevronDown, FaChevronRight, FaChevronUp, FaClipboard, FaCode, FaMicrochip, FaCloudDownloadAlt as FaDownloadCloud, FaFile, FaFileCode, FaFileMedical, FaFileAlt, FaFolder, FaFolderOpen, FaGlobe, FaServer as FaServerIcon, FaHammer, FaUserCog, FaInfoCircle, FaLightbulb, FaCommentMedical, FaComment, FaCube, FaMoon, FaPalette, FaPaperclip, FaPlay, FaPlus, FaMemory, FaSearch, FaPaperPlane, FaCog, FaSlidersH, FaMagic, FaSpinner, FaStop, FaSun, FaTerminal, FaTrash, FaTimes, FaTimesCircle
 } from 'react-icons/fa';
 
 // Material Design
 import {
-    MdBookmark, MdPsychology, MdCheck, MdExpandMore, MdChevronRight, MdExpandLess as MdChevronUp, MdContentPaste, MdCode, MdDeveloperBoard, MdCloudDownload as MdDownloadCloud, MdInsertDriveFile, MdSource, MdNoteAdd, MdDescription, MdFolder, MdFolderOpen, MdPublic, MdDns, MdAccountBox, MdInfo, MdLightbulb, MdAddComment, MdChat, MdViewInAr, MdBrightness2, MdPalette, MdAttachFile, MdPlayArrow, MdAdd, MdMemory, MdSearch, MdSend, MdSettings, MdTune, MdAutoAwesome, MdCached, MdStop, MdWbSunny, MdTerminal, MdDelete, MdClose, MdCancel
+    MdBookmark, MdPsychology, MdCheck, MdExpandMore, MdChevronRight, MdExpandLess as MdChevronUp, MdContentPaste, MdCode, MdDeveloperBoard, MdCloudDownload as MdDownloadCloud, MdInsertDriveFile, MdSource, MdNoteAdd, MdDescription, MdFolder, MdFolderOpen, MdPublic, MdDns, MdBuild, MdAccountBox, MdInfo, MdLightbulb, MdAddComment, MdChat, MdViewInAr, MdBrightness2, MdPalette, MdAttachFile, MdPlayArrow, MdAdd, MdMemory, MdSearch, MdSend, MdSettings, MdTune, MdAutoAwesome, MdCached, MdStop, MdWbSunny, MdTerminal, MdDelete, MdClose, MdCancel
 } from 'react-icons/md';
 
 
@@ -178,6 +181,7 @@ const iconMap = {
         folderOpen: DefaultFolderOpenIcon,
         globe: DefaultGlobeIcon,
         gpu: DefaultGpuIcon,
+        hammer: DefaultHammerIcon,
         identity: DefaultIdentityIcon,
         info: DefaultInfoIcon,
         lightbulb: DefaultLightbulbIcon,
@@ -223,6 +227,7 @@ const iconMap = {
         folderOpen: LucideFolderOpen,
         globe: LucideGlobe,
         gpu: LucideGpu,
+        hammer: LucideHammer,
         identity: LucideIdentity,
         info: LucideInfo,
         lightbulb: LucideLightbulb,
@@ -268,6 +273,7 @@ const iconMap = {
         folderOpen: HeroFolderOpen,
         globe: HeroGlobe,
         gpu: HeroGpu,
+        hammer: HeroHammer,
         identity: HeroIdentity,
         info: HeroInfo,
         lightbulb: HeroLightbulb,
@@ -313,6 +319,7 @@ const iconMap = {
         folderOpen: Feather.FolderOpen,
         globe: Feather.Globe,
         gpu: Feather.HardDrive,
+        hammer: Feather.Tool, // Substitute
         identity: Feather.User,
         info: Feather.Info,
         lightbulb: Feather.Zap, // Substitute
@@ -358,6 +365,7 @@ const iconMap = {
         folderOpen: FaFolderOpen,
         globe: FaGlobe,
         gpu: FaServerIcon,
+        hammer: FaHammer,
         identity: FaUserCog,
         info: FaInfoCircle,
         lightbulb: FaLightbulb,
@@ -403,6 +411,7 @@ const iconMap = {
         folderOpen: MdFolderOpen,
         globe: MdPublic,
         gpu: MdMemory,
+        hammer: MdBuild,
         identity: MdAccountBox,
         info: MdInfo,
         lightbulb: MdLightbulb,
