@@ -91,31 +91,34 @@ const ModelListItem: React.FC<{ model: Model; onSelect: () => void; onShowDetail
   return (
     <div
       onClick={onSelect}
-      className="flex items-center p-3 bg-[--bg-primary] border border-[--border-primary] rounded-[--border-radius] cursor-pointer hover:bg-[--bg-hover] hover:border-[--accent-chat] transition-all duration-200 shadow-sm hover:shadow-md"
+      className="relative flex flex-col p-4 bg-[--bg-primary] border border-[--border-primary] rounded-[--border-radius] cursor-pointer hover:bg-[--bg-hover] hover:border-[--accent-chat] transition-all duration-200 shadow-sm hover:shadow-lg h-full"
     >
-        <div className="flex items-center gap-3 min-w-0 flex-grow">
-          <Icon name="model" className="w-5 h-5 text-[--accent-chat] flex-shrink-0" />
-          <h3 {...modelNameTooltip} className="text-md font-semibold text-[--text-primary] truncate">{model.id}</h3>
-        </div>
-
-        <div className="flex items-center gap-2 flex-shrink-0 ml-4">
-            {detailPills.map((pill, index) => (
-                <span key={index} className="hidden md:inline-block text-xs font-mono bg-[--bg-tertiary] text-[--text-muted] px-2 py-1 rounded-md">
-                    {pill.value}
-                </span>
-            ))}
-        </div>
-        
         {provider?.id === 'ollama' && (
             <button
                 {...detailsTooltip}
                 onClick={(e) => { e.stopPropagation(); onShowDetails(); }}
-                className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] disabled:opacity-50 disabled:cursor-wait ml-3"
+                className="absolute top-2 right-2 p-2 rounded-full text-[--text-muted] hover:bg-[--bg-tertiary] disabled:opacity-50 disabled:cursor-wait z-10"
                 disabled={isFetchingDetails}
             >
                 {isFetchingDetails ? <Icon name="spinner" className="w-5 h-5"/> : <Icon name="info" className="w-5 h-5" />}
             </button>
         )}
+      <div className="flex items-center gap-3 mb-4">
+        <Icon name="model" className="w-6 h-6 text-[--accent-chat] flex-shrink-0" />
+        <h3 {...modelNameTooltip} className="text-lg font-semibold text-[--text-primary] truncate pr-8">
+            {model.id}
+        </h3>
+      </div>
+      
+      <div className="flex-grow min-h-[1rem]"></div>
+
+      <div className="flex flex-wrap gap-2 items-center">
+        {detailPills.map((pill, index) => (
+            <span key={index} className="text-xs font-mono bg-[--bg-tertiary] text-[--text-muted] px-2 py-1 rounded-md">
+                {pill.value}
+            </span>
+        ))}
+      </div>
     </div>
   );
 };
@@ -189,10 +192,10 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, onSelectModel, is
   }
 
   return (
-    <div className="p-4 sm:p-6 max-w-3xl mx-auto w-full">
+    <div className="p-4 sm:p-6 w-full">
       {detailsModalModel && <ModelDetailsModal model={detailsModalModel} onClose={() => setDetailsModalModel(null)} theme={theme} />}
       <h1 className="text-3xl font-bold text-[--text-primary] mb-6">Select a Model</h1>
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
         {localModels.map((model) => (
           <ModelListItem
             key={model.id}
