@@ -64,27 +64,17 @@ const DiffViewer: React.FC<{ oldContent: string; newContent: string; }> = ({ old
 
 
 const ToolCallResult: React.FC<{ call: ToolCall; theme: Theme }> = ({ call, theme }) => {
-    const [originalContent, setOriginalContent] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
     const syntaxTheme = theme === 'dark' ? atomDark : coy;
-    const args = useMemo(() => JSON.parse(call.function.arguments), [call.function.arguments]);
-
-    useEffect(() => {
-        if (call.function.name === 'writeFile' && call.result && window.electronAPI) {
-            setIsLoading(true);
-            window.electronAPI.readProjectFile(args.path)
-                .then(content => setOriginalContent(content))
-                .catch(err => logger.warn(`Could not fetch original file for diff view: ${err}`))
-                .finally(() => setIsLoading(false));
-        }
-    }, [call.function.name, call.result, args.path]);
-
 
     let resultNode: React.ReactNode;
     if (call.result === undefined) {
-        resultNode = <div className="flex items-center gap-2 text-sm text-[--text-muted]"><Icon name="spinner" className="w-4 h-4" /> Executing...</div>;
-    } else if (call.function.name === 'writeFile') {
-        resultNode = isLoading ? <Icon name="spinner" className="w-4 h-4"/> : <DiffViewer oldContent={originalContent || ''} newContent={args.content} />
+        if (!call.approved) {
+            resultNode = <div className="flex items-center gap-2 text-sm text-yellow-600 dark:text-yellow-400"><Icon name="xCircle" className="w-4 h-4" /> Denied by user.</div>;
+        } else {
+            resultNode = <div className="flex items-center gap-2 text-sm text-[--text-muted]"><Icon name="spinner" className="w-4 h-4" /> Executing...</div>;
+        }
+    } else if (call.function.name === 'writeFile' && call.result?.success) {
+        resultNode = <DiffViewer oldContent={call.result.originalContent || ''} newContent={JSON.parse(call.function.arguments).content} />
     } else {
         const resultString = typeof call.result === 'string' ? call.result : JSON.stringify(call.result, null, 2);
         const language = typeof call.result === 'object' ? 'json' : 'bash';
@@ -143,7 +133,7 @@ const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({ message, theme }) => 
                                     {JSON.stringify(JSON.parse(call.function.arguments), null, 2)}
                                 </SyntaxHighlighter>
                             </div>
-                             {call.result !== undefined && <ToolCallResult call={call} theme={theme} />}
+                             {<ToolCallResult call={call} theme={theme} />}
                         </div>
                     ))}
                  </main>
