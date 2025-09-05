@@ -437,9 +437,6 @@ const App: React.FC = () => {
     });
   }, []);
 
-  // FIX: Refactor appendToLastMessage to have a simpler, more type-safe signature
-  // that only handles content chunks, which is its only use case. This avoids
-  // complex and error-prone type gymnastics with discriminated unions.
   const appendToLastMessage = useCallback((sessionId: string, contentChunk: string) => {
     setConfig(c => {
         if (!c) return c;
@@ -503,8 +500,6 @@ const App: React.FC = () => {
           return;
       }
 
-      // FIX: The content of a message can be an array of parts. This logic now correctly
-      // extracts the text from such messages to form the conversation summary.
       const conversation = session.messages
           .filter(m => ['user', 'assistant'].includes(m.role) && m.content)
           .slice(0, 2) // Base title on first exchange
@@ -758,12 +753,25 @@ const App: React.FC = () => {
           return;
       }
 
+      // Fix: Safely extract string content from the last message, which might have complex content type.
+      const lastMessageBeforeApproval = currentSession.messages[currentSession.messages.length - 1];
+      let assistantContent: string | null = null;
+      if (typeof lastMessageBeforeApproval.content === 'string' || lastMessageBeforeApproval.content === null) {
+        assistantContent = lastMessageBeforeApproval.content;
+      } else if (Array.isArray(lastMessageBeforeApproval.content)) {
+        // This is a safeguard, as a message with tool_calls should have string | null content.
+        assistantContent = lastMessageBeforeApproval.content
+            .filter(p => p.type === 'text')
+            .map((p: any) => p.text)
+            .join('');
+      }
+
       const toolResults: ToolResponseMessage[] = [];
 
       // Update the UI immediately to show tools are running and approved/denied
       const updatedToolCallMsg: AssistantToolCallMessage = {
           role: 'assistant',
-          content: currentSession.messages[currentSession.messages.length - 1].content || null,
+          content: assistantContent,
           tool_calls: approvedCalls,
       };
       updateSessionMessages(activeSessionId, [...currentSession.messages.slice(0, -1), updatedToolCallMsg]);
@@ -788,7 +796,7 @@ const App: React.FC = () => {
           // Update UI with result as it comes
           const finalToolCallMsg: AssistantToolCallMessage = {
               role: 'assistant',
-              content: currentSession.messages[currentSession.messages.length - 1].content || null,
+              content: assistantContent,
               tool_calls: allResults,
           };
           updateSessionMessages(activeSessionId, [...currentSession.messages.slice(0, -1), finalToolCallMsg]);
@@ -825,55 +833,6 @@ const App: React.FC = () => {
     }
 
   }, [config, generateSessionName, updateSessionMessages, processConversationTurn]);
-
-  const handleAcceptModification = async (filePath: string, newContent: string) => {
-    if (!window.electronAPI) return;
-    try {
-        await window.electronAPI.writeProjectFile(filePath, newContent);
-        logger.info(`Successfully applied AI modifications to ${filePath}`);
-        // Find the message and update its status
-        setConfig(c => {
-            if (!c || !activeSessionId) return c;
-            const newSessions = c.sessions.map(s => {
-                if (s.id !== activeSessionId) return s;
-                const newMessages = s.messages.map((m): ChatMessage => {
-                    if (m.role !== 'tool' && m.fileModification && m.fileModification.filePath === filePath) {
-                        // FIX: Explicitly cast the returned object to StandardChatMessage to resolve type conflicts
-                        // when creating a new object from a member of a discriminated union.
-                        return { ...m, fileModification: { ...m.fileModification, status: 'accepted' } } as StandardChatMessage;
-                    }
-                    return m;
-                });
-                return { ...s, messages: newMessages };
-            });
-            return { ...c, sessions: newSessions };
-        });
-    } catch (e) {
-        logger.error(`Failed to write file modifications to ${filePath}: ${e}`);
-        alert(`Failed to save changes: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  };
-
-  const handleRejectModification = (filePath: string) => {
-      logger.info(`User rejected AI modifications for ${filePath}`);
-      setConfig(c => {
-          if (!c || !activeSessionId) return c;
-          const newSessions = c.sessions.map(s => {
-              if (s.id !== activeSessionId) return s;
-              const newMessages = s.messages.map((m): ChatMessage => {
-                  if (m.role !== 'tool' && m.fileModification && m.fileModification.filePath === filePath) {
-                      // FIX: Explicitly cast the returned object to StandardChatMessage to resolve type conflicts
-                      // when creating a new object from a member of a discriminated union.
-                      return { ...m, fileModification: { ...m.fileModification, status: 'rejected' } } as StandardChatMessage;
-                  }
-                  return m;
-              });
-              return { ...s, messages: newMessages };
-          });
-          return { ...c, sessions: newSessions };
-      });
-  };
-
 
   const handleInjectContentForChat = (filename: string, content: string) => {
     const formattedContent = `Here is the content of \`${filename}\` for context:\n\n\`\`\`\n${content}\n\`\`\`\n\nI have a question about this file.`;
@@ -1025,8 +984,6 @@ const App: React.FC = () => {
                         systemPrompts={config.systemPrompts || []}
                         onSetSessionSystemPrompt={handleSetSessionSystemPrompt}
                         onSetSessionGenerationConfig={handleSetSessionGenerationConfig}
-                        onAcceptModification={handleAcceptModification}
-                        onRejectModification={handleRejectModification}
                     />
                 );
              }

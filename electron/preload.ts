@@ -1,4 +1,3 @@
-// FIX: Switched to a namespace import for Electron to resolve module resolution errors.
 import * as electron from 'electron';
 import type { CodeProject } from '../src/types';
 
