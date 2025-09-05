@@ -129,8 +129,6 @@ const MemoizedChatMessage = React.memo<{
         }`}
       >
         {msg.role === 'assistant' ? (
-          // FIX: The `assistantMessage` variable was redundant and its type was not narrowed correctly within the JSX.
-          // Using the `msg` prop directly resolves the type error.
           (msg.content === '' && isResponding && !('tool_calls' in msg && msg.tool_calls)) ? (
             <SpinnerIcon className="w-5 h-5 text-gray-400"/>
           ) : (
@@ -138,7 +136,7 @@ const MemoizedChatMessage = React.memo<{
               {msg.metadata?.thinking && <ThinkingLog content={msg.metadata.thinking} />}
               {msg.metadata?.ragContext && <ContextSources files={msg.metadata.ragContext.files} />}
               {msg.content && (
-                  <div className="prose prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2">
+                  <div className="prose prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2 prose-pre:bg-transparent prose-pre:p-0">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={markdownComponents}
@@ -156,7 +154,7 @@ const MemoizedChatMessage = React.memo<{
               {msg.metadata && <MessageMetadata metadata={msg.metadata} />}
             </>
           )
-        ) : ( // User message
+        ) : ( 
           <div className="space-y-2">
             {Array.isArray(msg.content) ? (
               msg.content.map((part, i) => {
@@ -222,13 +220,9 @@ interface ChatViewProps {
   systemPrompts: SystemPrompt[];
   onSetSessionSystemPrompt: (systemPromptId: string | null) => void;
   onSetSessionGenerationConfig: (generationConfig: GenerationConfig) => void;
-  onAcceptModification: (filePath: string, newContent: string) => void;
-  onRejectModification: (filePath: string) => void;
 }
 
-// FIX: Changed from a const assignment to a function declaration with a default export
-// to resolve a "no default export" error in the App component.
-export default function ChatView({ session, provider, onSendMessage, isResponding, retrievalStatus, thinkingText, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onSetSessionGenerationConfig, onAcceptModification, onRejectModification }: ChatViewProps) {
+export default function ChatView({ session, provider, onSendMessage, isResponding, retrievalStatus, thinkingText, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onSetSessionGenerationConfig }: ChatViewProps) {
   const [input, setInput] = useState('');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -409,11 +403,6 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
     setIsEditingTitle(false);
   };
   
-  const handleFixRequest = useCallback((code: string, lang: string, error: string) => {
-    const prompt = `The following ${lang} code failed to execute:\n\n\`\`\`${lang}\n${code}\n\`\`\`\n\nIt produced this error:\n\n\`\`\`\n${error}\n\`\`\`\n\nPlease provide the corrected, complete code block and explain the fix.`;
-    onSendMessage(prompt, { useRAG: isSmartContextEnabled });
-  }, [onSendMessage, isSmartContextEnabled]);
-
   const handleSelectPrompt = (promptContent: string) => {
     setInput(promptContent);
     setIsPromptsOpen(false);
@@ -472,9 +461,25 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
   };
   
   const markdownComponents = useMemo(() => ({
-    // code block rendering is now handled inside ToolCallDisplay for file modifications
-    pre: ({ children }: any) => <>{children}</>,
-  }), []);
+    code({ inline, className, children, ...props }: any) {
+      const match = /language-(\w+)/.exec(className || '');
+      const syntaxTheme = theme === 'dark' ? atomDark : coy;
+      return !inline && match ? (
+          <SyntaxHighlighter
+            style={syntaxTheme}
+            language={match[1]}
+            PreTag="div"
+            {...props}
+          >
+            {String(children).replace(/\n$/, '')}
+          </SyntaxHighlighter>
+      ) : (
+        <code className="bg-[--bg-tertiary] text-[--text-secondary] px-1.5 py-1 rounded font-mono text-sm" {...props}>
+          {children}
+        </code>
+      );
+    }
+  }), [theme]);
 
   const filteredMessages = useMemo(() => messages.filter(m => m.role !== 'system'), [messages]);
 

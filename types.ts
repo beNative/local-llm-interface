@@ -154,10 +154,6 @@ export interface StandardChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string | ChatMessageContentPart[];
   metadata?: ChatMessageMetadata;
-  fileModification?: {
-    filePath: string;
-    status: 'pending' | 'accepted' | 'rejected';
-  };
   tool_calls?: never;
   tool_call_id?: never;
 }

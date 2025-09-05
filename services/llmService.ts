@@ -6,10 +6,8 @@ import { logger } from './logger';
 const toGeminiContents = (messages: ChatMessage[]): ({ role: 'user' | 'model'; parts: any[] })[] => {
     const mergedContents: ({ role: 'user' | 'model'; parts: any[] })[] = [];
     // Gemini API expects alternating user/model roles. Filter out system messages.
-    // FIX: This filter was too restrictive, removing 'tool' role messages which are necessary for function calling responses.
     const relevantMessages = messages.filter(m => m.role !== 'system');
 
-    // FIX: Iterate over relevantMessages instead of a list that filters out tool responses.
     for (const message of relevantMessages) {
         if ('tool_calls' in message && message.tool_calls) {
             // This is a tool call request, handle accordingly
@@ -24,7 +22,6 @@ const toGeminiContents = (messages: ChatMessage[]): ({ role: 'user' | 'model'; p
             if (parts.length > 0) {
                  mergedContents.push({ role, parts });
             }
-        // FIX: Use a more specific check for ToolResponseMessage and handle it correctly.
         } else if (message.role === 'tool') {
             // This is a tool response, handle accordingly
             const role = 'user'; // Tool responses are mapped to a "function" role, which is user-like
@@ -329,7 +326,6 @@ const streamChatCompletionGemini = async (
             config: {
                 systemInstruction,
                 ...generationConfig,
-                // FIX: The 'tools' property belongs inside the 'config' object.
                 tools: genAiTools,
             },
         });
@@ -347,7 +343,6 @@ const streamChatCompletionGemini = async (
             const functionCalls = chunk.candidates?.[0].content.parts.filter(p => p.functionCall).map(p => p.functionCall);
             if(functionCalls && functionCalls.length > 0) {
                 const tool_calls: ToolCall[] = functionCalls.map((fc: any) => {
-                    // FIX: crypto.randomBytes is a Node.js API. Replaced with browser-compatible crypto.getRandomValues.
                     const buffer = new Uint8Array(8);
                     window.crypto.getRandomValues(buffer);
                     const idSuffix = Array.from(buffer, byte => ('0' + byte.toString(16)).slice(-2)).join('');

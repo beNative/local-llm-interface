@@ -1,4 +1,3 @@
-// FIX: Switched to a namespace import for Electron to resolve module resolution errors.
 import * as electron from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -616,9 +615,9 @@ uses
   System.SysUtils;
 
 begin
-  try
+  try {
     WriteLn('Hello from ${name}!');
-  except
+  } except
     on E: Exception do
       WriteLn(E.ClassName, ': ', E.Message);
   end;
