@@ -85,6 +85,8 @@ export interface ModelDetails {
   template?: string;
   family?: string;
   parameter_size?: string;
+  quantization?: string;
+  context_length?: number;
 }
 
 export interface Model {
@@ -95,6 +97,7 @@ export interface Model {
   owned_by: string;
   size?: number;
   details?: ModelDetails;
+  isLoaded?: boolean;
 }
 
 // --- Tool Use / Function Calling Types ---

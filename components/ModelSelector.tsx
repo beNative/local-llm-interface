@@ -104,6 +104,8 @@ const ModelListItem: React.FC<{ model: Model; onSelect: () => void; onShowDetail
     details?.parameter_size && { value: details.parameter_size },
     size && { value: size },
     details?.family && { value: details.family },
+    details?.quantization && { value: details.quantization },
+    details?.context_length && { value: `${details.context_length / 1000}k ctx`, label: "Context Length" },
   ].filter(Boolean);
 
   return (
@@ -122,19 +124,30 @@ const ModelListItem: React.FC<{ model: Model; onSelect: () => void; onShowDetail
         )}
       <div className="flex items-center gap-3 mb-4">
         <Icon name="model" className="w-6 h-6 text-[--accent-chat] flex-shrink-0" />
-        <h3 {...modelNameTooltip} className="text-lg font-semibold text-[--text-primary] truncate pr-8">
-            {model.id}
-        </h3>
+        <div className="min-w-0 flex-grow">
+            <h3 {...modelNameTooltip} className="text-lg font-semibold text-[--text-primary] truncate pr-8">
+                {model.id}
+            </h3>
+            {provider?.id === 'lmstudio' && model.isLoaded !== undefined && (
+                <div className={`flex items-center gap-1.5 text-xs font-semibold ${model.isLoaded ? 'text-green-500' : 'text-[--text-muted]'}`}>
+                    <div className={`w-2 h-2 rounded-full ${model.isLoaded ? 'bg-green-500' : 'bg-gray-400'}`} />
+                    {model.isLoaded ? 'Loaded' : 'Not Loaded'}
+                </div>
+            )}
+        </div>
       </div>
       
       <div className="flex-grow min-h-[1rem]"></div>
 
       <div className="flex flex-wrap gap-2 items-center">
-        {detailPills.map((pill, index) => (
-            <span key={index} className="text-xs font-mono bg-[--bg-tertiary] text-[--text-muted] px-2 py-1 rounded-md">
-                {pill.value}
-            </span>
-        ))}
+        {detailPills.map((pill, index) => {
+            const pillTooltip = useTooltipTrigger(pill.label || null);
+            return (
+                <span key={index} {...pillTooltip} className="text-xs font-mono bg-[--bg-tertiary] text-[--text-muted] px-2 py-1 rounded-md">
+                    {pill.value}
+                </span>
+            )
+        })}
       </div>
     </div>
   );

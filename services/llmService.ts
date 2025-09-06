@@ -91,6 +91,59 @@ const getApiKey = (provider: LLMProviderConfig, apiKeys: Config['apiKeys']): str
     return apiKeys?.[provider.apiKeyName];
 };
 
+const fetchLmStudioModels = async (provider: LLMProviderConfig): Promise<Model[]> => {
+    logger.info("Attempting to fetch rich model metadata from LM Studio's beta REST API.");
+    try {
+        const rootUrl = new URL(provider.baseUrl);
+        rootUrl.pathname = '/api/v0/models'; // Use the beta REST API endpoint
+        const response = await fetch(rootUrl.toString());
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch from REST API: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        if (!data.data || !Array.isArray(data.data)) {
+            throw new Error('LM Studio REST API returned an unexpected format.');
+        }
+
+        logger.info(`Successfully fetched ${data.data.length} models from LM Studio REST API.`);
+        return data.data.map((m: any): Model => ({
+            id: m.id,
+            name: m.id,
+            object: 'model',
+            created: 0,
+            owned_by: 'lmstudio',
+            isLoaded: m.state === 'loaded',
+            details: {
+                family: m.arch,
+                quantization: m.quantization,
+                context_length: m.max_context_length,
+            },
+        }));
+
+    } catch (e) {
+        logger.warn(`Could not fetch rich metadata from LM Studio REST API: ${e instanceof Error ? e.message : String(e)}. Falling back to OpenAI-compatible endpoint.`);
+        
+        // Fallback to the standard /v1/models endpoint
+        const response = await fetch(`${provider.baseUrl}/models`);
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new LLMServiceError(`Failed to fetch models: ${response.status} ${response.statusText}. ${errorText}`);
+        }
+        const data = await response.json();
+        
+        if (data.data) {
+            return data.data.map((m: any) => ({
+                ...m,
+                name: m.id,
+                isLoaded: true, // Models from this endpoint are always loaded
+            }));
+        }
+        return [];
+    }
+}
+
 export const fetchModels = async (provider: LLMProviderConfig, apiKeys: Config['apiKeys']): Promise<Model[]> => {
   if (provider.type === 'google-gemini') {
       const apiKey = getApiKey(provider, apiKeys);
@@ -106,6 +159,11 @@ export const fetchModels = async (provider: LLMProviderConfig, apiKeys: Config['
   }
 
   try {
+    // Special handling for LM Studio to get richer metadata
+    if (provider.id === 'lmstudio') {
+        return await fetchLmStudioModels(provider);
+    }
+    
     const headers: Record<string, string> = {};
     if (provider.apiKeyName) {
         const apiKey = getApiKey(provider, apiKeys);
@@ -277,13 +335,13 @@ const textCompletionGemini = async (
         config.responseMimeType = "application/json";
     }
 
-    // FIX: Access the .text property directly to get the response content, as per Gemini API guidelines.
     const response: GenerateContentResponse = await ai.models.generateContent({
         model: modelId,
         contents,
         config,
     });
     
+    // FIX: Access the .text property directly to get the response content, as per Gemini API guidelines.
     return response.text;
 };
 
