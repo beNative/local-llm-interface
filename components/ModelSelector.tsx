@@ -12,6 +12,26 @@ interface ModelDetailsModalProps {
   theme: Theme;
 }
 
+const formatBytes = (bytes?: number, decimals = 1) => {
+    if (bytes === undefined || bytes === null) return null;
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+};
+
+const DetailItem: React.FC<{ label: string; value?: string | number | null }> = ({ label, value }) => {
+    if (!value) return null;
+    return (
+        <div>
+            <span className="font-semibold text-sm text-[--text-secondary]">{label}: </span>
+            <span className="font-mono text-sm bg-[--bg-tertiary] text-[--text-muted] px-2 py-1 rounded-md">{value}</span>
+        </div>
+    );
+};
+
 const ModelDetailsModal: React.FC<ModelDetailsModalProps> = ({ model, onClose, theme }) => {
     const syntaxTheme = theme === 'dark' ? atomDark : coy;
     const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -19,6 +39,9 @@ const ModelDetailsModal: React.FC<ModelDetailsModalProps> = ({ model, onClose, t
             onClose();
         }
     };
+    const size = formatBytes(model.size);
+    const details = model.details;
+
     return (
          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[--bg-backdrop] backdrop-blur-sm" onClick={handleBackdropClick}>
             <div className="bg-[--bg-secondary] rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
@@ -27,10 +50,16 @@ const ModelDetailsModal: React.FC<ModelDetailsModalProps> = ({ model, onClose, t
                     <button onClick={onClose} className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] leading-none text-2xl">&times;</button>
                 </header>
                 <main className="flex-1 overflow-y-auto p-4 space-y-4">
+                    <div className="flex flex-wrap gap-x-6 gap-y-2 pb-4 border-b border-[--border-primary]">
+                        <DetailItem label="Size" value={size} />
+                        <DetailItem label="Family" value={details?.family} />
+                        <DetailItem label="Parameters" value={details?.parameter_size} />
+                    </div>
+
                     {model.details?.modelfile && (
                         <div>
                             <h3 className="text-md font-semibold text-[--text-secondary] mb-2">Modelfile</h3>
-                            <div className="bg-[--code-bg] rounded-lg border border-[--border-primary]">
+                            <div className="bg-[--code-bg] rounded-lg border border-[--border-primary] max-h-60 overflow-y-auto">
                                 <SyntaxHighlighter language="dockerfile" style={syntaxTheme} customStyle={{ margin: 0, background: 'transparent' }}>
                                     {model.details.modelfile}
                                 </SyntaxHighlighter>
@@ -40,13 +69,13 @@ const ModelDetailsModal: React.FC<ModelDetailsModalProps> = ({ model, onClose, t
                      {model.details?.parameters && (
                         <div>
                             <h3 className="text-md font-semibold text-[--text-secondary] mb-2">Parameters</h3>
-                            <pre className="text-xs font-mono p-3 bg-[--bg-tertiary] rounded-lg whitespace-pre-wrap break-all">{model.details.parameters}</pre>
+                            <pre className="text-xs font-mono p-3 bg-[--bg-tertiary] rounded-lg whitespace-pre-wrap break-all max-h-60 overflow-y-auto">{model.details.parameters}</pre>
                         </div>
                     )}
                      {model.details?.template && (
                         <div>
                             <h3 className="text-md font-semibold text-[--text-secondary] mb-2">Template</h3>
-                            <pre className="text-xs font-mono p-3 bg-[--bg-tertiary] rounded-lg whitespace-pre-wrap break-all">{model.details.template}</pre>
+                            <pre className="text-xs font-mono p-3 bg-[--bg-tertiary] rounded-lg whitespace-pre-wrap break-all max-h-60 overflow-y-auto">{model.details.template}</pre>
                         </div>
                     )}
                 </main>
@@ -68,16 +97,6 @@ interface ModelSelectorProps {
 const ModelListItem: React.FC<{ model: Model; onSelect: () => void; onShowDetails: () => void; provider: LLMProviderConfig | null; isFetchingDetails: boolean; }> = ({ model, onSelect, onShowDetails, provider, isFetchingDetails }) => {
   const modelNameTooltip = useTooltipTrigger(model.id);
   const detailsTooltip = useTooltipTrigger("Show model details");
-
-  const formatBytes = (bytes?: number, decimals = 1) => {
-    if (bytes === undefined || bytes === null) return null;
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-  };
 
   const details = model.details;
   const size = formatBytes(model.size);

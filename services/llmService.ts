@@ -254,8 +254,8 @@ const textCompletionGemini = async (
     // FIX: Use correct response type and access .text property
     const response: GenerateContentResponse = await ai.models.generateContent({
         model: modelId,
-        contents: contents,
-        config: config,
+        contents,
+        config,
     });
     
     return response.text;
@@ -323,7 +323,7 @@ const streamChatCompletionGemini = async (
 
         const stream = await ai.models.generateContentStream({
             model: modelId,
-            contents: contents,
+            contents,
             config: {
                 systemInstruction,
                 ...generationConfig,
