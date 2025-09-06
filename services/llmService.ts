@@ -138,7 +138,12 @@ export const fetchModels = async (provider: LLMProviderConfig, apiKeys: Config['
     }
     if (data.data) {
         logger.info(`Found ${data.data.length} models (${provider.name} format).`);
-        return data.data;
+        // The name property is required by our Model type and for fetching details.
+        // OpenAI-compatible endpoints use 'id' for the model name.
+        return data.data.map((m: any) => ({
+          ...m,
+          name: m.id,
+        }));
     }
     logger.warn('Models endpoint returned unknown format, no models found.');
     return [];
