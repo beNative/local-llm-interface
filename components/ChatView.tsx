@@ -22,6 +22,10 @@ import SlidersIcon from './icons/SlidersIcon';
 import ProviderIcon from './ProviderIcon';
 import { useTooltipTrigger } from '../hooks/useTooltipTrigger';
 import ToolCallDisplay from './ToolCallDisplay';
+import PlayIcon from './icons/PlayIcon';
+import GlobeIcon from './icons/GlobeIcon';
+import ClipboardIcon from './icons/ClipboardIcon';
+import CheckIcon from './icons/CheckIcon';
 
 const ContextSources: React.FC<{ files: string[] }> = ({ files }) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -98,6 +102,63 @@ const MessageMetadata: React.FC<{ metadata: ChatMessageMetadata }> = ({ metadata
     return (
         <div className="mt-3 pt-2 border-t border-[--assistant-message-text-color]/10 text-xs font-mono opacity-70">
             {stats.join('  •  ')}
+        </div>
+    );
+};
+
+interface CodeBlockProps {
+    language: string;
+    code: string;
+    theme: Theme;
+    onRunCode: (language: string, code: string) => void;
+}
+
+const CodeBlock: React.FC<CodeBlockProps> = ({ language, code, theme, onRunCode }) => {
+    const [isCopied, setIsCopied] = React.useState(false);
+    const syntaxTheme = theme === 'dark' ? atomDark : coy;
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(code);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+    };
+
+    const handleRun = () => {
+        onRunCode(language, code);
+    };
+
+    const canRun = ['python', 'javascript', 'html'].includes(language);
+    const runText = language === 'html' ? 'Open in Browser' : 'Run Code';
+    const RunIconComponent = language === 'html' ? GlobeIcon : PlayIcon;
+    
+    const copyTooltip = useTooltipTrigger(isCopied ? 'Copied!' : 'Copy code');
+    const runTooltip = useTooltipTrigger(runText);
+
+    return (
+        <div className="my-2 bg-[--code-bg] rounded-lg border border-[--border-primary] text-sm overflow-hidden not-prose">
+            <div className="flex justify-between items-center px-4 py-1.5 bg-[--bg-tertiary] border-b border-[--border-primary]">
+                <span className="font-mono text-xs text-[--text-muted]">{language}</span>
+                <div className="flex items-center gap-2">
+                    {canRun && (
+                        <button {...runTooltip} onClick={handleRun} className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] transition-colors">
+                            <RunIconComponent className="w-4 h-4" />
+                            <span>{runText}</span>
+                        </button>
+                    )}
+                    <button {...copyTooltip} onClick={handleCopy} className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] transition-colors">
+                        {isCopied ? <CheckIcon className="w-4 h-4 text-green-500"/> : <ClipboardIcon className="w-4 h-4" />}
+                        <span>{isCopied ? 'Copied' : 'Copy'}</span>
+                    </button>
+                </div>
+            </div>
+            <SyntaxHighlighter
+                style={syntaxTheme}
+                language={language}
+                PreTag="div"
+                customStyle={{ margin: 0, padding: '1rem', background: 'transparent' }}
+            >
+                {code}
+            </SyntaxHighlighter>
         </div>
     );
 };
@@ -220,9 +281,10 @@ interface ChatViewProps {
   systemPrompts: SystemPrompt[];
   onSetSessionSystemPrompt: (systemPromptId: string | null) => void;
   onSetSessionGenerationConfig: (generationConfig: GenerationConfig) => void;
+  onRunCodeSnippet: (language: string, code: string) => void;
 }
 
-export default function ChatView({ session, provider, onSendMessage, isResponding, retrievalStatus, thinkingText, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onSetSessionGenerationConfig }: ChatViewProps) {
+export default function ChatView({ session, provider, onSendMessage, isResponding, retrievalStatus, thinkingText, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onSetSessionGenerationConfig, onRunCodeSnippet }: ChatViewProps) {
   const [input, setInput] = useState('');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -463,23 +525,22 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
   const markdownComponents = useMemo(() => ({
     code({ inline, className, children, ...props }: any) {
       const match = /language-(\w+)/.exec(className || '');
-      const syntaxTheme = theme === 'dark' ? atomDark : coy;
+      const codeString = String(children).replace(/\n$/, '');
+      
       return !inline && match ? (
-          <SyntaxHighlighter
-            style={syntaxTheme}
+          <CodeBlock 
             language={match[1]}
-            PreTag="div"
-            {...props}
-          >
-            {String(children).replace(/\n$/, '')}
-          </SyntaxHighlighter>
+            code={codeString}
+            theme={theme}
+            onRunCode={onRunCodeSnippet}
+          />
       ) : (
         <code className="bg-[--bg-tertiary] text-[--text-secondary] px-1.5 py-1 rounded font-mono text-sm" {...props}>
           {children}
         </code>
       );
     }
-  }), [theme]);
+  }), [theme, onRunCodeSnippet]);
 
   const filteredMessages = useMemo(() => messages.filter(m => m.role !== 'system'), [messages]);
 

@@ -18,6 +18,7 @@ import Icon from './components/Icon';
 import { IconProvider } from './components/IconProvider';
 import { TooltipProvider } from './components/TooltipProvider';
 import ToolCallApprovalModal from './components/ToolCallApprovalModal';
+import { runPythonCode } from './services/pyodideService';
 
 type View = 'chat' | 'projects' | 'api' | 'settings' | 'info';
 
@@ -503,12 +504,20 @@ const App: React.FC = () => {
       const conversation = session.messages
           .filter(m => ['user', 'assistant'].includes(m.role) && m.content)
           .slice(0, 2) // Base title on first exchange
+          // FIX: Safely handle complex ChatMessage content by checking type and extracting text.
           .map(m => {
-            if (Array.isArray(m.content)) {
-                const textPart = m.content.find((p): p is { type: 'text', text: string } => p.type === 'text');
-                return `${m.role}: ${textPart ? textPart.text : '[image]'}`;
+            let contentString = '';
+            if (typeof m.content === 'string') {
+                contentString = m.content;
+            } else if (Array.isArray(m.content)) {
+                const textPart = m.content.find(p => p.type === 'text');
+                if (textPart && 'text' in textPart) {
+                    contentString = textPart.text;
+                } else {
+                    contentString = '[image]';
+                }
             }
-            return `${m.role}: ${m.content || ''}`;
+            return `${m.role}: ${contentString}`;
           })
           .join('\n');
 
@@ -876,6 +885,40 @@ const App: React.FC = () => {
         setRunOutput({ title: `Error running ${project.name}`, stdout: '', stderr: msg });
     }
   };
+
+  const handleRunCodeSnippet = async (language: string, code: string) => {
+    if (!isElectron) {
+        if (language === 'python') {
+            logger.info('Running Python code snippet in browser using Pyodide.');
+            setRunOutput({ title: `Running Python (Pyodide)...`, stdout: 'Initializing WASM environment...', stderr: '' });
+            const { result, error } = await runPythonCode(code);
+            setRunOutput({ title: 'Python (Pyodide) Output', stdout: result, stderr: error || '' });
+        } else {
+            alert('Running code snippets in the browser is only supported for Python.');
+        }
+        return;
+    }
+
+    logger.info(`Running ${language} code snippet natively.`);
+    setRunOutput({ title: `Running ${language}...`, stdout: 'Executing...', stderr: '' });
+    let result: { stdout: string; stderr: string };
+    try {
+        if (language === 'python') {
+            result = await window.electronAPI!.runPython(code);
+        } else if (language === 'javascript') {
+            result = await window.electronAPI!.runNodejs(code);
+        } else if (language === 'html') {
+            result = await window.electronAPI!.runHtml(code);
+        } else {
+            throw new Error(`Running snippets for language "${language}" is not supported.`);
+        }
+        setRunOutput({ title: `Output for ${language} snippet`, ...result });
+    } catch (e) {
+        const msg = `Failed to run snippet: ${e instanceof Error ? e.message : String(e)}`;
+        logger.error(msg);
+        setRunOutput({ title: `Error running ${language} snippet`, stdout: '', stderr: msg });
+    }
+  };
   
   const handleGoToSettings = () => {
     setView('settings');
@@ -984,6 +1027,7 @@ const App: React.FC = () => {
                         systemPrompts={config.systemPrompts || []}
                         onSetSessionSystemPrompt={handleSetSessionSystemPrompt}
                         onSetSessionGenerationConfig={handleSetSessionGenerationConfig}
+                        onRunCodeSnippet={handleRunCodeSnippet}
                     />
                 );
              }

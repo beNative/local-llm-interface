@@ -129,4 +129,7 @@ When a project is selected as your context, the chat transforms into a powerful 
 - **Multimodal Chat**: Use the **paperclip icon** to attach an image.
 - **Predefined Prompts**: Use the **bookmark icon** to quickly insert one of your saved prompts.
 - **Stop Generation**: While the model is responding, a red "Stop" button appears, allowing you to interrupt it.
-- **Intelligent Code Blocks**: Code blocks in responses are automatically syntax-highlighted. The application intelligently detects the programming language (e.g., Python, JavaScript, Java) even if not specified by the model, enabling relevant actions like "Run", "Save", and "Ask AI to Fix".
+- **Interactive Code Blocks**: Code blocks in responses are automatically syntax-highlighted. A header on each block displays the detected language and provides several actions:
+  - **Copy**: A button to instantly copy the entire code snippet to your clipboard.
+  - **Run Code**: For Python and JavaScript snippets, a "Run Code" button appears. Clicking it executes the code and displays the output in a modal window. In the browser version, only Python is supported and runs in a sandboxed WASM environment.
+  - **Open in Browser**: For HTML snippets, this button appears and will open the code as a local HTML file in your default web browser.
