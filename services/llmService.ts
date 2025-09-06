@@ -337,6 +337,7 @@ const streamChatCompletionGemini = async (
 
         for await (const chunk of stream) {
             if (signal.aborted) break;
+            // FIX: Use .text property to get text from streaming chunk, as per Gemini API guidelines.
             const text = chunk.text;
             if (text) {
                 onChunk({ type: 'content', text });
