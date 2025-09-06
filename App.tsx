@@ -807,7 +807,7 @@ const App: React.FC = () => {
           return;
       }
 
-      // Fix: Safely extract string content from the last message, which might have complex content type.
+      // FIX: Safely extract string content from the last message, which might have complex content type.
       const lastMessageBeforeApproval = currentSession.messages[currentSession.messages.length - 1];
       let assistantContent: string | null = null;
       if (typeof lastMessageBeforeApproval.content === 'string' || lastMessageBeforeApproval.content === null) {
