@@ -1,4 +1,5 @@
-import { contextBridge, ipcRenderer } from 'electron';
+// FIX: Changed to require syntax to resolve module resolution errors with Electron.
+const { contextBridge, ipcRenderer } = require('electron');
 import type { CodeProject } from '../src/types';
 
 /**

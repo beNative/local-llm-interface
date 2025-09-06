@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.11.0] - 2024-07-19
+
+### Fixed
+- **Gemini API Integration**: Correctly implemented response and stream chunk handling by accessing the `.text` property directly, resolving issues with empty or malformed responses from the Gemini API.
+- **Multimodal Chat**: Fixed a typo in the `FileReader` API (`readAsDataURL` instead of `readDataURL`) that prevented image attachments from working.
+- **Session Naming**: Improved the reliability of automatic session name generation by safely handling complex message types (like images) when creating the summary prompt.
+- **Tooltip Stability**: Resolved several issues in the tooltip system, including incorrect `setTimeout` usage and potential memory leaks, to improve stability.
+- **Tool Execution**: Enhanced the tool approval workflow to correctly handle messages with mixed content types (text and images).
+
 ## [1.10.0] - 2024-07-12
 
 ### Added

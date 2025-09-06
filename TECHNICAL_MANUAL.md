@@ -68,12 +68,13 @@ This transforms the chat into an agent. The entire workflow is orchestrated by t
 7.  **Final Response**: The original conversation history, plus the assistant's `tool_calls` message, and the new `ToolResponseMessage` messages are sent back to the LLM in a new call to `processConversationTurn`. The model uses the tool results to formulate its final, synthesized answer to the user.
 
 ### AI-Assisted File Modification
-This workflow is also managed in `App.tsx`:
-1.  **Intent Detection**: A regular expression (`modificationRegex`) is run against the user's message to detect keywords (e.g., "refactor", "modify") and a filename.
-2.  **Context Building**: If a match is found, the app reads the current content of the specified file via an IPC call.
-3.  **Specialized Prompt**: A special system prompt is constructed, instructing the AI to act as a code assistant and return only the new, complete file content, without any explanatory text. The original file content is included in this prompt.
-4.  **Diff Rendering**: The AI's response (the new file content) is passed to the `FileModificationView.tsx` component. This component fetches the original file content again and uses the `diff-match-patch` library to compute and render a color-coded, line-by-line diff, which is presented to the user for review.
-5.  **Action Handling**: The user's "Accept" or "Reject" action updates the chat message's state and, if accepted, uses an IPC call (`project:write-file`) to save the new content to disk.
+This workflow is an integrated part of the **Tool Use / Function Calling** system.
+1.  **User Request**: The user asks the AI to modify a file (e.g., "refactor `utils.py` to be more efficient").
+2.  **Tool Selection**: The AI determines that the `writeFile` tool is the most appropriate action. It may first use the `readFile` tool to get the current content.
+3.  **Content Generation**: The AI generates the new, modified content for the file.
+4.  **Tool Call**: The AI issues a `writeFile` tool call with the file path and the new content as arguments.
+5.  **Approval & Diffing**: The tool call is intercepted by the application's security approval flow. Because `writeFile` is a "dangerous" operation, the user is presented with a modal. For this specific tool, the application automatically fetches the original content of the file and presents a color-coded, line-by-line diff view directly within the tool call panel in the chat, showing exactly what will change.
+6.  **Action Handling**: The user can approve or deny the action. If approved, the main process executes the `writeFile` IPC call, overwriting the file on disk. The result is then sent back to the model, which confirms the action to the user.
 
 ### Chat Performance Optimization
 The chat view faced a performance degradation issue in long conversations, where input latency increased significantly. This was caused by the re-rendering of the entire message list on every keystroke in the input box. The issue was resolved by memoizing the individual chat message component (`MemoizedChatMessage` using `React.memo`). This ensures that only the message components whose props have changed (e.g., the last message being streamed) are re-rendered, while the rest of the conversation history is not, leading to a consistently smooth user experience regardless of conversation length.
