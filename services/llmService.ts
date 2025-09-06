@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import type { Model, ChatMessage, ChatMessageMetadata, ChatMessageUsage, GenerationConfig, ModelDetails, Config, LLMProviderConfig, ChatMessageContentPart, Tool, ToolCall, ToolResponseMessage } from '../types';
 import { logger } from './logger';
 
@@ -251,7 +251,8 @@ const textCompletionGemini = async (
         config.responseMimeType = "application/json";
     }
 
-    const response = await ai.models.generateContent({
+    // FIX: Use correct response type and access .text property
+    const response: GenerateContentResponse = await ai.models.generateContent({
         model: modelId,
         contents: contents,
         config: config,

@@ -95,11 +95,13 @@ const TooltipComponent: React.FC<{ tooltipState: TooltipState }> = ({ tooltipSta
 // The Provider that wraps the app
 export const TooltipProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tooltipState, setTooltipState] = useState<TooltipState>(initialTooltipState);
-  // Fix: Use a more robust type for the timeout ref to avoid environment inconsistencies.
+  // FIX: Use a robust type for the timeout ref to avoid environment inconsistencies.
   const hideTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | undefined>();
 
   const show = useCallback((content: React.ReactNode, rect: DOMRect) => {
-    window.clearTimeout(hideTimeoutRef.current);
+    if(hideTimeoutRef.current) {
+        window.clearTimeout(hideTimeoutRef.current);
+    }
     setTooltipState({ visible: true, content, targetRect: rect });
   }, []);
 
@@ -110,7 +112,7 @@ export const TooltipProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   useEffect(() => {
-      // Fix: Add a cleanup function to clear any pending timeout when the provider unmounts.
+      // FIX: Add a cleanup function to clear any pending timeout when the provider unmounts.
       // Explicitly use window.clearTimeout and check for the ref's existence to be safe.
       return () => {
         if (hideTimeoutRef.current) {
