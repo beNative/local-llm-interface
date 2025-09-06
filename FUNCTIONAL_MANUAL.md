@@ -93,7 +93,7 @@ The "API Client" is a new view designed for testing and interacting with HTTP AP
 When you start the app or create a new chat, you are presented with the Model Selection screen. This screen lists all models available from your configured LLM service.
 
 - **Model Cards**: Each model is displayed on a polished card with available details like its family, parameter size, and quantization level.
-- **Detailed Info (Ollama)**: For Ollama models, an **Info icon** is available on the card. Clicking this icon opens a modal displaying advanced technical details, including its context window size (`num_ctx`) and the full content of its `Modelfile`.
+- **Detailed Info (Ollama)**: For Ollama models, an **Info icon** is available on the card. Clicking this opens a modal displaying comprehensive technical details. A summary at the top shows the model's file size, family, and parameter size. Below, you can find the full, scrollable content of the model's `Modelfile`, parameters, and template.
 - **Start Chat**: Click any model card to start a new chat session without any project context.
 
 ## 7. Chat View

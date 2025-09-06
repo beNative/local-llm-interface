@@ -6,7 +6,7 @@ A user-friendly desktop application to chat with locally installed LLMs serviced
 
 - **Multiple Provider Support**: Connect to Ollama, LMStudio, or a custom OpenAI-compatible server.
 - **Model Discovery**: Automatically fetches and displays a list of available models from the connected service.
-- **Detailed Model Info**: View technical details for Ollama models, including context window size and Modelfile content, before starting a chat.
+- **Detailed Model Info**: View technical details for Ollama models, including file size, family, parameter count, and the full `Modelfile` content, before starting a chat.
 - **Polished Chat Interface**: A clean, modern chat view for interacting with your chosen model.
 - **Agentic Tool Use (Function Calling)**: Transform the AI into an active agent that can browse project files, read/write content, and execute terminal commands to fulfill complex requests.
 - **Secure by Design**: Any potentially dangerous AI action (writing files, running commands) requires explicit user approval via an interactive modal before it can be executed.

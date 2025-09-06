@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.0] - 2024-07-12
+
+### Added
+- **Ollama Model Details**: The model details modal for Ollama models now fetches and displays the model's file size, family, parameter count, Modelfile content, parameters, and template.
+
+### Changed
+- The sections within the model details modal are now scrollable to better handle long content.
+
 ## [1.9.0] - 2024-07-05
 
 ### Added
