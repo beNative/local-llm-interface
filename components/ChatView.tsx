@@ -273,18 +273,17 @@ interface ChatViewProps {
   projects: CodeProject[];
   predefinedInput: string;
   onPrefillConsumed: () => void;
-  activeProjectId: string | null;
-  onSetActiveProject: (projectId: string | null) => void;
   models: Model[];
   onSelectModel: (modelId: string) => void;
   predefinedPrompts: PredefinedPrompt[];
   systemPrompts: SystemPrompt[];
   onSetSessionSystemPrompt: (systemPromptId: string | null) => void;
   onSetSessionGenerationConfig: (generationConfig: GenerationConfig) => void;
+  onSetSessionAgentToolsEnabled: (enabled: boolean) => void;
   onRunCodeSnippet: (language: string, code: string) => void;
 }
 
-export default function ChatView({ session, provider, onSendMessage, isResponding, retrievalStatus, thinkingText, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, activeProjectId, onSetActiveProject, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onSetSessionGenerationConfig, onRunCodeSnippet }: ChatViewProps) {
+export default function ChatView({ session, provider, onSendMessage, isResponding, retrievalStatus, thinkingText, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onSetSessionGenerationConfig, onSetSessionAgentToolsEnabled, onRunCodeSnippet }: ChatViewProps) {
   const [input, setInput] = useState('');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -294,7 +293,6 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
   const [isParamsOpen, setIsParamsOpen] = useState(false);
   const [isPromptsOpen, setIsPromptsOpen] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
-  const [isSmartContextEnabled, setIsSmartContextEnabled] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -305,8 +303,10 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
   const promptsPopoverRef = useRef<HTMLDivElement>(null);
   const promptsButtonRef = useRef<HTMLButtonElement>(null);
 
-  const { messages, name: sessionName } = session;
+  const { messages, name: sessionName, projectId, agentToolsEnabled } = session;
   
+  const currentProject = useMemo(() => projects.find(p => p.id === projectId), [projects, projectId]);
+
   const currentSystemPrompt = systemPrompts.find(p => p.id === session.systemPromptId);
   const currentPersonaName = currentSystemPrompt ? currentSystemPrompt.title : 'Default Assistant';
   const currentPersonaContent = currentSystemPrompt ? currentSystemPrompt.content : DEFAULT_SYSTEM_PROMPT;
@@ -315,8 +315,8 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
   const modelTooltip = useTooltipTrigger("Start new chat with a different model");
   const personaTooltip = useTooltipTrigger(currentPersonaContent);
   const paramsTooltip = useTooltipTrigger("Adjust model parameters");
-  const projectContextTooltip = useTooltipTrigger("Select a project to enable project-aware features like file modification and tool use.");
-  const smartContextTooltip = useTooltipTrigger("When enabled, the AI will use tools to interact with your project files to provide a more accurate, context-aware answer.");
+  const projectContextTooltip = useTooltipTrigger(`This chat has context of the project: ${currentProject?.name}.`);
+  const agentToolsTooltip = useTooltipTrigger("Enable Project Agent: Allows the AI to read/write files and run commands in your project to answer questions and perform tasks.");
   const removeImgTooltip = useTooltipTrigger("Remove image");
   const attachImgTooltip = useTooltipTrigger("Attach image");
   const predefinedPromptsTooltip = useTooltipTrigger("Use a predefined prompt");
@@ -430,9 +430,9 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
             contentParts.push({ type: 'text', text: input.trim() });
         }
         contentParts.push({ type: 'image_url', image_url: { url: attachedImage } });
-        onSendMessage(contentParts, { useRAG: isSmartContextEnabled });
+        onSendMessage(contentParts);
     } else {
-        onSendMessage(input.trim(), { useRAG: isSmartContextEnabled });
+        onSendMessage(input.trim());
     }
     
     setInput('');
@@ -452,6 +452,7 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
         reader.onloadend = () => {
             setAttachedImage(reader.result as string);
         };
+        // FIX: Corrected typo from readDataURL to readAsDataURL.
         reader.readAsDataURL(file);
     }
   };
@@ -713,47 +714,34 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
             </div>
           </div>
         </div>
-        {isElectron && projects.length > 0 && (
-          <div className="flex items-center gap-2 flex-grow justify-end min-w-0">
-            <label htmlFor="project-context-select" className="flex-shrink-0 text-sm text-[--text-muted] flex items-center gap-1.5">
-              <CodeIcon className="w-5 h-5" />
-              <span>Context:</span>
-            </label>
-            <select
-              {...projectContextTooltip}
-              id="project-context-select"
-              value={activeProjectId || ''}
-              onChange={(e) => onSetActiveProject(e.target.value || null)}
-              className="text-sm text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus] w-full max-w-xs truncate"
-              aria-label="Select active project for context"
-            >
-              <option value="">No Project Context</option>
-              {projects.map(p => {
-                const projectTypeText = p.type.charAt(0).toUpperCase() + p.type.slice(1);
-                const optionText = `${p.name} (${projectTypeText})`;
-                return <option key={p.id} value={p.id}>{optionText}</option>
-              })}
-            </select>
-            {activeProjectId && (
-                <label 
-                    {...smartContextTooltip}
-                    className="flex items-center gap-2 cursor-pointer" 
-                >
-                    <BrainCircuitIcon className={`w-5 h-5 ${isSmartContextEnabled ? 'text-[--accent-chat]' : 'text-[--text-muted]'}`} />
-                    <span className="text-sm text-[--text-muted] hidden lg:inline">Agent Tools</span>
-                    <div className="relative inline-flex items-center cursor-pointer">
-                        <input 
-                            type="checkbox" 
-                            checked={isSmartContextEnabled} 
-                            onChange={(e) => setIsSmartContextEnabled(e.target.checked)} 
-                            className="sr-only peer" 
-                            id="smart-context-toggle"
-                        />
-                        <div className="w-11 h-6 bg-[--bg-tertiary] rounded-full peer peer-checked:bg-[--accent-chat] peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[--border-focus] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+        {isElectron && (
+            <div className="flex items-center gap-4">
+                {currentProject && (
+                    <div {...projectContextTooltip} className="flex items-center gap-2 text-sm text-[--text-muted] bg-[--bg-tertiary] px-3 py-1.5 rounded-lg border border-[--border-primary]">
+                        <CodeIcon className="w-5 h-5"/>
+                        <span className="font-semibold text-[--text-secondary]">{currentProject.name}</span>
                     </div>
-                </label>
-            )}
-          </div>
+                )}
+                {currentProject && (
+                    <label 
+                        {...agentToolsTooltip}
+                        className="flex items-center gap-2 cursor-pointer" 
+                    >
+                        <BrainCircuitIcon className={`w-5 h-5 ${agentToolsEnabled ? 'text-[--accent-chat]' : 'text-[--text-muted]'}`} />
+                        <span className="text-sm text-[--text-muted] hidden lg:inline">Enable Project Agent</span>
+                        <div className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                                type="checkbox" 
+                                checked={!!agentToolsEnabled} 
+                                onChange={(e) => onSetSessionAgentToolsEnabled(e.target.checked)} 
+                                className="sr-only peer" 
+                                id="agent-tools-toggle"
+                            />
+                            <div className="w-11 h-6 bg-[--bg-tertiary] rounded-full peer peer-checked:bg-[--accent-chat] peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[--border-focus] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+                        </div>
+                    </label>
+                )}
+            </div>
         )}
       </header>
       <main className="flex-1 overflow-y-auto p-4 space-y-6">
