@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { Model, LLMProviderConfig, Theme } from '../types';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { fetchOllamaModelDetails, LLMServiceError } from '../services/llmService';
 import Icon from './Icon';
 import { useTooltipTrigger } from '../hooks/useTooltipTrigger';
 
@@ -94,7 +93,7 @@ interface ModelSelectorProps {
   theme: Theme;
 }
 
-const ModelListItem: React.FC<{ model: Model; onSelect: () => void; onShowDetails: () => void; provider: LLMProviderConfig | null; isFetchingDetails: boolean; }> = ({ model, onSelect, onShowDetails, provider, isFetchingDetails }) => {
+const ModelListItem: React.FC<{ model: Model; onSelect: () => void; onShowDetails: () => void; provider: LLMProviderConfig | null; }> = ({ model, onSelect, onShowDetails, provider }) => {
   const modelNameTooltip = useTooltipTrigger(model.id);
   const detailsTooltip = useTooltipTrigger("Show model details");
 
@@ -116,10 +115,9 @@ const ModelListItem: React.FC<{ model: Model; onSelect: () => void; onShowDetail
             <button
                 {...detailsTooltip}
                 onClick={(e) => { e.stopPropagation(); onShowDetails(); }}
-                className="absolute top-2 right-2 p-2 rounded-full text-[--text-muted] hover:bg-[--bg-tertiary] disabled:opacity-50 disabled:cursor-wait z-10"
-                disabled={isFetchingDetails}
+                className="absolute top-2 right-2 p-2 rounded-full text-[--text-muted] hover:bg-[--bg-tertiary] z-10"
             >
-                {isFetchingDetails ? <Icon name="spinner" className="w-5 h-5"/> : <Icon name="info" className="w-5 h-5" />}
+                <Icon name="info" className="w-5 h-5" />
             </button>
         )}
       <div className="flex items-center gap-3 mb-4">
@@ -144,29 +142,9 @@ const ModelListItem: React.FC<{ model: Model; onSelect: () => void; onShowDetail
 
 const ModelSelector: React.FC<ModelSelectorProps> = ({ models, onSelectModel, isLoading, error, onGoToSettings, provider, theme }) => {
   const [detailsModalModel, setDetailsModalModel] = useState<Model | null>(null);
-  const [fetchingDetailsFor, setFetchingDetailsFor] = useState<string | null>(null);
-  const [localModels, setLocalModels] = useState<Model[]>(models);
 
-  useEffect(() => {
-    setLocalModels(models);
-  }, [models]);
-
-  const handleShowDetails = async (modelToShow: Model) => {
-      if (!provider) return;
-      setFetchingDetailsFor(modelToShow.id);
-      try {
-          const details = await fetchOllamaModelDetails(provider.baseUrl, modelToShow.name);
-          const updatedModel = { ...modelToShow, details: { ...modelToShow.details, ...details } };
-          
-          setLocalModels(prev => prev.map(m => m.id === updatedModel.id ? updatedModel : m));
-          setDetailsModalModel(updatedModel);
-
-      } catch (e) {
-          const msg = e instanceof LLMServiceError ? e.message : 'An unexpected error occurred while fetching model details.';
-          alert(msg);
-      } finally {
-          setFetchingDetailsFor(null);
-      }
+  const handleShowDetails = (modelToShow: Model) => {
+      setDetailsModalModel(modelToShow);
   };
 
   if (isLoading) {
@@ -215,14 +193,13 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ models, onSelectModel, is
       {detailsModalModel && <ModelDetailsModal model={detailsModalModel} onClose={() => setDetailsModalModel(null)} theme={theme} />}
       <h1 className="text-3xl font-bold text-[--text-primary] mb-6">Select a Model</h1>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-        {localModels.map((model) => (
+        {models.map((model) => (
           <ModelListItem
             key={model.id}
             model={model}
             onSelect={() => onSelectModel(model.id)}
             onShowDetails={() => handleShowDetails(model)}
             provider={provider}
-            isFetchingDetails={fetchingDetailsFor === model.id}
           />
         ))}
       </div>

@@ -125,28 +125,49 @@ export const fetchModels = async (provider: LLMProviderConfig, apiKeys: Config['
     }
     const data = await response.json();
     logger.debug(`Received model data: ${JSON.stringify(data)}`);
-    // Ollama has a slightly different format than standard OpenAI-compatible endpoints
+    
+    let baseModels: Model[] = [];
     if (data.models) {
         logger.info(`Found ${data.models.length} models (Ollama format).`);
-        return data.models.map((m: any) => ({
+        baseModels = data.models.map((m: any) => ({
              ...m,
              id: m.name,
              created: m.modified_at ? Math.floor(new Date(m.modified_at).getTime() / 1000) : 0,
              owned_by: 'ollama',
              object: 'model',
         }));
-    }
-    if (data.data) {
+    } else if (data.data) {
         logger.info(`Found ${data.data.length} models (${provider.name} format).`);
-        // The name property is required by our Model type and for fetching details.
-        // OpenAI-compatible endpoints use 'id' for the model name.
-        return data.data.map((m: any) => ({
+        baseModels = data.data.map((m: any) => ({
           ...m,
           name: m.id,
         }));
+    } else {
+        logger.warn('Models endpoint returned unknown format, no models found.');
+        return [];
     }
-    logger.warn('Models endpoint returned unknown format, no models found.');
-    return [];
+
+    // If the provider is Ollama, automatically fetch detailed information for each model.
+    if (provider.id === 'ollama' && baseModels.length > 0) {
+        logger.info(`Fetching details for ${baseModels.length} Ollama models...`);
+        const modelsWithDetails = await Promise.all(
+            baseModels.map(async (model) => {
+                try {
+                    const details = await fetchOllamaModelDetails(provider.baseUrl, model.name);
+                    const mergedDetails = { ...(model.details || {}), ...details };
+                    return { ...model, details: mergedDetails };
+                } catch (e) {
+                    logger.warn(`Could not fetch details for Ollama model ${model.name}: ${e instanceof Error ? e.message : String(e)}`);
+                    return model; // Return model without extended details on error
+                }
+            })
+        );
+        logger.info('Finished fetching Ollama model details.');
+        return modelsWithDetails;
+    }
+
+    return baseModels;
+
   } catch (error) {
     if (error instanceof LLMServiceError) throw error;
     logger.error(error instanceof Error ? error : String(error));
@@ -256,7 +277,7 @@ const textCompletionGemini = async (
         config.responseMimeType = "application/json";
     }
 
-    // FIX: Use correct response type and access .text property
+    // FIX: Access the .text property directly to get the response content, as per Gemini API guidelines.
     const response: GenerateContentResponse = await ai.models.generateContent({
         model: modelId,
         contents,
@@ -342,7 +363,7 @@ const streamChatCompletionGemini = async (
 
         for await (const chunk of stream) {
             if (signal.aborted) break;
-            // FIX: Use .text property to get text from streaming chunk, as per Gemini API guidelines.
+            // FIX: Access the .text property directly to get text from the streaming chunk.
             const text = chunk.text;
             if (text) {
                 onChunk({ type: 'content', text });
