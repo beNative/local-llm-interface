@@ -23,3 +23,13 @@ dist-ssr
 *.sln
 *.sw?
 /run.bat
+
+# Added by Git Automation Dashboard
+package-lock.json
+release/
+run.bat
+_esbuild.config.js
+dist/
+node_modules/
+release-builds/
+promptforge_expanded_folders.json
