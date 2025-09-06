@@ -107,7 +107,6 @@ const App: React.FC = () => {
   const [isLogPanelVisible, setIsLogPanelVisible] = useState(false);
   const [prefilledInput, setPrefilledInput] = useState('');
   const [runOutput, setRunOutput] = useState<{ title: string; stdout: string; stderr: string; } | null>(null);
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [editingFile, setEditingFile] = useState<{ path: string; name: string } | null>(null);
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
@@ -234,6 +233,12 @@ const App: React.FC = () => {
                   migratedSession.providerId = loadedConfig.selectedProviderId || 'ollama';
                   needsMigration = true;
                   logger.warn(`Session "${s.name}" (${s.id}) was missing a providerId. Assigned fallback: ${migratedSession.providerId}`);
+              }
+              
+              // Case 3: Add projectId if missing
+              if (s.projectId === undefined) {
+                  migratedSession.projectId = null;
+                  needsMigration = true;
               }
 
               if (needsMigration) {
@@ -567,6 +572,37 @@ const App: React.FC = () => {
             topK: 40,
             topP: 0.9,
         },
+        projectId: null,
+        agentToolsEnabled: true,
+    };
+    setConfig(c => {
+        if (!c) return null;
+        const newSessions = [...(c.sessions || []), newSession];
+        return { ...c, sessions: newSessions, activeSessionId: newSession.id };
+    });
+    setView('chat');
+  };
+
+  const handleNewChatWithProject = (projectId: string) => {
+    if (!config || !config.selectedProviderId || models.length === 0) return;
+    const project = config.projects?.find(p => p.id === projectId);
+    if (!project) return;
+
+    logger.info(`Creating new chat with context from project: ${project.name}`);
+    const newSession: ChatSession = {
+        id: `session_${Date.now()}`,
+        name: `Chat about ${project.name}`,
+        modelId: models[0].id, // Default to first available model
+        providerId: config.selectedProviderId,
+        messages: [{ role: 'system', content: DEFAULT_SYSTEM_PROMPT }],
+        systemPromptId: null,
+        generationConfig: {
+            temperature: 0.8,
+            topK: 40,
+            topP: 0.9,
+        },
+        projectId: projectId,
+        agentToolsEnabled: true, // Enable by default for project chats
     };
     setConfig(c => {
         if (!c) return null;
@@ -624,6 +660,15 @@ const App: React.FC = () => {
     setConfig(c => {
         if (!c) return null;
         const newSessions = c.sessions?.map(s => s.id === activeSessionId ? { ...s, generationConfig } : s) || [];
+        return { ...c, sessions: newSessions };
+    });
+  };
+  
+  const handleSetSessionAgentToolsEnabled = (enabled: boolean) => {
+    if (!activeSessionId) return;
+    setConfig(c => {
+        if (!c) return null;
+        const newSessions = c.sessions?.map(s => s.id === activeSessionId ? { ...s, agentToolsEnabled: enabled } : s) || [];
         return { ...c, sessions: newSessions };
     });
   };
@@ -688,9 +733,9 @@ const App: React.FC = () => {
       inThinkBlockRef.current = false;
 
       let tools: Tool[] | undefined = undefined;
-      const project = config.projects?.find(p => p.id === activeProjectId);
+      const project = config.projects?.find(p => p.id === session.projectId);
 
-      if (project && isElectron) {
+      if (project && isElectron && session.agentToolsEnabled) {
           tools = [
             { type: 'function', function: { name: 'listFiles', description: 'Recursively lists all files and directories within the project, returning an array of relative paths.', parameters: { type: 'object', properties: {} } } },
             { type: 'function', function: { name: 'readFile', description: "Reads a file's content.", parameters: { type: 'object', properties: { path: { type: 'string', description: 'The relative path to the file from the project root.' } }, required: ['path'] } } },
@@ -743,11 +788,11 @@ const App: React.FC = () => {
           session.generationConfig
       );
 
-  }, [config, activeProjectId, appendToLastMessage, updateSessionMessages, isElectron]);
+  }, [config, appendToLastMessage, updateSessionMessages, isElectron]);
 
 
   const handleToolApproval = async (approvedCalls: ToolCall[]) => {
-      if (!activeSessionId || !activeProjectId || !config) return;
+      if (!activeSessionId || !activeSession?.projectId || !config) return;
       
       const currentSession = config.sessions?.find(s => s.id === activeSessionId);
       if (!currentSession) return;
@@ -755,7 +800,7 @@ const App: React.FC = () => {
       setPendingToolCalls(null);
       setIsResponding(true);
 
-      const project = config.projects?.find(p => p.id === activeProjectId);
+      const project = config.projects?.find(p => p.id === activeSession.projectId);
       if (!project) {
           logger.error("Cannot execute tools: Active project not found.");
           setIsResponding(false);
@@ -987,6 +1032,7 @@ const App: React.FC = () => {
                 isElectron={isElectron}
                 onInjectContentForChat={handleInjectContentForChat}
                 onRunProject={handleRunProject}
+                onNewChatWithProject={handleNewChatWithProject}
                 editingFile={editingFile}
                 onSetEditingFile={setEditingFile}
               />;
@@ -1019,14 +1065,13 @@ const App: React.FC = () => {
                         projects={config.projects || []}
                         predefinedInput={prefilledInput}
                         onPrefillConsumed={onPrefillConsumed}
-                        activeProjectId={activeProjectId}
-                        onSetActiveProject={setActiveProjectId}
                         models={models}
                         onSelectModel={handleSelectModel}
                         predefinedPrompts={config.predefinedPrompts || []}
                         systemPrompts={config.systemPrompts || []}
                         onSetSessionSystemPrompt={handleSetSessionSystemPrompt}
                         onSetSessionGenerationConfig={handleSetSessionGenerationConfig}
+                        onSetSessionAgentToolsEnabled={handleSetSessionAgentToolsEnabled}
                         onRunCodeSnippet={handleRunCodeSnippet}
                     />
                 );
@@ -1060,8 +1105,8 @@ const App: React.FC = () => {
       ? `Connection Error`
       : `Connected to ${activeProvider?.name}. ${models.length} model(s) available.`;
 
-  const activeProjectName = activeProjectId
-      ? config?.projects?.find(p => p.id === activeProjectId)?.name || null
+  const activeProjectName = activeSession?.projectId
+      ? config?.projects?.find(p => p.id === activeSession.projectId)?.name || null
       : null;
 
   return (

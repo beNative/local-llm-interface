@@ -102,11 +102,12 @@ const ProjectCard: React.FC<{
     onInstall: () => void;
     onRun: () => void;
     onOpen: () => void;
+    onChat: () => void;
     isBusy: boolean;
     isExpanded: boolean;
     onToggleExpand: () => void;
     onFileClick: (file: FileSystemEntry) => void;
-}> = ({ project, onDelete, onInstall, onRun, onOpen, isBusy, isExpanded, onToggleExpand, onFileClick }) => {
+}> = ({ project, onDelete, onInstall, onRun, onOpen, onChat, isBusy, isExpanded, onToggleExpand, onFileClick }) => {
     
     const typeColor = project.type === 'python' ? 'text-blue-500' 
                     : project.type === 'nodejs' ? 'text-green-500'
@@ -119,6 +120,7 @@ const ProjectCard: React.FC<{
                   : project.type === 'delphi' ? 'Build' 
                   : 'Run';
     
+    const chatTooltip = useTooltipTrigger("Start a new chat with this project as context. The AI will be able to read files and run commands.");
     const runTooltip = useTooltipTrigger(project.type === 'webapp' 
         ? 'Open this web app in your default browser' 
         : project.type === 'delphi' 
@@ -150,13 +152,17 @@ const ProjectCard: React.FC<{
                 
                 <p className="text-xs text-[--text-muted] font-mono break-all h-8 overflow-hidden" title={project.path}>{project.path}</p>
             
-                <div className="flex items-center justify-between mt-4">
-                    <button {...runTooltip} onClick={onRun} disabled={isBusy} className="text-sm px-4 py-2 rounded-lg bg-[--accent-projects] text-white hover:brightness-95 disabled:opacity-60 disabled:cursor-wait flex items-center justify-center gap-2 font-semibold">
-                        {isBusy ? <Icon name="spinner" className="w-5 h-5"/> : <Icon name={runIsGlobe ? 'globe' : 'play'} className="w-5 h-5" />}
-                        {isBusy ? 'Working...' : runText}
+                <div className="grid grid-cols-2 gap-2 mt-4">
+                     <button {...chatTooltip} onClick={onChat} disabled={isBusy} className="col-span-2 text-sm px-4 py-2 rounded-lg bg-[--accent-projects] text-white hover:brightness-95 disabled:opacity-60 disabled:cursor-wait flex items-center justify-center gap-2 font-semibold">
+                        {isBusy ? <Icon name="spinner" className="w-5 h-5"/> : <Icon name="messageSquare" className="w-5 h-5" />}
+                        {isBusy ? 'Working...' : 'Chat about Project'}
                     </button>
 
-                    <div className="flex items-center gap-1">
+                    <div className="col-span-2 flex items-center gap-1">
+                        <button {...runTooltip} onClick={onRun} disabled={isBusy} className="flex-grow text-sm px-3 py-1.5 rounded-lg bg-[--bg-tertiary] text-[--text-secondary] hover:bg-[--bg-hover] disabled:opacity-50 flex items-center justify-center gap-2">
+                            <Icon name={runIsGlobe ? 'globe' : 'play'} className="w-4 h-4" />
+                            {runText}
+                        </button>
                         {project.type !== 'webapp' && project.type !== 'delphi' && (
                              <button {...installTooltip} onClick={onInstall} disabled={isBusy} className="p-2 rounded-lg text-[--text-muted] hover:bg-[--bg-hover] disabled:opacity-50">
                                 <Icon name="downloadCloud" className="w-5 h-5" />
@@ -226,6 +232,7 @@ interface ProjectsViewProps {
   isElectron: boolean;
   onInjectContentForChat: (filename: string, content: string) => void;
   onRunProject: (project: CodeProject) => void;
+  onNewChatWithProject: (projectId: string) => void;
   editingFile: { path: string, name: string } | null;
   onSetEditingFile: (file: { path: string, name: string } | null) => void;
 }
@@ -238,7 +245,7 @@ const projectTypes: { key: ProjectType; name: string }[] = [
     { key: 'webapp', name: 'Web App' },
 ];
 
-const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isElectron, onInjectContentForChat, onRunProject, editingFile, onSetEditingFile }) => {
+const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isElectron, onInjectContentForChat, onRunProject, onNewChatWithProject, editingFile, onSetEditingFile }) => {
     const [busyProjects, setBusyProjects] = useState<Set<string>>(new Set());
     const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<ProjectType>('python');
@@ -395,6 +402,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ config, onConfigChange, isE
                                     onInstall={() => handleInstallDeps(p)}
                                     onRun={() => handleRunProjectWithBusyState(p)}
                                     onOpen={() => handleOpenFolder(p)}
+                                    onChat={() => onNewChatWithProject(p.id)}
                                     isExpanded={expandedProjectId === p.id}
                                     onToggleExpand={() => handleToggleExpand(p.id)}
                                     onFileClick={handleFileClick}

@@ -45,7 +45,10 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
             <button onClick={() => onSelectSession(session.id)} className="w-full flex items-start gap-2.5 text-left truncate px-3 py-2">
                 <Icon name="messageSquare" className="w-4 h-4 flex-shrink-0 mt-1" />
                 <div className="flex-1 truncate pr-14">
-                    <span className={`block truncate ${activeSessionId === session.id ? 'text-[--text-primary]' : ''}`}>{session.name}</span>
+                    <span className={`flex items-center gap-2 truncate ${activeSessionId === session.id ? 'text-[--text-primary]' : ''}`}>
+                      {session.projectId && <Icon name="code" className="w-3.5 h-3.5 flex-shrink-0" />}
+                      <span className="truncate">{session.name}</span>
+                    </span>
                     <span className="block text-xs opacity-70 truncate font-normal">{session.modelId}</span>
                 </div>
             </button>

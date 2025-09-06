@@ -197,6 +197,8 @@ export interface ChatSession {
   messages: ChatMessage[];
   systemPromptId: string | null;
   generationConfig?: GenerationConfig;
+  projectId: string | null;
+  agentToolsEnabled?: boolean;
 }
 
 // File System and Project Types

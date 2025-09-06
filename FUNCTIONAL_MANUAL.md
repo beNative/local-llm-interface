@@ -19,7 +19,7 @@ The header is always visible and contains the primary navigation and control ele
 ### Status Bar (Desktop App Only)
 
 At the very bottom of the window, the status bar provides real-time feedback on the application's health and context:
-- **Left Side (Context)**: Shows the current LLM provider (e.g., Ollama), connection status, active model, and active project context.
+- **Left Side (Context)**: Shows the current LLM provider (e.g., Ollama), connection status, active model, and active project context for the current chat.
 - **Right Side (Performance)**: Displays real-time, system-wide CPU, GPU, and Memory usage.
 
 ## 2. Command Palette
@@ -67,13 +67,14 @@ The "Projects" tab is a powerful feature for managing local code projects and in
 - **Base Directory**: For each project type, you must first choose a "base directory" where all your projects of that type will be stored.
 - **Creating Projects**: Once a base directory is set, you can create new projects. The application will create the necessary folder and boilerplate files.
 - **Project Cards**: Each project appears as a polished card with several actions:
-  - **Run Project**: The primary action button, which runs the project using its standard entry mechanism.
+  - **Chat about Project**: The primary action button. Clicking this instantly starts a new chat session that is permanently linked to this project, giving the AI full context.
+  - **Run Project**: Runs the project using its standard entry mechanism.
   - **Install Deps**: Installs dependencies from `requirements.txt`, `package.json`, or `pom.xml`.
   - **Open Folder**: Opens the project's folder in your system's file explorer.
   - **Delete**: Permanently deletes the project folder and all its contents.
 
 ### Project File Viewer & Editor
-- **Expand Project**: Click the project name on a card to expand it and reveal an interactive file tree.
+- **Expand Project**: Click the expand button on a card to reveal an interactive file tree.
 - **Edit Files**: Click on any file in the tree to open it in a built-in code editor. You can make changes and save them directly back to the file.
 - **Add to Chat**: From the editor, click "Add to Chat Context" to inject the file's content directly into the chat input, making it easy to ask questions about specific code.
 - **Add Files via Drag and Drop**: You can add external files to your project by dragging them from your computer's file explorer and dropping them onto any folder in the file tree. When you hover over a valid folder, it will be highlighted. Upon dropping the files, a confirmation dialog will appear, listing the files to be added. Confirming will copy the files into that project folder.
@@ -93,7 +94,7 @@ When you start the app or create a new chat, you are presented with the Model Se
 
 - **Model Cards**: Each model is displayed on a polished card with available details like its family, parameter size, and quantization level.
 - **Detailed Info (Ollama)**: For Ollama models, an **Info icon** is available on the card. Clicking this icon opens a modal displaying advanced technical details, including its context window size (`num_ctx`) and the full content of its `Modelfile`.
-- **Start Chat**: Click any model card to start a new chat session.
+- **Start Chat**: Click any model card to start a new chat session without any project context.
 
 ## 7. Chat View
 
@@ -101,27 +102,25 @@ The chat view is the primary interface for interacting with the LLM.
 
 ### Session Management
 - **Resizable Sidebar**: Drag the vertical divider to adjust the sidebar width.
-- **Session List**: All your conversations are listed here. Each entry now shows the session title and, in a smaller font, the model that was used for that conversation.
+- **Session List**: All your conversations are listed here. Each entry shows the session title and the model used. A **code icon** appears next to chats that are linked to a project.
 - **Session Actions**: Hover over a session to reveal buttons for automatically generating a name or deleting the session.
 
-### Agentic Tool Use (Function Calling)
-When a project is selected as your context, the chat transforms into a powerful agent capable of taking action on your behalf.
-- **Available Tools**: The AI gains access to a set of tools to interact with your project:
-  - `listFiles`: To browse the file structure.
-  - `readFile`: To read the content of specific files.
-  - `writeFile`: To create new files or modify existing ones.
-  - `runTerminalCommand`: To execute shell commands like `npm install`.
-- **How It Works**: You can ask for complex tasks like, "List all `.js` files in the `src` directory, then read `app.js` and tell me what it does."
-- **Interactive Tool Dashboard**: When the AI decides to use tools, a new "Tool Call" panel appears in the chat. This panel transparently shows you:
-  - Which tools the AI is calling.
-  - The exact parameters for each call.
-  - The results of the execution after it's complete.
+### Project Context & The Project Agent
+- **Starting a Project Chat**: The best way to start a project-based chat is to go to the **Projects** view and click the **"Chat about Project"** button on the project you want to discuss.
+- **Persistent Context**: When a chat is linked to a project, its name will be clearly displayed in the chat header. This context is permanent for that session.
+- **Enable Project Agent**: In a project-based chat, a new toggle appears in the header: **"Enable Project Agent"**. When enabled, this gives the AI powerful tools to interact with your project:
+  - **Available Tools**: The AI gains access to a set of tools to interact with your project:
+    - `listFiles`: To browse the file structure.
+    - `readFile`: To read the content of specific files.
+    - `writeFile`: To create new files or modify existing ones.
+    - `runTerminalCommand`: To execute shell commands like `npm install`.
+  - **How It Works**: You can ask for complex tasks like, "List all `.js` files in the `src` directory, then read `app.js` and tell me what it does."
+  - **Interactive Tool Dashboard**: When the AI decides to use tools, a new "Tool Call" panel appears in the chat. This panel transparently shows you which tools the AI is calling and the results.
 - **Security First - Approval Required**: For any action that modifies your system (`writeFile`, `runTerminalCommand`), a modal will appear, pausing the AI. It lists the "dangerous" actions and requires your explicit approval for each one before it can proceed. Safe actions like reading files are approved automatically.
 
 ### AI-Assisted File Modifications
-- When you have a project selected as context, you can ask the AI to modify a file (e.g., "refactor `utils.py` to be more efficient").
-- The AI will respond with a special **diff view** component.
-- This view shows a line-by-line comparison of the original file and the AI's proposed changes.
+- When you have a project-based chat with the Project Agent enabled, you can ask the AI to modify a file (e.g., "refactor `utils.py` to be more efficient").
+- The AI will respond with a special **diff view** component showing a line-by-line comparison of its proposed changes.
 - You can then **Accept** the changes, which will directly overwrite the file on your disk, or **Reject** them.
 
 ### Conversation & Controls
