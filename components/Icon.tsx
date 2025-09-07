@@ -316,7 +316,7 @@ const iconMap = {
         filePlus: Feather.FilePlus,
         fileText: Feather.FileText,
         folder: Feather.Folder,
-        folderOpen: Feather.FolderOpen,
+        folderOpen: Feather.Folder,
         globe: Feather.Globe,
         gpu: Feather.HardDrive,
         hammer: Feather.Tool, // Substitute
@@ -327,7 +327,7 @@ const iconMap = {
         messageSquare: Feather.MessageSquare,
         model: Feather.Box,
         moon: Feather.Moon,
-        palette: Feather.Palette,
+        palette: Feather.Droplet,
         paperclip: Feather.Paperclip,
         play: Feather.Play,
         plus: Feather.Plus,

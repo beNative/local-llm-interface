@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.11.0] - 2024-07-19
+## [0.11.0] - 2025-09-07
 
 ### Fixed
 - **Gemini API Integration**: Correctly implemented response and stream chunk handling by accessing the `.text` property directly, resolving issues with empty or malformed responses from the Gemini API.
@@ -11,7 +11,7 @@ All notable changes to this project will be documented in this file.
 - **Tooltip Stability**: Resolved several issues in the tooltip system, including incorrect `setTimeout` usage and potential memory leaks, to improve stability.
 - **Tool Execution**: Enhanced the tool approval workflow to correctly handle messages with mixed content types (text and images).
 
-## [1.10.0] - 2024-07-12
+## [0.10.0] 
 
 ### Added
 - **Ollama Model Details**: The model details modal for Ollama models now fetches and displays the model's file size, family, parameter count, Modelfile content, parameters, and template.
@@ -19,7 +19,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - The sections within the model details modal are now scrollable to better handle long content.
 
-## [1.9.0] - 2024-07-05
+## [0.9.0] 
 
 ### Added
 - **Agentic Tool Use / Function Calling**: Transformed the chat into a true agent. When a project context is active, the AI can now use tools to interact with the file system and run terminal commands (`listFiles`, `readFile`, `writeFile`, `runTerminalCommand`).
@@ -30,14 +30,14 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Updated all documentation files (README, Manuals) to reflect the new agentic capabilities and JSON mode.
 
-## [1.8.0] - 2024-06-30
+## [0.8.0] 
 
 ### Changed
 - **UI/UX Overhaul**: Performed a comprehensive visual polish across the entire application. All views, components, and controls have been refined for a cleaner, more modern, and more intuitive user experience. This includes improved component styling, consistent spacing and shadows, and more responsive visual feedback on interactions.
 - **Code Refinement**: Conducted a general cleanup across the codebase to improve readability and ensure best practices are followed.
 - **Documentation Sync**: Updated the functional manual, README, and changelog to accurately reflect the polished interface and its features.
 
-## [1.7.0] - 2024-06-22
+## [0.7.0] 
 
 ### Improved
 - **Chat**: Code blocks now feature automatic language detection, ensuring more reliable syntax highlighting and enabling contextual actions (like "Run" or "Save") even when the language is not specified in the markdown.
@@ -45,12 +45,12 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - **API Client**: Fixed critical JSON parsing errors that occurred when the LLM returned request headers as an object instead of an array, or when the request body contained unescaped characters. The client is now significantly more robust against variations in model output.
 
-## [1.6.0] - 2024-06-15
+## [0.6.0] 
 
 ### Added
 - **Drag & Drop File Import**: Users can now drag files from their operating system and drop them directly onto a folder in the Project view's file tree. A confirmation dialog appears before the file is copied into the project.
 
-## [1.5.0] - 2024-06-01
+## [0.5.0] 
 
 ### Added
 - **Model Parameter Tuning**: A new "Parameters" popover in the chat header allows for adjusting Temperature, Top-K, and Top-P for the current session.
@@ -62,7 +62,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - **Chat Input Performance**: Resolved a major performance issue where the chat input box would become very slow in long conversations by memoizing message components.
 
-## [1.4.0] - 2024-05-20
+## [0.4.0] 
 
 ### Added
 - **AI-Assisted File Modifications**: Empower the AI to propose changes directly to project files. Users can review these changes in an interactive diff view and accept or reject them with a single click.
@@ -75,7 +75,7 @@ All notable changes to this project will be documented in this file.
 - **Toolchain Detection**: The application now automatically detects installed development toolchains (Python, JDK, Node.js, Delphi) and allows users to select a specific version in Settings.
 - **Status Bar**: A new status bar at the bottom of the window displays real-time application CPU and Memory usage (Electron app only).
 
-## [1.3.0] - 2024-05-10
+## [0.3.0] 
 
 ### Added
 - **Resizable Sidebar**: The session list sidebar can now be resized by dragging its edge, allowing for more flexible layout customization.
@@ -90,19 +90,19 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - **Session Renaming**: Fixed an issue where the smart session renaming feature was not working correctly due to an incorrect API call.
 
-## [1.2.0] - 2024-05-01
+## [0.2.0] 
 
 ### Added
 - **Project Context Awareness**: In the Chat view, you can now select an active project from a dropdown menu. When a project is selected, its entire file tree is automatically sent to the LLM as context with your prompt. This enables more intelligent, project-aware questions like "Where is the database logic?" or "Refactor the `ProductCard` component."
 
-## [1.1.0] - 2024-04-25
+## [0.1.1] 
 
 ### Added
 - **In-App Documentation Viewer**: A new "Info" tab in the header opens a view to read application documentation directly.
 - **Documentation Files**: Added `README.md`, `FUNCTIONAL_MANUAL.md`, `TECHNICAL_MANUAL.md`, and this `CHANGELOG.md`.
 - **Packaging**: The build process now includes all documentation files in the packaged application, making them available offline.
 
-## [1.0.0] - 2024-04-15
+## [0.1.0] 
 
 ### Initial Release
 

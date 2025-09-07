@@ -96,27 +96,27 @@ const TooltipComponent: React.FC<{ tooltipState: TooltipState }> = ({ tooltipSta
 export const TooltipProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tooltipState, setTooltipState] = useState<TooltipState>(initialTooltipState);
   // FIX: Use a robust type for the timeout ref to avoid environment inconsistencies (Node vs Browser).
-  const hideTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | undefined>();
+  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>();
 
   const show = useCallback((content: React.ReactNode, rect: DOMRect) => {
     if(hideTimeoutRef.current) {
-        window.clearTimeout(hideTimeoutRef.current);
+        clearTimeout(hideTimeoutRef.current);
     }
     setTooltipState({ visible: true, content, targetRect: rect });
   }, []);
 
   // FIX: Correctly implement setTimeout with a callback to fix "Expected 1 arguments, but got 0" error.
   const hide = useCallback(() => {
-    hideTimeoutRef.current = window.setTimeout(() => {
+    hideTimeoutRef.current = setTimeout(() => {
         setTooltipState((s) => ({ ...s, visible: false }));
     }, 100);
   }, []);
 
+  // FIX: Add a cleanup function to clear any pending timeout when the provider unmounts.
   useEffect(() => {
-      // FIX: Add a cleanup function to clear any pending timeout when the provider unmounts.
       return () => {
         if (hideTimeoutRef.current) {
-          window.clearTimeout(hideTimeoutRef.current);
+          clearTimeout(hideTimeoutRef.current);
         }
       };
   }, []);
