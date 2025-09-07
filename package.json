@@ -5,15 +5,21 @@
   "main": "dist/main.js",
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/beNative/local-llm-interface.git"
+  },
   "scripts": {
     "start": "npm run build && electron .",
     "build": "node esbuild.config.js",
-    "package": "npm run build && electron-builder"
+    "package": "npm run build && electron-builder",
+    "publish": "npm run build && electron-builder --publish always"
   },
   "dependencies": {
     "@google/genai": "^0.15.0",
     "@heroicons/react": "^2.1.5",
     "diff-match-patch": "^1.0.5",
+    "electron-updater": "^6.2.1",
     "lucide-react": "^0.417.0",
     "pyodide": "^0.26.1",
     "react": "^18.2.0",
@@ -44,6 +50,11 @@
     ],
     "directories": {
       "output": "release"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "beNative",
+      "repo": "local-llm-interface"
     },
     "win": {
       "target": "nsis"

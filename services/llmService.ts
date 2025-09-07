@@ -341,7 +341,7 @@ const textCompletionGemini = async (
         config,
     });
     
-    // FIX: Access the .text property directly to get the response content, as per Gemini API guidelines.
+    // @google/genai-sdk: FIX: Access the .text property directly to get the response content, as per Gemini API guidelines.
     return response.text;
 };
 
@@ -421,7 +421,7 @@ const streamChatCompletionGemini = async (
 
         for await (const chunk of stream) {
             if (signal.aborted) break;
-            // FIX: Access the .text property directly to get text from the streaming chunk.
+            // @google/genai-sdk: FIX: Access the .text property directly to get text from the streaming chunk.
             const text = chunk.text;
             if (text) {
                 onChunk({ type: 'content', text });

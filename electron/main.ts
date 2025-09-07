@@ -1,5 +1,6 @@
 // FIX: Changed to require syntax to resolve module resolution errors with Electron.
 const { app, BrowserWindow, shell, ipcMain, dialog } = require('electron');
+const { autoUpdater } = require('electron-updater');
 import * as path from 'path';
 import * as fs from 'fs';
 import { readdir, stat, readFile, writeFile, mkdir, copyFile } from 'fs/promises';
@@ -977,6 +978,11 @@ end.
 
 
     createWindow();
+
+    // Check for app updates when the app is packaged.
+    if (app.isPackaged) {
+      autoUpdater.checkForUpdatesAndNotify();
+    }
 
     // Re-create a window on macOS when the dock icon is clicked and there are no other windows open.
     app.on('activate', () => {
