@@ -90,7 +90,14 @@ The "API Client" is a new view designed for testing and interacting with HTTP AP
 - **Edit Request**: You can manually edit any part of the generated request before sending it. The UI is cleanly organized into Request and Response panels.
 - **Send & View Response**: Send the request and view the detailed response, including status code, headers, and a syntax-highlighted body.
 
-## 6. Model Selection
+## 6. Info View
+
+The "Info" tab is your central hub for all application documentation and metadata.
+
+- **Documentation Viewer**: Read the `README`, `Functional Manual` (this document), `Technical Manual`, and `Changelog` directly within the app. This is useful for offline access and quick reference.
+- **About Dialog**: At the bottom of the page, click the **"About This App"** link to open a dialog. This dialog displays the application's version, credits for design and implementation, and copyright information.
+
+## 7. Model Selection
 
 When you start the app or create a new chat, you are presented with the Model Selection screen. This screen lists all models available from your configured LLM service.
 
@@ -98,7 +105,7 @@ When you start the app or create a new chat, you are presented with the Model Se
 - **Detailed Info (Ollama)**: For Ollama models, an **Info icon** is available on the card. Clicking this opens a modal displaying comprehensive technical details. A summary at the top shows the model's file size, family, and parameter size. Below, you can find the full, scrollable content of the model's `Modelfile`, parameters, and template.
 - **Start Chat**: Click any model card to start a new chat session without any project context.
 
-## 7. Chat View
+## 8. Chat View
 
 The chat view is the primary interface for interacting with the LLM.
 

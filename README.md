@@ -27,6 +27,7 @@ A user-friendly desktop application to chat with locally installed LLMs serviced
 - **Persistent Settings**: Remembers your connection settings, projects, and theme preference between sessions.
 - **Standard Installation Behavior**: Adheres to OS standards by storing settings and logs in the user's application data directory for better system integration.
 - **Pre-release Updates**: Opt-in to receive pre-release versions for early access to new features.
+- **About Dialog**: An in-app dialog provides version, credits, and copyright information.
 - **Light & Dark Themes**: Switch between themes to suit your preference.
 
 ## Tech Stack

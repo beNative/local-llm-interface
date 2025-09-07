@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.15.0] - 2025-09-23
+
+### Added
+- **About Dialog**: Added an "About" dialog accessible from the Info view, displaying application credits, version, and copyright information.
+
+### Fixed
+- **React Hooks**: Resolved a critical React error ("Rendered more hooks than during the previous render") in the Chat view's persona selector by refactoring the list item into its own component. This ensures hooks are called consistently, improving stability.
+
 ## [0.14.0] - 2025-09-22
 
 ### Added
