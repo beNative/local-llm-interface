@@ -283,6 +283,24 @@ interface ChatViewProps {
   onRunCodeSnippet: (language: string, code: string) => void;
 }
 
+const PersonaSelectorItem: React.FC<{
+  prompt: SystemPrompt;
+  onSelect: (id: string) => void;
+}> = ({ prompt, onSelect }) => {
+  // Hook is called at the top level of this component, which is correct.
+  const promptTooltip = useTooltipTrigger(prompt.content);
+
+  return (
+    <button
+      {...promptTooltip}
+      onClick={() => onSelect(prompt.id)}
+      className="w-full text-left block px-3 py-1.5 text-sm text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
+    >
+      {prompt.title}
+    </button>
+  );
+};
+
 export default function ChatView({ session, provider, onSendMessage, isResponding, retrievalStatus, thinkingText, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onSetSessionGenerationConfig, onSetSessionAgentToolsEnabled, onRunCodeSnippet }: ChatViewProps) {
   const [input, setInput] = useState('');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
@@ -625,22 +643,16 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
                         >
                             Default Assistant
                         </button>
-                        {systemPrompts.map(prompt => {
-                            const promptTooltip = useTooltipTrigger(prompt.content);
-                            return (
-                                <button 
-                                    {...promptTooltip}
-                                    key={prompt.id}
-                                    onClick={() => {
-                                        onSetSessionSystemPrompt(prompt.id);
-                                        setIsPersonaSelectorOpen(false);
-                                    }}
-                                    className="w-full text-left block px-3 py-1.5 text-sm text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
-                                >
-                                    {prompt.title}
-                                </button>
-                            )
-                        })}
+                        {systemPrompts.map(prompt => (
+                            <PersonaSelectorItem
+                                key={prompt.id}
+                                prompt={prompt}
+                                onSelect={(id) => {
+                                    onSetSessionSystemPrompt(id);
+                                    setIsPersonaSelectorOpen(false);
+                                }}
+                            />
+                        ))}
                     </div>
                 )}
               </div>
