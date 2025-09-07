@@ -516,12 +516,8 @@ const App: React.FC = () => {
                 contentString = m.content;
             } else if (Array.isArray(m.content)) {
                 // Find the first text part and use its content.
-                const textPart = m.content.find(p => p.type === 'text') as ChatMessageContentPartText | undefined;
-                if (textPart) {
-                    contentString = textPart.text;
-                } else {
-                    contentString = '[image]'; // Fallback for image-only messages
-                }
+                const textPart = m.content.find((p): p is ChatMessageContentPartText => p.type === 'text');
+                contentString = textPart ? textPart.text : '[image]';
             }
             return `${m.role}: ${contentString}`;
           })
@@ -808,18 +804,10 @@ const App: React.FC = () => {
           return;
       }
 
-      const lastMessageBeforeApproval = currentSession.messages[currentSession.messages.length - 1];
+      const lastMessageBeforeApproval = currentSession.messages[currentSession.messages.length - 1] as AssistantToolCallMessage;
       // FIX: Safely extract string content from the last message, which might have complex content type.
-      let assistantContent: string | null = null;
-      if (typeof lastMessageBeforeApproval.content === 'string' || lastMessageBeforeApproval.content === null) {
-        assistantContent = lastMessageBeforeApproval.content;
-      } else if (Array.isArray(lastMessageBeforeApproval.content)) {
-        // This is a safeguard, as a message with tool_calls should have string | null content.
-        assistantContent = (lastMessageBeforeApproval.content as ChatMessageContentPart[])
-            .filter((p): p is ChatMessageContentPartText => p.type === 'text')
-            .map(p => p.text)
-            .join('');
-      }
+      // Since we know this is a tool call message, its content is `string | null`.
+      const assistantContent = lastMessageBeforeApproval.content;
 
       const toolResults: ToolResponseMessage[] = [];
 
@@ -1132,31 +1120,28 @@ const App: React.FC = () => {
               />
           )}
           <header className="flex items-center justify-between p-2 border-b border-[--border-primary] bg-[--bg-primary] sticky top-0 z-10 flex-shrink-0">
-            <div className="flex items-center gap-4">
-                <h1 className="text-xl font-bold px-2 text-[--text-primary]">{APP_NAME}</h1>
-                <nav className="flex items-center gap-1">
-                  <NavButton active={view === 'chat'} onClick={() => setView('chat')} title="Switch to the main chat interface" ariaLabel="Chat View" view="chat">
-                    <Icon name="messageSquare" className="w-5 h-5" />
-                    <span>Chat</span>
-                  </NavButton>
-                  <NavButton active={view === 'projects'} onClick={() => setView('projects')} title="Manage local code projects" ariaLabel="Projects View" view="projects">
-                    <Icon name="code" className="w-5 h-5" />
-                    <span>Projects</span>
-                  </NavButton>
-                  <NavButton active={view === 'api'} onClick={() => setView('api')} title="Test HTTP endpoints using natural language" ariaLabel="API Client View" view="api">
-                    <Icon name="server" className="w-5 h-5" />
-                    <span>API Client</span>
-                  </NavButton>
-                  <NavButton active={view === 'settings'} onClick={() => setView('settings')} title="Configure application settings" ariaLabel="Settings View" view="settings">
-                    <Icon name="settings" className="w-5 h-5" />
-                    <span>Settings</span>
-                  </NavButton>
-                  <NavButton active={view === 'info'} onClick={() => setView('info')} title="View application documentation and manuals" ariaLabel="Info View" view="info">
-                    <Icon name="info" className="w-5 h-5" />
-                    <span>Info</span>
-                  </NavButton>
-                </nav>
-            </div>
+            <nav className="flex items-center gap-1">
+              <NavButton active={view === 'chat'} onClick={() => setView('chat')} title="Switch to the main chat interface" ariaLabel="Chat View" view="chat">
+                <Icon name="messageSquare" className="w-5 h-5" />
+                <span>Chat</span>
+              </NavButton>
+              <NavButton active={view === 'projects'} onClick={() => setView('projects')} title="Manage local code projects" ariaLabel="Projects View" view="projects">
+                <Icon name="code" className="w-5 h-5" />
+                <span>Projects</span>
+              </NavButton>
+              <NavButton active={view === 'api'} onClick={() => setView('api')} title="Test HTTP endpoints using natural language" ariaLabel="API Client View" view="api">
+                <Icon name="server" className="w-5 h-5" />
+                <span>API Client</span>
+              </NavButton>
+              <NavButton active={view === 'settings'} onClick={() => setView('settings')} title="Configure application settings" ariaLabel="Settings View" view="settings">
+                <Icon name="settings" className="w-5 h-5" />
+                <span>Settings</span>
+              </NavButton>
+              <NavButton active={view === 'info'} onClick={() => setView('info')} title="View application documentation and manuals" ariaLabel="Info View" view="info">
+                <Icon name="info" className="w-5 h-5" />
+                <span>Info</span>
+              </NavButton>
+            </nav>
 
             <div className="flex items-center gap-2 pr-2">
               <div className="hidden sm:block text-xs text-[--text-muted] border border-[--border-secondary] rounded-md px-2 py-1 font-mono">

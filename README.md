@@ -24,6 +24,7 @@ A user-friendly desktop application to chat with locally installed LLMs serviced
 - **System-Wide Status Bar**: Displays real-time system-wide CPU, GPU, and Memory usage for performance monitoring.
 - **Advanced Logging**: A dockable, filterable logging panel shows all internal application events for easy debugging.
 - **Persistent Settings**: Remembers your connection settings, projects, and theme preference between sessions.
+- **Standard Installation Behavior**: Adheres to OS standards by storing settings and logs in the user's application data directory for better system integration.
 - **Light & Dark Themes**: Switch between themes to suit your preference.
 
 ## Tech Stack

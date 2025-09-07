@@ -107,9 +107,10 @@ export const TooltipProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // FIX: Correctly implement setTimeout with a callback to fix "Expected 1 arguments, but got 0" error.
   const hide = useCallback(() => {
-    hideTimeoutRef.current = window.setTimeout(() => {
-        setTooltipState((s) => ({ ...s, visible: false }));
-    }, 100);
+    const timeoutCallback = () => {
+      setTooltipState((s) => ({ ...s, visible: false }));
+    };
+    hideTimeoutRef.current = window.setTimeout(timeoutCallback, 100);
   }, []);
 
   // FIX: Add a cleanup function to clear any pending timeout when the provider unmounts.

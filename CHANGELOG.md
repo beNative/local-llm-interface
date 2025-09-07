@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.12.0] - 2025-09-14
+
+### Changed
+- **Standard Installation Behavior**: The application now adheres to operating system standards by storing all configuration and log files in the user's application data directory (`%APPDATA%` on Windows, `~/Library/Application Support` on macOS, `~/.config` on Linux). This changes the application from a "portable" app to a standard installed application, improving system integration and security.
+
 ## [0.11.0] - 2025-09-07
 
 ### Fixed
