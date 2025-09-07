@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.13.0] - 2025-09-16
+
+### Added
+- **Pre-release Updates**: Added a setting in "Settings > General > Updates" to allow users to opt-in to receiving pre-release versions of the application from GitHub.
+
+## [0.12.1] - 2025-09-15
+
+### Changed
+- **UI Refinement**: Removed the main "Local LLM Interface" title from the header bar for a cleaner, more minimalist appearance. The primary navigation is now the main focus.
+
 ## [0.12.0] - 2025-09-14
 
 ### Changed

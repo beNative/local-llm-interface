@@ -141,6 +141,7 @@ const App: React.FC = () => {
             dark: {},
         },
         logToFile: false,
+        allowPrerelease: false,
         pythonProjectsPath: '',
         nodejsProjectsPath: '',
         webAppsPath: '',

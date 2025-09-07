@@ -978,6 +978,14 @@ end.
 
     // Check for app updates when the app is packaged.
     if (app.isPackaged) {
+      const settings = readSettings() as any;
+      if (settings && settings.allowPrerelease) {
+        autoUpdater.allowPrerelease = true;
+        console.log('Allowing pre-releases for auto-updater.');
+      } else {
+        autoUpdater.allowPrerelease = false;
+        console.log('Not allowing pre-releases for auto-updater.');
+      }
       autoUpdater.checkForUpdatesAndNotify();
     }
 

@@ -331,8 +331,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
     });
   };
 
-  const handleLogToFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setLocalConfig({ ...localConfig, logToFile: e.target.checked });
+  const handleSimpleConfigChange = (key: keyof Config, value: any) => {
+    setLocalConfig(current => ({ ...current, [key]: value }));
   };
 
   const handleApiKeyChange = (key: string, value: string) => {
@@ -509,14 +509,29 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                         </div>
                   </div>
                   {isElectron && (
-                     <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm xl:col-span-2">
-                        <h3 className="text-xl font-semibold text-[--text-secondary] mb-4">Logging</h3>
-                        <label className="flex items-center gap-3 cursor-pointer mt-2">
-                            <input type="checkbox" checked={!!localConfig.logToFile} onChange={handleLogToFileChange} className="w-4 h-4 rounded text-indigo-600 bg-[--bg-tertiary] border-[--border-secondary] focus:ring-indigo-500" />
-                            <span className="text-sm font-medium text-[--text-muted]">Automatically save logs to file</span>
-                        </label>
-                        <p className="text-xs text-[--text-muted] mt-1 px-1">Saves logs to a file in the app directory. Useful for debugging.</p>
-                      </div>
+                    <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm xl:col-span-2 space-y-6">
+                        <div>
+                            <h3 className="text-xl font-semibold text-[--text-secondary] mb-4">Logging</h3>
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" checked={!!localConfig.logToFile} onChange={(e) => handleSimpleConfigChange('logToFile', e.target.checked)} className="w-4 h-4 rounded text-indigo-600 bg-[--bg-tertiary] border-[--border-secondary] focus:ring-indigo-500" />
+                                <span className="text-sm font-medium text-[--text-muted]">Automatically save logs to file</span>
+                            </label>
+                            <p className="text-xs text-[--text-muted] mt-1 px-1">Saves logs to a file in the app directory. Useful for debugging.</p>
+                        </div>
+                         <div className="pt-6 border-t border-[--border-primary]">
+                            <h3 className="text-xl font-semibold text-[--text-secondary] mb-4">Updates</h3>
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={!!localConfig.allowPrerelease}
+                                    onChange={(e) => handleSimpleConfigChange('allowPrerelease', e.target.checked)}
+                                    className="w-4 h-4 rounded text-indigo-600 bg-[--bg-tertiary] border-[--border-secondary] focus:ring-indigo-500"
+                                />
+                                <span className="text-sm font-medium text-[--text-muted]">Receive pre-release versions</span>
+                            </label>
+                            <p className="text-xs text-[--text-muted] mt-1 px-1">Get early access to new features. Pre-releases may be unstable.</p>
+                        </div>
+                    </div>
                   )}
                 </div>
               );

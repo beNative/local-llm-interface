@@ -60,6 +60,7 @@ export interface Config {
   theme: Theme;
   themeOverrides?: ThemeOverrides;
   logToFile?: boolean;
+  allowPrerelease?: boolean;
   pythonProjectsPath?: string;
   nodejsProjectsPath?: string;
   webAppsPath?: string;

@@ -10,7 +10,6 @@ The application window is composed of a header, a main content area, a status ba
 
 The header is always visible and contains the primary navigation and control elements:
 
-- **App Name**: Displays "Local LLM Interface".
 - **Navigation Bar**: A sleek, pill-shaped bar to switch between the main application views: "Chat", "Projects", "API Client", "Settings", and "Info". The active view is highlighted with a color accent.
 - **Command Palette Shortcut**: A `Cmd/Ctrl + K` hint is displayed. Pressing this key combination opens the command palette for quick navigation.
 - **Logs Button**: (File icon) Toggles the visibility of the logging panel at the bottom of the screen.
@@ -39,6 +38,7 @@ The "Settings" tab allows you to configure every aspect of the application. The 
 - **Connection**: Select your LLM provider (Ollama, LMStudio, OpenAI, etc.). Add, edit, and delete custom OpenAI-compatible providers.
 - **API Keys**: Securely enter and store API keys for providers that require them.
 - **Logging**: Enable or disable saving logs to a file.
+- **Updates**: Enable the "Receive pre-release versions" option to get early access to new features. Be aware that pre-release versions may be less stable.
 
 ### Personalization
 - **Appearance**: Configure colors separately for Light and Dark themes. Use a palette of predefined colors or input custom hex codes for the chat background, user messages, and assistant messages. Preview your changes in real-time.
@@ -77,7 +77,7 @@ The "Projects" tab is a powerful feature for managing local code projects and in
 - **Expand Project**: Click the expand button on a card to reveal an interactive file tree.
 - **Edit Files**: Click on any file in the tree to open it in a built-in code editor. You can make changes and save them directly back to the file.
 - **Add to Chat**: From the editor, click "Add to Chat Context" to inject the file's content directly into the chat input, making it easy to ask questions about specific code.
-- **Add Files via Drag and Drop**: You can add external files to your project by dragging them from your computer's file explorer and dropping them onto any folder in the file tree. When you hover over a valid folder, it will be highlighted. Upon dropping the files, a confirmation dialog will appear, listing the files to be added. Confirming will copy the files into that project folder.
+- **Add Files via Drag and Drop**: You can add external files to your computer's file explorer and dropping them onto any folder in the file tree. When you hover over a valid folder, it will be highlighted. Upon dropping the files, a confirmation dialog will appear, listing the files to be added. Confirming will copy the files into that project folder.
 
 ## 5. API Client View (Desktop App Only)
 
