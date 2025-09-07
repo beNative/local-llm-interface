@@ -43,6 +43,8 @@ The "Settings" tab allows you to configure every aspect of the application. The 
 ### Personalization
 - **Appearance**: Configure colors separately for Light and Dark themes. Use a palette of predefined colors or input custom hex codes for the chat background, user messages, and assistant messages. Preview your changes in real-time.
 - **Font Settings**: Change the global font family and font size for the chat interface.
+- **Application Scale**: Use the slider to adjust the overall zoom level of the application, from 80% to 150%. This is useful for adjusting readability on different screen sizes.
+- **Control Density**: Choose between "Compact," "Normal," and "Comfortable" to adjust the spacing and padding of UI elements like buttons and list items.
 - **Icon Set**: Choose from several included icon packs (Default, Lucide, Heroicons, etc.) to change the application's entire icon theme.
 
 ### Content

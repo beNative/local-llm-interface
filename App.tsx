@@ -36,7 +36,7 @@ const NavButton: React.FC<{
             onClick={onClick}
             title={title}
             aria-label={ariaLabel}
-            className={`relative flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
+            className={`relative flex items-center gap-[var(--space-2)] px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--font-size-sm)] font-medium rounded-lg transition-colors duration-200 ${
                 active
                     ? `text-[--accent-${view}]`
                     : 'text-[--text-muted] hover:bg-[--bg-hover] hover:text-[--text-primary]'
@@ -140,6 +140,8 @@ const App: React.FC = () => {
         themeOverrides: {
             light: {},
             dark: {},
+            scale: 100,
+            density: 'normal',
         },
         logToFile: false,
         allowPrerelease: false,
@@ -187,13 +189,12 @@ const App: React.FC = () => {
       if (!loadedConfig.providers || loadedConfig.providers.length === 0 || oldConf.provider) {
           logger.info('Migrating old provider configuration to new structure.');
           const newProviders = [...DEFAULT_PROVIDERS];
-          const oldProviderName = oldConf.provider;
           let newSelectedId = 'ollama';
 
-          if (oldProviderName === 'LMStudio') newSelectedId = 'lmstudio';
-          else if (oldProviderName === 'OpenAI') newSelectedId = 'openai';
-          else if (oldProviderName === 'Google Gemini') newSelectedId = 'google-gemini';
-          else if (oldProviderName === 'Custom' && oldConf.baseUrl) {
+          if (oldConf.provider === 'LMStudio') newSelectedId = 'lmstudio';
+          else if (oldConf.provider === 'OpenAI') newSelectedId = 'openai';
+          else if (oldConf.provider === 'Google Gemini') newSelectedId = 'google-gemini';
+          else if (oldConf.provider === 'Custom' && oldConf.baseUrl) {
               const customProvider: LLMProviderConfig = {
                   id: 'custom-migrated',
                   name: 'Custom (Migrated)',
@@ -301,6 +302,21 @@ const App: React.FC = () => {
       logger.debug('No theme overrides to apply.');
     }
   }, [config?.themeOverrides, config?.theme]);
+
+  // Effect to apply application scale (zoom).
+  useEffect(() => {
+    const scale = config?.themeOverrides?.scale || 100;
+    // FIX: Cast style to `any` to set the non-standard but widely supported `zoom` property.
+    (document.documentElement.style as any).zoom = `${scale / 100}`;
+    logger.debug(`Application scale set to: ${scale}%`);
+  }, [config?.themeOverrides?.scale]);
+
+  // Effect to apply control density.
+  useEffect(() => {
+      const density = config?.themeOverrides?.density || 'normal';
+      document.documentElement.setAttribute('data-density', density);
+      logger.debug(`Application density set to: ${density}`);
+  }, [config?.themeOverrides?.density]);
 
   // Effect to persist config changes.
   useEffect(() => {
@@ -1122,7 +1138,7 @@ const App: React.FC = () => {
                 onClose={() => setPendingToolCalls(null)}
               />
           )}
-          <header className="flex items-center justify-between p-2 border-b border-[--border-primary] bg-[--bg-primary] sticky top-0 z-10 flex-shrink-0">
+          <header className="flex items-center justify-between p-[var(--space-2)] border-b border-[--border-primary] bg-[--bg-primary] sticky top-0 z-10 flex-shrink-0">
             <nav className="flex items-center gap-1">
               <NavButton active={view === 'chat'} onClick={() => setView('chat')} title="Switch to the main chat interface" ariaLabel="Chat View" view="chat">
                 <Icon name="messageSquare" className="w-5 h-5" />

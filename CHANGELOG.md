@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.14.0] - 2025-09-22
+
+### Added
+- **Application Scale**: Added a setting in "Settings > Personalization" to adjust the application's overall zoom level, improving accessibility and readability on different displays.
+- **Control Density**: Added a "Control Density" setting with "Compact", "Normal", and "Comfortable" options to adjust the spacing and padding of UI elements for a customized user experience.
+
 ## [0.13.0] - 2025-09-16
 
 ### Added

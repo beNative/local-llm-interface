@@ -23,7 +23,7 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
         <button
           {...newChatTooltip}
           onClick={onNewChat}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg text-white bg-[--accent-chat] hover:brightness-95 transition-all shadow-sm"
+          className="w-full flex items-center justify-center gap-2 px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--font-size-sm)] font-medium rounded-lg text-white bg-[--accent-chat] hover:brightness-95 transition-all shadow-sm"
         >
           <Icon name="plus" className="w-4 h-4" />
           New Chat
@@ -33,7 +33,7 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
         {sessions.map((session) => (
           <div
             key={session.id}
-            className={`group w-full text-left rounded-lg text-sm font-medium transition-colors relative ${
+            className={`group w-full text-left rounded-lg text-[length:var(--font-size-sm)] font-medium transition-colors relative ${
               activeSessionId === session.id
                 ? 'bg-[--bg-hover]'
                 : 'text-[--text-secondary] hover:bg-[--bg-hover]'
@@ -42,7 +42,7 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
             {activeSessionId === session.id && (
                 <div className="absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 bg-[--accent-chat] rounded-r-full" />
             )}
-            <button onClick={() => onSelectSession(session.id)} className="w-full flex items-start gap-2.5 text-left truncate px-3 py-2">
+            <button onClick={() => onSelectSession(session.id)} className="w-full flex items-start gap-2.5 text-left truncate px-[var(--space-3)] py-[var(--space-2)]">
                 <Icon name="messageSquare" className="w-4 h-4 flex-shrink-0 mt-1" />
                 <div className="flex-1 truncate pr-14">
                     <span className={`flex items-center gap-2 truncate ${activeSessionId === session.id ? 'text-[--text-primary]' : ''}`}>

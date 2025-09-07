@@ -45,6 +45,33 @@
         --assistant-message-text-color: var(--text-primary);
         --chat-font-family: sans-serif;
         --chat-font-size: 16px;
+
+        /* Density & Scale Variables */
+        --font-size-sm: 0.875rem;
+        --font-size-base: 1rem;
+        --space-1: 0.25rem;  /* 4px */
+        --space-2: 0.5rem;   /* 8px */
+        --space-3: 0.75rem;  /* 12px */
+        --space-4: 1rem;     /* 16px */
+        --space-6: 1.5rem;   /* 24px */
+      }
+      html[data-density="compact"] {
+          --font-size-sm: 0.8125rem;
+          --font-size-base: 0.9375rem;
+          --space-1: 0.125rem;
+          --space-2: 0.25rem;
+          --space-3: 0.5rem;
+          --space-4: 0.75rem;
+          --space-6: 1rem;
+      }
+      html[data-density="comfortable"] {
+          --font-size-sm: 0.9375rem;
+          --font-size-base: 1.0625rem;
+          --space-1: 0.375rem;
+          --space-2: 0.75rem;
+          --space-3: 1rem;
+          --space-4: 1.25rem;
+          --space-6: 2rem;
       }
       html.dark {
         --bg-primary: #0f172a;
@@ -99,6 +126,7 @@
       body {
         background-color: var(--bg-primary);
         color: var(--text-primary);
+        font-size: var(--font-size-base);
         -webkit-font-smoothing: subpixel-antialiased;
         transition: background-color 0.3s ease, color 0.3s ease;
       }

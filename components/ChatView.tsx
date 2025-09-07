@@ -553,7 +553,7 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
         onDragOver={handleDragOver}
         onDrop={handleDrop}
     >
-      <header className="flex items-center justify-between p-4 bg-[--bg-primary] border-b border-[--border-primary] gap-4">
+      <header className="flex items-center justify-between p-[var(--space-4)] bg-[--bg-primary] border-b border-[--border-primary] gap-[var(--space-4)]">
         <div className="flex items-center gap-3 min-w-0">
           <ProviderIcon provider={provider} className="w-6 h-6 text-[--accent-chat] flex-shrink-0"/>
           <div className="flex flex-col min-w-0">
@@ -744,7 +744,7 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
             </div>
         )}
       </header>
-      <main className="flex-1 overflow-y-auto p-4 space-y-6">
+      <main className="flex-1 overflow-y-auto p-[var(--space-4)] space-y-[var(--space-6)]">
           {filteredMessages.map((msg, index) => {
               const isLastMessage = index === filteredMessages.length - 1;
               if (isLastMessage && isResponding && msg.role === 'assistant') {
@@ -776,7 +776,7 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
           {retrievalStatus === 'retrieving' && <ThinkingIndicator content="Analyzing project to find relevant context..." />}
           <div ref={messagesEndRef} />
       </main>
-      <footer className="p-4 bg-[--bg-primary] border-t border-[--border-primary] flex-shrink-0">
+      <footer className="p-[var(--space-4)] bg-[--bg-primary] border-t border-[--border-primary] flex-shrink-0">
           <div className="relative">
               {attachedImage && (
                   <div className="absolute bottom-full left-0 mb-2 p-2 bg-[--bg-secondary] border border-[--border-primary] rounded-lg">
@@ -792,13 +792,13 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyPress}
                   placeholder="Type your message or drop an image..."
-                  className="w-full pl-24 pr-28 py-3 text-base bg-[--bg-secondary] rounded-full focus:outline-none focus:ring-2 focus:ring-[--border-focus] resize-none overflow-y-hidden"
+                  className="w-full pl-24 pr-28 py-[var(--space-3)] text-[length:var(--font-size-base)] bg-[--bg-secondary] rounded-full focus:outline-none focus:ring-2 focus:ring-[--border-focus] resize-none overflow-y-hidden"
                   rows={1}
                   disabled={isResponding}
               />
               <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
                   <input type="file" ref={fileInputRef} onChange={e => handleImageChange(e.target.files ? e.target.files[0] : null)} accept="image/*" className="hidden" />
-                  <button {...attachImgTooltip} onClick={() => fileInputRef.current?.click()} className="p-2 text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-full">
+                  <button {...attachImgTooltip} onClick={() => fileInputRef.current?.click()} className="p-[var(--space-2)] text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-full">
                       <PaperclipIcon className="w-5 h-5" />
                   </button>
                   <div className="relative">
@@ -806,7 +806,7 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
                           ref={promptsButtonRef}
                           {...predefinedPromptsTooltip} 
                           onClick={() => setIsPromptsOpen(p => !p)} 
-                          className="p-2 text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-full"
+                          className="p-[var(--space-2)] text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-full"
                       >
                           <BookmarkIcon className="w-5 h-5" />
                       </button>

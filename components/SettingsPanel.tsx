@@ -21,6 +21,7 @@ const PREDEFINED_COLORS = [
 ];
 
 const iconSets: IconSet[] = ['default', 'lucide', 'heroicons', 'feather', 'fontawesome', 'material'];
+const densities: ThemeOverrides['density'][] = ['compact', 'normal', 'comfortable'];
 
 const ProviderEditorModal: React.FC<{
   provider: LLMProviderConfig | null;
@@ -229,7 +230,7 @@ interface NavButtonProps {
 const NavButton: React.FC<NavButtonProps> = ({ icon, label, isActive, onClick }) => (
     <button
         onClick={onClick}
-        className={`w-full flex items-center gap-3 text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+        className={`w-full flex items-center gap-3 text-left px-[var(--space-3)] py-[var(--space-2)] rounded-lg text-[length:var(--font-size-sm)] font-medium transition-colors ${
             isActive
                 ? 'bg-[--accent-settings]/10 dark:bg-[--accent-settings]/20 text-[--accent-settings]'
                 : 'text-[--text-secondary] hover:bg-[--bg-hover]'
@@ -405,7 +406,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
     }));
   };
 
-  const handleThemeOverridesChange = (key: keyof ThemeOverrides, value: string | number | IconSet) => {
+  const handleThemeOverridesChange = (key: keyof ThemeOverrides, value: any) => {
     setLocalConfig(current => ({
         ...current,
         themeOverrides: {
@@ -628,7 +629,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                                 </div>
                             </div>
                         </div>
-                        <div className="lg:col-span-2 space-y-4 lg:border-l lg:pl-6 lg:border-[--border-primary]">
+                        <div className="lg:col-span-2 space-y-6 lg:border-l lg:pl-6 lg:border-[--border-primary]">
                             <h4 className="text-md font-semibold text-[--text-secondary] mb-2">Interface Customization (Global)</h4>
                             <div className="grid grid-cols-1 gap-4">
                                 <div>
@@ -644,6 +645,38 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                                 <div>
                                     <label htmlFor="font-size" className="block text-sm font-medium text-[--text-muted] mb-1">Font Size (px)</label>
                                     <input type="number" id="font-size" value={themeOverrides.fontSize || 16} onChange={e => handleThemeOverridesChange('fontSize', e.target.valueAsNumber)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]" placeholder="16"/>
+                                </div>
+                                <div>
+                                    <label htmlFor="app-scale" className="flex justify-between text-sm font-medium text-[--text-muted] mb-1">
+                                        <span>Application Scale</span>
+                                        <span className="font-mono">{(themeOverrides.scale || 100)}%</span>
+                                    </label>
+                                    <input 
+                                        type="range" 
+                                        id="app-scale" 
+                                        min="80" max="150" step="5" 
+                                        value={themeOverrides.scale || 100} 
+                                        onChange={e => handleThemeOverridesChange('scale', e.target.valueAsNumber)}
+                                        className="w-full h-2 bg-[--bg-tertiary] rounded-lg appearance-none cursor-pointer" 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-[--text-muted] mb-2">Control Density</label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {densities.map(d => (
+                                            <button
+                                                key={d}
+                                                onClick={() => handleThemeOverridesChange('density', d)}
+                                                className={`px-3 py-2 text-sm rounded-lg border-2 transition-all text-center ${
+                                                    (themeOverrides.density || 'normal') === d
+                                                        ? 'bg-[--accent-settings]/20 border-[--accent-settings] font-semibold text-[--accent-settings]'
+                                                        : 'bg-[--bg-tertiary] border-transparent hover:border-[--border-secondary] text-[--text-secondary]'
+                                                }`}
+                                            >
+                                                {d.charAt(0).toUpperCase() + d.slice(1)}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                             <div>
@@ -732,7 +765,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
 
   return (
     <div className="flex h-full overflow-hidden bg-[--bg-secondary]">
-      <aside className="w-60 p-4 border-r border-[--border-primary] overflow-y-auto flex-shrink-0 bg-[--bg-primary]">
+      <aside className="w-60 p-[var(--space-4)] border-r border-[--border-primary] overflow-y-auto flex-shrink-0 bg-[--bg-primary]">
         <h1 className="flex items-center gap-3 text-2xl font-bold mb-8 px-2" style={{ color: 'var(--accent-settings)'}}>
           <Icon name="settings" className="w-7 h-7"/>
           Settings
@@ -750,7 +783,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
         </nav>
       </aside>
 
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 overflow-y-auto p-[var(--space-6)]">
         {renderContent()}
       </main>
     </div>

@@ -20,6 +20,8 @@ export interface ThemeOverrides {
   fontFamily?: string;
   fontSize?: number;
   iconSet?: IconSet;
+  scale?: number;
+  density?: 'compact' | 'normal' | 'comfortable';
 }
 
 export type LLMProviderType = 'openai-compatible' | 'google-gemini';
