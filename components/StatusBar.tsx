@@ -19,6 +19,7 @@ interface StatusBarProps {
     models: Model[];
     onSelectModel: (modelId: string) => void;
     onChangeProvider: (providerId: string) => void;
+    version: string;
 }
 
 const formatBytes = (bytes: number, decimals = 1) => {
@@ -38,7 +39,7 @@ const ProviderIcons: Record<string, React.FC<{className?: string}>> = {
 };
 
 
-const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusText, providers, selectedProviderId, activeModel, activeProject, models, onSelectModel, onChangeProvider }) => {
+const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusText, providers, selectedProviderId, activeModel, activeProject, models, onSelectModel, onChangeProvider, version }) => {
     const [isProviderPopoverOpen, setIsProviderPopoverOpen] = useState(false);
     const [isModelPopoverOpen, setIsModelPopoverOpen] = useState(false);
     const providerRef = useRef<HTMLDivElement>(null);
@@ -185,6 +186,12 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
                         <span>-- MB / -- GB</span>
                     )}
                 </div>
+                {version && (
+                    <>
+                        <div className="w-px h-4 bg-[--border-primary]" />
+                        <span title={`Application Version ${version}`}>v{version}</span>
+                    </>
+                )}
             </div>
         </footer>
     );

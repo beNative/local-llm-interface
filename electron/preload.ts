@@ -27,6 +27,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   isPackaged: () => ipcRenderer.invoke('app:is-packaged'),
 
   /**
+   * Gets the application's version number from package.json.
+   * @returns {Promise<string>} A promise that resolves with the version string.
+   */
+  getVersion: () => ipcRenderer.invoke('app:get-version'),
+
+  /**
    * Executes a Python code snippet in a native system process.
    * @param {string} code - The Python code to execute.
    * @returns {Promise<{stdout: string, stderr: string}>} A promise that resolves with the output.

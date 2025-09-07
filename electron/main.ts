@@ -357,6 +357,8 @@ app.whenReady().then(() => {
         return app.isPackaged;
     });
 
+    ipcMain.handle('app:get-version', () => app.getVersion());
+
     ipcMain.handle('detect:toolchains', async (): Promise<ToolchainStatus> => {
         console.log("Detecting toolchains...");
         const [python, java, nodejs, delphi] = await Promise.all([

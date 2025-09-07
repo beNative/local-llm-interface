@@ -13,6 +13,7 @@ export interface IElectronAPI {
   getSettings: () => Promise<Config | null>;
   saveSettings: (settings: Config) => Promise<void>;
   isPackaged: () => Promise<boolean>;
+  getVersion: () => Promise<string>;
   runPython: (code: string) => Promise<{ stdout: string; stderr: string }>;
   runNodejs: (code: string) => Promise<{ stdout: string; stderr: string }>;
   runHtml: (code: string) => Promise<{ stdout: string; stderr: string }>;

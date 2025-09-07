@@ -110,6 +110,7 @@ const App: React.FC = () => {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [editingFile, setEditingFile] = useState<{ path: string; name: string } | null>(null);
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
+  const [appVersion, setAppVersion] = useState('');
   const [pendingToolCalls, setPendingToolCalls] = useState<ToolCall[] | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const accumulatedThinkingText = useRef<string | null>(null);
@@ -158,6 +159,7 @@ const App: React.FC = () => {
 
       if (window.electronAPI) {
         setIsElectron(true);
+        window.electronAPI.getVersion().then(setAppVersion);
         logger.info('Electron environment detected.');
         const savedSettings = await window.electronAPI.getSettings();
         if (savedSettings) {
@@ -1197,6 +1199,7 @@ const App: React.FC = () => {
                   models={models}
                   onSelectModel={handleSelectModel}
                   onChangeProvider={handleProviderChange}
+                  version={appVersion}
               />
           )}
         </div>
