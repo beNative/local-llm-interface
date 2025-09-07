@@ -106,9 +106,10 @@ export const TooltipProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setTooltipState({ visible: true, content, targetRect: rect });
   }, []);
 
-  // FIX: Correctly implement setTimeout with a callback to fix "Expected 1 arguments, but got 0" error.
+  // FIX: Corrected an error where `setTimeout` was called with an immediate function execution result (`undefined`)
+  // instead of a function reference. The state update is now wrapped in an arrow function to ensure it's
+  // executed by the timer, not when the timer is set.
   const hide = useCallback(() => {
-    // FIX: Pass a function to setTimeout, not the result of a function call.
     hideTimeoutRef.current = window.setTimeout(() => {
       setTooltipState((s) => ({ ...s, visible: false }));
     }, 100);

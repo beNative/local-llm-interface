@@ -11,6 +11,7 @@ import LoggingPanel from './components/LoggingPanel';
 import InfoView from './components/InfoView';
 import ProjectsView from './components/ProjectsView';
 import ApiView from './components/ApiView';
+import AboutModal from './components/AboutModal';
 import SessionSidebar from './components/SessionSidebar';
 import CommandPalette from './components/CommandPalette';
 import StatusBar from './components/StatusBar';
@@ -112,6 +113,7 @@ const App: React.FC = () => {
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
   const [appVersion, setAppVersion] = useState('');
   const [pendingToolCalls, setPendingToolCalls] = useState<ToolCall[] | null>(null);
+  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const accumulatedThinkingText = useRef<string | null>(null);
   const streamBuffer = useRef<string>('');
@@ -1032,7 +1034,7 @@ const App: React.FC = () => {
                 theme={config.theme || 'dark'}
               />;
         case 'info':
-            return <InfoView theme={config.theme || 'dark'} />;
+            return <InfoView theme={config.theme || 'dark'} onOpenAbout={() => setIsAboutModalOpen(true)} />;
         case 'projects':
             return <ProjectsView 
                 config={config}
@@ -1130,6 +1132,11 @@ const App: React.FC = () => {
             onSelectSession={handleSelectSession}
             onOpenFile={handleOpenFileFromPalette}
           />}
+          <AboutModal 
+            isOpen={isAboutModalOpen} 
+            onClose={() => setIsAboutModalOpen(false)} 
+            version={appVersion} 
+          />
           {runOutput && <RunOutputModal runOutput={runOutput} onClose={() => setRunOutput(null)} />}
           {pendingToolCalls && (
               <ToolCallApprovalModal

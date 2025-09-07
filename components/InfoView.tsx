@@ -6,6 +6,11 @@ import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import Icon from './Icon';
 import type { Theme } from '../types';
 
+interface InfoViewProps {
+  theme: Theme;
+  onOpenAbout: () => void;
+}
+
 type Doc = 'README' | 'FUNCTIONAL' | 'TECHNICAL' | 'CHANGELOG';
 const DOC_FILES: Record<Doc, string> = {
   README: 'README.md',
@@ -14,7 +19,7 @@ const DOC_FILES: Record<Doc, string> = {
   CHANGELOG: 'CHANGELOG.md',
 };
 
-const InfoView: React.FC<{ theme: Theme }> = ({ theme }) => {
+const InfoView: React.FC<InfoViewProps> = ({ theme, onOpenAbout }) => {
   const [activeDoc, setActiveDoc] = useState<Doc>('README');
   const [content, setContent] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -106,6 +111,9 @@ const InfoView: React.FC<{ theme: Theme }> = ({ theme }) => {
               </ReactMarkdown>
             </article>
             <footer className="mt-8 pt-4 border-t border-[--border-primary] text-center text-xs text-[--text-muted]">
+              <button onClick={onOpenAbout} className="text-[--accent-info] hover:underline mb-2">
+                About This App
+              </button>
               <p>Designed by Tim Sinaeve</p>
             </footer>
           </>
