@@ -17,12 +17,9 @@ import type { ApiRequest, ApiResponse, CodeProject, ProjectType, Toolchain, Tool
 // Esbuild, our bundler, will correctly define it at build time for the Node.js platform.
 declare const __dirname: string;
 
-// Determine the base path for app data. For portability, we store settings
-// in the same directory as the executable when packaged. In development,
-// we store it in the project root.
-const appDataPath = app.isPackaged
-  ? path.dirname(app.getPath('exe'))
-  : app.getAppPath();
+// The path to the user's application data directory. This is the standard
+// location for storing application configuration files.
+const appDataPath = app.getPath('userData');
 
 // The path where user settings will be stored.
 const settingsPath = path.join(appDataPath, 'settings.json');
@@ -374,7 +371,7 @@ app.whenReady().then(() => {
 
     ipcMain.handle('log:write', (_, entry: { timestamp: string, level: string, message: string }) => {
         try {
-            const logDir = app.isPackaged ? path.dirname(app.getPath('exe')) : app.getAppPath();
+            const logDir = app.getPath('userData');
             const date = new Date().toISOString().split('T')[0];
             const logFile = path.join(logDir, `local-llm-interface-${date}.log`);
             const formatted = `[${entry.timestamp}] [${entry.level}] ${entry.message}\n`;

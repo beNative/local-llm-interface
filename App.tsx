@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, FileSystemEntry, SystemStats, GenerationConfig, LLMProviderConfig, Tool, ToolCall, AssistantToolCallMessage, ToolResponseMessage, StandardChatMessage } from './types';
+import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, FileSystemEntry, SystemStats, GenerationConfig, LLMProviderConfig, Tool, ToolCall, AssistantToolCallMessage, ToolResponseMessage, StandardChatMessage, ChatMessageContentPartText } from './types';
 import { APP_NAME, DEFAULT_PROVIDERS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
 import { fetchModels, streamChatCompletion, LLMServiceError, generateTextCompletion, StreamChunk } from './services/llmService';
 import { logger } from './services/logger';
@@ -515,11 +515,12 @@ const App: React.FC = () => {
             if (typeof m.content === 'string') {
                 contentString = m.content;
             } else if (Array.isArray(m.content)) {
-                const textPart = m.content.find(p => p.type === 'text');
-                if (textPart && 'text' in textPart) {
+                // Find the first text part and use its content.
+                const textPart = m.content.find(p => p.type === 'text') as ChatMessageContentPartText | undefined;
+                if (textPart) {
                     contentString = textPart.text;
                 } else {
-                    contentString = '[image]';
+                    contentString = '[image]'; // Fallback for image-only messages
                 }
             }
             return `${m.role}: ${contentString}`;
@@ -814,9 +815,9 @@ const App: React.FC = () => {
         assistantContent = lastMessageBeforeApproval.content;
       } else if (Array.isArray(lastMessageBeforeApproval.content)) {
         // This is a safeguard, as a message with tool_calls should have string | null content.
-        assistantContent = lastMessageBeforeApproval.content
-            .filter(p => p.type === 'text')
-            .map((p: any) => p.text)
+        assistantContent = (lastMessageBeforeApproval.content as ChatMessageContentPart[])
+            .filter((p): p is ChatMessageContentPartText => p.type === 'text')
+            .map(p => p.text)
             .join('');
       }
 
