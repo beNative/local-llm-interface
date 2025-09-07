@@ -33,6 +33,7 @@ import DefaultPaperclipIcon from './icons/PaperclipIcon';
 import DefaultPlayIcon from './icons/PlayIcon';
 import DefaultPlusIcon from './icons/PlusIcon';
 import DefaultRamIcon from './icons/RamIcon';
+import DefaultRefreshCwIcon from './icons/RefreshCwIcon';
 import DefaultSearchIcon from './icons/SearchIcon';
 import DefaultSendIcon from './icons/SendIcon';
 import DefaultServerIcon from './icons/ServerIcon';
@@ -80,6 +81,7 @@ import {
     Play as LucidePlay,
     Plus as LucidePlus,
     MemoryStick as LucideRam,
+    RefreshCw as LucideRefreshCw,
     Search as LucideSearch,
     Send as LucideSend,
     Server as LucideServer,
@@ -128,6 +130,7 @@ import {
     PlayIcon as HeroPlay,
     PlusIcon as HeroPlus,
     ComputerDesktopIcon as HeroRam,
+    ArrowPathIcon as HeroRefresh,
     MagnifyingGlassIcon as HeroSearch,
     PaperAirplaneIcon as HeroSend,
     ServerIcon as HeroServer,
@@ -148,12 +151,12 @@ import * as Feather from 'react-feather';
 
 // Font Awesome
 import {
-    FaBookmark, FaBrain, FaCheck, FaChevronDown, FaChevronRight, FaChevronUp, FaClipboard, FaCode, FaMicrochip, FaCloudDownloadAlt as FaDownloadCloud, FaFile, FaFileCode, FaFileMedical, FaFileAlt, FaFolder, FaFolderOpen, FaGlobe, FaServer as FaServerIcon, FaHammer, FaUserCog, FaInfoCircle, FaLightbulb, FaCommentMedical, FaComment, FaCube, FaMoon, FaPalette, FaPaperclip, FaPlay, FaPlus, FaMemory, FaSearch, FaPaperPlane, FaCog, FaSlidersH, FaMagic, FaSpinner, FaStop, FaSun, FaTerminal, FaTrash, FaTimes, FaTimesCircle
+    FaBookmark, FaBrain, FaCheck, FaChevronDown, FaChevronRight, FaChevronUp, FaClipboard, FaCode, FaMicrochip, FaCloudDownloadAlt as FaDownloadCloud, FaFile, FaFileCode, FaFileMedical, FaFileAlt, FaFolder, FaFolderOpen, FaGlobe, FaServer as FaServerIcon, FaHammer, FaUserCog, FaInfoCircle, FaLightbulb, FaCommentMedical, FaComment, FaCube, FaMoon, FaPalette, FaPaperclip, FaPlay, FaPlus, FaMemory, FaSyncAlt, FaSearch, FaPaperPlane, FaCog, FaSlidersH, FaMagic, FaSpinner, FaStop, FaSun, FaTerminal, FaTrash, FaTimes, FaTimesCircle
 } from 'react-icons/fa';
 
 // Material Design
 import {
-    MdBookmark, MdPsychology, MdCheck, MdExpandMore, MdChevronRight, MdExpandLess as MdChevronUp, MdContentPaste, MdCode, MdDeveloperBoard, MdCloudDownload as MdDownloadCloud, MdInsertDriveFile, MdSource, MdNoteAdd, MdDescription, MdFolder, MdFolderOpen, MdPublic, MdDns, MdBuild, MdAccountBox, MdInfo, MdLightbulb, MdAddComment, MdChat, MdViewInAr, MdBrightness2, MdPalette, MdAttachFile, MdPlayArrow, MdAdd, MdMemory, MdSearch, MdSend, MdSettings, MdTune, MdAutoAwesome, MdCached, MdStop, MdWbSunny, MdTerminal, MdDelete, MdClose, MdCancel
+    MdBookmark, MdPsychology, MdCheck, MdExpandMore, MdChevronRight, MdExpandLess as MdChevronUp, MdContentPaste, MdCode, MdDeveloperBoard, MdCloudDownload as MdDownloadCloud, MdInsertDriveFile, MdSource, MdNoteAdd, MdDescription, MdFolder, MdFolderOpen, MdPublic, MdDns, MdBuild, MdAccountBox, MdInfo, MdLightbulb, MdAddComment, MdChat, MdViewInAr, MdBrightness2, MdPalette, MdAttachFile, MdPlayArrow, MdAdd, MdMemory, MdRefresh, MdSearch, MdSend, MdSettings, MdTune, MdAutoAwesome, MdCached, MdStop, MdWbSunny, MdTerminal, MdDelete, MdClose, MdCancel
 } from 'react-icons/md';
 
 
@@ -194,6 +197,7 @@ const iconMap = {
         play: DefaultPlayIcon,
         plus: DefaultPlusIcon,
         ram: DefaultRamIcon,
+        refresh: DefaultRefreshCwIcon,
         search: DefaultSearchIcon,
         send: DefaultSendIcon,
         server: DefaultServerIcon,
@@ -240,6 +244,7 @@ const iconMap = {
         play: LucidePlay,
         plus: LucidePlus,
         ram: LucideRam,
+        refresh: LucideRefreshCw,
         search: LucideSearch,
         send: LucideSend,
         server: LucideServer,
@@ -286,6 +291,7 @@ const iconMap = {
         play: HeroPlay,
         plus: HeroPlus,
         ram: HeroRam,
+        refresh: HeroRefresh,
         search: HeroSearch,
         send: HeroSend,
         server: HeroServer,
@@ -332,6 +338,7 @@ const iconMap = {
         play: Feather.Play,
         plus: Feather.Plus,
         ram: Feather.Server,
+        refresh: Feather.RefreshCw,
         search: Feather.Search,
         send: Feather.Send,
         server: Feather.Server,
@@ -378,6 +385,7 @@ const iconMap = {
         play: FaPlay,
         plus: FaPlus,
         ram: FaMemory,
+        refresh: FaSyncAlt,
         search: FaSearch,
         send: FaPaperPlane,
         server: FaServerIcon,
@@ -424,6 +432,7 @@ const iconMap = {
         play: MdPlayArrow,
         plus: MdAdd,
         ram: MdMemory,
+        refresh: MdRefresh,
         search: MdSearch,
         send: MdSend,
         server: MdDns,

@@ -536,6 +536,45 @@ app.whenReady().then(() => {
             }
         });
     });
+    
+    ipcMain.handle('provider:health-check', async (_, baseUrl: string): Promise<boolean> => {
+        // A simple health check. We don't care about the response body, just that the server is listening.
+        return new Promise((resolve) => {
+            try {
+                const url = new URL(baseUrl);
+                // Most local services are http, but this supports both
+                const requestModule = url.protocol === 'https:' ? httpsRequest : httpRequest;
+
+                const req = requestModule(
+                    url,
+                    { method: 'HEAD', timeout: 3000 }, // 3 second timeout
+                    (res) => {
+                        // Any response, even an error status code, means the server is online.
+                        // We just want to know if it's reachable.
+                        res.resume(); // Discard response body
+                        resolve(true);
+                    }
+                );
+
+                req.on('timeout', () => {
+                    req.destroy();
+                    resolve(false);
+                });
+
+                req.on('error', (e) => {
+                    // e.g., ECONNREFUSED
+                    resolve(false);
+                });
+
+                req.end();
+            } catch (e) {
+                // Invalid URL etc.
+                console.error(`Health check failed for invalid URL "${baseUrl}":`, e);
+                resolve(false);
+            }
+        });
+    });
+
 
     // Project Management Handlers
     ipcMain.handle('dialog:select-directory', async () => {

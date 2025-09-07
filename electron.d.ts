@@ -20,6 +20,7 @@ export interface IElectronAPI {
   writeLog: (entry: LogEntry) => Promise<void>;
   makeApiRequest: (request: ApiRequest) => Promise<ApiResponse>;
   detectToolchains: () => Promise<ToolchainStatus>;
+  checkProviderHealth: (baseUrl: string) => Promise<boolean>;
 
   // Project Management APIs
   selectDirectory: () => Promise<string | null>;

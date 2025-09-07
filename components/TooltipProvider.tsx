@@ -96,7 +96,8 @@ const TooltipComponent: React.FC<{ tooltipState: TooltipState }> = ({ tooltipSta
 export const TooltipProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tooltipState, setTooltipState] = useState<TooltipState>(initialTooltipState);
   // FIX: Use a robust type for the timeout ref to avoid environment inconsistencies (Node vs Browser).
-  const hideTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | undefined>();
+  // Using `any` here to avoid type conflicts between Node's `NodeJS.Timeout` and the browser's `number` for timer IDs.
+  const hideTimeoutRef = useRef<any>();
 
   const show = useCallback((content: React.ReactNode, rect: DOMRect) => {
     if(hideTimeoutRef.current) {

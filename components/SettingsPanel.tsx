@@ -240,6 +240,24 @@ const NavButton: React.FC<NavButtonProps> = ({ icon, label, isActive, onClick })
     </button>
 );
 
+const StatusIndicator: React.FC<{ status: 'online' | 'offline' | 'checking' | 'unknown' }> = ({ status }) => {
+    const statusConfig = {
+        online: { text: 'Online', color: 'bg-green-500', icon: null },
+        offline: { text: 'Offline', color: 'bg-red-500', icon: null },
+        checking: { text: 'Checking...', color: 'bg-yellow-500', icon: <Icon name="spinner" className="w-3 h-3 text-yellow-800 dark:text-yellow-200" /> },
+        unknown: { text: 'Unknown', color: 'bg-gray-400', icon: null },
+    };
+
+    const { text, color, icon } = statusConfig[status];
+
+    return (
+        <div className="flex items-center gap-1.5 text-xs font-medium text-[--text-muted]">
+            {icon ? icon : <div className={`w-2 h-2 rounded-full ${color}`} />}
+            <span>{text}</span>
+        </div>
+    );
+};
+
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, isElectron, theme }) => {
   const [localConfig, setLocalConfig] = useState<Config>(config);
@@ -249,8 +267,32 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
   const [activeSection, setActiveSection] = useState<SettingsSection>('general');
   const [editingProvider, setEditingProvider] = useState<LLMProviderConfig | null>(null);
   const [isAddingProvider, setIsAddingProvider] = useState(false);
+  const [providerStatuses, setProviderStatuses] = useState<Record<string, 'online' | 'offline' | 'checking' | 'unknown'>>({});
   const isUpdatingFromProps = useRef(true);
   
+  const checkProviderStatus = async (providerId: string, baseUrl: string) => {
+      if (!window.electronAPI) return;
+      setProviderStatuses(prev => ({ ...prev, [providerId]: 'checking' }));
+      try {
+          const isOnline = await window.electronAPI.checkProviderHealth(baseUrl);
+          setProviderStatuses(prev => ({ ...prev, [providerId]: isOnline ? 'online' : 'offline' }));
+      } catch (e) {
+          setProviderStatuses(prev => ({ ...prev, [providerId]: 'offline' }));
+      }
+  };
+
+  useEffect(() => {
+    if (isElectron && activeSection === 'general') {
+        const allProviders = localConfig.providers || [];
+        allProviders.forEach(p => {
+            if (!providerStatuses[p.id] || providerStatuses[p.id] === 'unknown') {
+                checkProviderStatus(p.id, p.baseUrl);
+            }
+        });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isElectron, activeSection, localConfig.providers]);
+
   useEffect(() => {
     if (isElectron) {
       setIsLoadingTools(true);
@@ -440,6 +482,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
         return false;
     });
   }, [localConfig.providers]);
+  
+  const refreshTooltip = useTooltipTrigger('Refresh status');
 
   const renderContent = () => {
       switch (activeSection) {
@@ -466,16 +510,32 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                                     onChange={() => handleSelectProvider(p.id)}
                                     className="w-4 h-4 text-indigo-600 bg-[--bg-tertiary] border-[--border-secondary] focus:ring-indigo-500"
                                 />
-                                <label htmlFor={`provider-radio-${p.id}`} className="flex-grow cursor-pointer">
-                                    <p className="font-semibold text-[--text-primary]">{p.name}</p>
+                                <label htmlFor={`provider-radio-${p.id}`} className="cursor-pointer min-w-0">
+                                    <p className="font-semibold text-[--text-primary] truncate">{p.name}</p>
                                     <p className="text-xs text-[--text-muted] font-mono truncate">{p.baseUrl}</p>
                                 </label>
-                                {p.isCustom && (
-                                    <div className="flex items-center gap-2">
-                                        <button onClick={() => setEditingProvider(p)} className="p-2 text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-full"><Icon name="settings" className="w-4 h-4"/></button>
-                                        <button onClick={() => handleDeleteProvider(p.id)} className="p-2 text-[--text-muted] hover:text-red-500 hover:bg-red-500/10 rounded-full"><Icon name="trash" className="w-4 h-4"/></button>
-                                    </div>
-                                )}
+                                <div className="flex-grow" />
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                    {isElectron && (p.baseUrl.includes('localhost') || p.baseUrl.includes('127.0.0.1')) && (
+                                        <>
+                                            <StatusIndicator status={providerStatuses[p.id] || 'unknown'} />
+                                            <button 
+                                                {...refreshTooltip} 
+                                                onClick={() => checkProviderStatus(p.id, p.baseUrl)} 
+                                                disabled={(providerStatuses[p.id] || 'unknown') === 'checking'}
+                                                className="p-2 text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-full disabled:opacity-50 disabled:cursor-wait"
+                                            >
+                                                <Icon name="refresh" className={`w-4 h-4 ${(providerStatuses[p.id] || 'unknown') === 'checking' ? 'animate-spin' : ''}`} />
+                                            </button>
+                                        </>
+                                    )}
+                                    {p.isCustom && (
+                                        <div className="flex items-center gap-1 border-l border-[--border-secondary] pl-2">
+                                            <button onClick={() => setEditingProvider(p)} className="p-2 text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-full"><Icon name="settings" className="w-4 h-4"/></button>
+                                            <button onClick={() => handleDeleteProvider(p.id)} className="p-2 text-[--text-muted] hover:text-red-500 hover:bg-red-500/10 rounded-full"><Icon name="trash" className="w-4 h-4"/></button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         ))}
                         <button 

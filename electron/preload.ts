@@ -72,6 +72,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @returns {Promise<ToolchainStatus>} A promise that resolves with the detected toolchains.
    */
   detectToolchains: () => ipcRenderer.invoke('detect:toolchains'),
+  
+  /**
+   * Checks if a provider's server is reachable.
+   * @param {string} baseUrl - The base URL of the provider.
+   * @returns {Promise<boolean>} A promise that resolves with true if online, false otherwise.
+   */
+  checkProviderHealth: (baseUrl: string) => ipcRenderer.invoke('provider:health-check', baseUrl),
 
   // Project Management APIs
   selectDirectory: () => ipcRenderer.invoke('dialog:select-directory'),
