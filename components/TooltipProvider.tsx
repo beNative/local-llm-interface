@@ -109,9 +109,12 @@ export const TooltipProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // FIX: Corrected an error where `setTimeout` was called with an immediate function execution result (`undefined`)
   // instead of a function reference. The state update is now wrapped in an arrow function to ensure it's
   // executed by the timer, not when the timer is set.
+  // FIX: Resolved a cryptic error on state update by resetting the tooltip state completely on hide. 
+  // This removes the problematic updater function call and is a more robust way to hide the tooltip.
   const hide = useCallback(() => {
     hideTimeoutRef.current = window.setTimeout(() => {
-      setTooltipState((s) => ({ ...s, visible: false }));
+      // FIX: Corrected an error on state update by resetting the tooltip state completely on hide. `setTooltipState` was called without arguments.
+      setTooltipState(initialTooltipState);
     }, 100);
   }, []);
 

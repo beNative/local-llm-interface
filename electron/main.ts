@@ -1,6 +1,6 @@
-// FIX: Changed to require syntax to resolve module resolution errors with Electron.
-const { app, BrowserWindow, shell, ipcMain, dialog } = require('electron');
-const { autoUpdater } = require('electron-updater');
+// FIX: Changed to import syntax to resolve module resolution errors with Electron.
+import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import * as fs from 'fs';
 import { readdir, stat, readFile, writeFile, mkdir, copyFile } from 'fs/promises';

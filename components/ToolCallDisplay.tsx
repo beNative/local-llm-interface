@@ -13,7 +13,10 @@ const getIconForTool = (toolName: string) => {
     return 'hammer';
 };
 
-const DiffViewer: React.FC<{ oldContent: string; newContent: string; }> = ({ oldContent, newContent }) => {
+const DiffViewer: React.FC<{ oldContent: string; newContent: string; fileName: string; }> = ({ oldContent, newContent, fileName }) => {
+    const [isCopied, setIsCopied] = useState(false);
+    const copyTooltip = useTooltipTrigger(isCopied ? 'Copied!' : 'Copy diff');
+
     const diff = useMemo(() => {
         const dmp = new diff_match_patch();
         const diffResult = dmp.diff_main(oldContent, newContent);
@@ -21,43 +24,77 @@ const DiffViewer: React.FC<{ oldContent: string; newContent: string; }> = ({ old
         return diffResult;
     }, [oldContent, newContent]);
 
+    const diffTextForClipboard = useMemo(() => {
+        if (!diff) return '';
+        return diff.flatMap(([op, text]) => {
+            const sign = op === DIFF_INSERT ? '+' : op === DIFF_DELETE ? '-' : ' ';
+            const lines = text.endsWith('\n') ? text.slice(0, -1).split('\n') : text.split('\n');
+            return lines.map(line => `${sign} ${line}`);
+        }).join('\n');
+    }, [diff]);
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(diffTextForClipboard);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+    };
+
     let oldLine = 0;
     let newLine = 0;
 
     return (
-        <div className="font-mono text-xs max-h-80 overflow-y-auto bg-[--code-bg] p-2 rounded-md border border-[--border-primary]">
-            {diff.map(([op, text], i) => {
-                const lines = text.split('\n');
-                return lines.map((line, lineIndex) => {
-                    if (line === '' && lineIndex === lines.length - 1 && i === diff.length - 1) return null;
-                    
-                    if (op !== DIFF_DELETE) newLine++;
-                    if (op !== DIFF_INSERT) oldLine++;
+        <div className="bg-[--code-bg] rounded-lg border border-[--border-primary] text-sm overflow-hidden not-prose">
+            <div className="flex justify-between items-center px-4 py-1.5 bg-[--bg-tertiary] border-b border-[--border-primary]">
+                <span className="font-mono text-xs text-[--text-muted] flex items-center gap-2">
+                    <Icon name="fileCode" className="w-4 h-4" />
+                    {fileName}
+                </span>
+                <button {...copyTooltip} onClick={handleCopy} className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] transition-colors">
+                    {isCopied ? <Icon name="check" className="w-4 h-4 text-green-500" /> : <Icon name="clipboard" className="w-4 h-4" />}
+                    <span>{isCopied ? 'Copied' : 'Copy'}</span>
+                </button>
+            </div>
+            <div className="font-mono text-xs max-h-80 overflow-auto">
+                {diff.map(([op, text], i) => {
+                    const lines = text.split('\n');
+                    return lines.map((line, lineIndex) => {
+                        if (line === '' && lineIndex === lines.length - 1 && i === diff.length - 1) return null;
+                        
+                        if (op !== DIFF_DELETE) newLine++;
+                        if (op !== DIFF_INSERT) oldLine++;
 
-                    let bgClass = '';
-                    let sign = '';
-                    let signClass = '';
+                        let bgClass = '';
+                        let sign = '';
+                        let signClass = '';
+                        let lineNumberBgClass = 'bg-transparent';
 
-                    if (op === DIFF_INSERT) {
-                        bgClass = 'bg-green-500/10';
-                        sign = '+';
-                        signClass = 'text-green-500';
-                    } else if (op === DIFF_DELETE) {
-                        bgClass = 'bg-red-500/10';
-                        sign = '-';
-                        signClass = 'text-red-500';
-                    }
+                        if (op === DIFF_INSERT) {
+                            bgClass = 'bg-green-500/10';
+                            sign = '+';
+                            signClass = 'text-green-500';
+                            lineNumberBgClass = 'bg-green-500/10';
+                        } else if (op === DIFF_DELETE) {
+                            bgClass = 'bg-red-500/10';
+                            sign = '-';
+                            signClass = 'text-red-500';
+                            lineNumberBgClass = 'bg-red-500/10';
+                        } else {
+                             lineNumberBgClass = 'bg-[--bg-tertiary]/30';
+                        }
 
-                    return (
-                        <div key={`${i}-${lineIndex}`} className={`flex ${bgClass}`}>
-                            <span className="w-8 text-right pr-2 text-[--text-muted] select-none flex-shrink-0">{op !== DIFF_INSERT ? oldLine : ''}</span>
-                            <span className="w-8 text-right pr-2 text-[--text-muted] select-none flex-shrink-0">{op !== DIFF_DELETE ? newLine : ''}</span>
-                            <span className={`w-4 text-center select-none flex-shrink-0 ${signClass}`}>{sign}</span>
-                            <pre className="whitespace-pre-wrap flex-grow">{line}</pre>
-                        </div>
-                    );
-                });
-            })}
+                        return (
+                            <div key={`${i}-${lineIndex}`} className={`flex ${bgClass}`}>
+                                <div className={`flex-shrink-0 flex text-right select-none text-[--text-muted] sticky left-0 ${lineNumberBgClass}`}>
+                                    <span className="w-8 px-2">{op !== DIFF_INSERT ? oldLine : ''}</span>
+                                    <span className="w-8 px-2">{op !== DIFF_DELETE ? newLine : ''}</span>
+                                </div>
+                                <span className={`w-6 text-center select-none flex-shrink-0 ${signClass}`}>{sign}</span>
+                                <pre className="whitespace-pre-wrap flex-grow pr-4">{line}</pre>
+                            </div>
+                        );
+                    });
+                })}
+            </div>
         </div>
     );
 };
@@ -74,7 +111,13 @@ const ToolCallResult: React.FC<{ call: ToolCall; theme: Theme }> = ({ call, them
             resultNode = <div className="flex items-center gap-2 text-sm text-[--text-muted]"><Icon name="spinner" className="w-4 h-4" /> Executing...</div>;
         }
     } else if (call.function.name === 'writeFile' && call.result?.success) {
-        resultNode = <DiffViewer oldContent={call.result.originalContent || ''} newContent={JSON.parse(call.function.arguments).content} />
+        const args = JSON.parse(call.function.arguments);
+        const fileName = args.path.split(/[/\\]/).pop() || args.path;
+        resultNode = <DiffViewer
+            oldContent={call.result.originalContent || ''}
+            newContent={args.content}
+            fileName={fileName}
+        />
     } else {
         const resultString = typeof call.result === 'string' ? call.result : JSON.stringify(call.result, null, 2);
         const language = typeof call.result === 'object' ? 'json' : 'bash';
