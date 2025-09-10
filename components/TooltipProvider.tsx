@@ -105,12 +105,10 @@ export const TooltipProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setTooltipState({ visible: true, content, targetRect: rect });
   }, []);
 
-  // FIX: Resolved a cryptic error on state update by resetting the tooltip state completely on hide. 
-  // This removes the problematic updater function call and is a more robust way to hide the tooltip.
   const hide = useCallback(() => {
     hideTimeoutRef.current = window.setTimeout(() => {
-      // FIX: The state setter was called with no arguments, causing an error. Using a functional update form `() => newState` is safer in async contexts like setTimeout.
-      setTooltipState(() => initialTooltipState);
+      // FIX: The state setter was being called incorrectly. Resetting state directly to the initial value is safe here and resolves the error.
+      setTooltipState(initialTooltipState);
     }, 100);
   }, []);
 

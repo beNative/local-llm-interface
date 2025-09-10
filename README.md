@@ -21,6 +21,7 @@ A user-friendly desktop application to chat with locally installed LLMs serviced
 - **Command Palette**: A Spotlight-style interface (`Cmd/Ctrl+K`) to instantly search and navigate to chats, projects, files, and application views.
 - **Multimodal Chat**: Attach images to your prompts for models that support it.
 - **Advanced Customization**: Customize chat colors, font family, font size, and icon sets in the Settings panel.
+- **Raw Settings Management**: View, edit, import, and export the application's raw `settings.json` file directly from a syntax-highlighted editor in the advanced settings.
 - **Configurable UI Scale and Density**: Adjust the application's zoom level and the spacing of controls (Compact, Normal, Comfortable) for a personalized viewing experience.
 - **Toolchain Detection**: Automatically detects installed development toolchains (Python, Java, Node.js, Delphi) and allows you to select which one to use.
 - **System-Wide Status Bar**: Displays real-time system-wide CPU, GPU, and Memory usage for performance monitoring.

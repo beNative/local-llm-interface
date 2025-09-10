@@ -53,6 +53,9 @@ The "Settings" tab allows you to configure every aspect of the application. The 
 
 ### Advanced (Desktop App Only)
 - **Toolchains**: The app automatically detects installed development tools. You can select a specific Python interpreter, Java Development Kit (JDK), Node.js executable, or Delphi compiler to be used for creating and running projects. If none is selected, the system's default (from the PATH) will be used.
+- **Raw Settings File**: This section provides advanced control over the application's configuration.
+  - **JSON Editor**: View and directly edit the entire `settings.json` file. The editor provides syntax highlighting to reduce errors. Be cautious, as invalid JSON can break the application. A "Save JSON" button applies your changes.
+  - **Import/Export**: Use the "Import..." and "Export..." buttons to load a configuration file from your computer or save the current one for backup or sharing.
 
 ## 4. Projects View
 

@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.0] - 2025-09-30
+
+### Added
+- **Raw Settings Editor**: Added a section in "Settings > Advanced" to view and edit the raw `settings.json` configuration file in a syntax-highlighted editor.
+- **Settings Import/Export**: Added functionality to import and export the `settings.json` file, allowing for easy backup and sharing of configurations (Desktop app only).
+
+### Fixed
+- **Tooltip Stability**: Resolved a recurring issue where the tooltip component could crash the application due to improper state updates in asynchronous contexts. The state management has been made more robust.
+
 ## [0.15.0] - 2025-09-23
 
 ### Added
