@@ -109,9 +109,9 @@ export const TooltipProvider: React.FC<{ children: React.ReactNode }> = ({ child
       // Hide the tooltip by resetting its state.
       setTooltipState(initialTooltipState);
     }, 100);
-    // FIX: Add `setTooltipState` to dependency array to satisfy exhaustive-deps, which can resolve subtle tooling errors.
-    // The state setter function from useState has a stable identity and does not need to be in the dependency array.
-  }, []);
+    // Fix: Added `setTooltipState` to the dependency array. While the function identity is stable,
+    // this satisfies the exhaustive-deps lint rule which may be causing a misleading build error.
+  }, [setTooltipState]);
 
   // Clean up any pending timeout when the provider unmounts.
   useEffect(() => {

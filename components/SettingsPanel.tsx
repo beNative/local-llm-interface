@@ -277,7 +277,29 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
   const { addToast } = useToast();
-  const jsonEditorRef = useRef<HTMLDivElement>(null);
+
+  // Refs for the new JSON editor implementation
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const contentWrapperRef = useRef<HTMLDivElement>(null);
+
+  // This effect syncs the height of the JSON editor's content area
+  // to the textarea's scroll height, allowing it to grow with content.
+  useEffect(() => {
+    if (activeSection === 'advanced' && textareaRef.current && contentWrapperRef.current && scrollContainerRef.current) {
+      // Reset height to auto to get the natural scrollHeight of the content
+      textareaRef.current.style.height = 'auto';
+      const scrollHeight = textareaRef.current.scrollHeight;
+
+      // Ensure the content area is at least as tall as the visible container
+      const containerHeight = scrollContainerRef.current.clientHeight;
+      const newHeight = Math.max(containerHeight, scrollHeight);
+
+      // Apply the new height to both the textarea and its wrapper for alignment
+      contentWrapperRef.current.style.height = `${newHeight}px`;
+      textareaRef.current.style.height = `${newHeight}px`;
+    }
+  }, [jsonText, activeSection]);
   
   const checkProviderStatus = async (providerId: string, baseUrl: string) => {
       if (!window.electronAPI) return;
@@ -509,16 +531,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
       } catch (e) {
           const error = e instanceof Error ? e.message : 'Invalid JSON';
           setJsonError(error);
-      }
-  };
-
-  const handleJsonEditorScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
-      if (jsonEditorRef.current) {
-          const pre = jsonEditorRef.current.querySelector('pre');
-          if (pre) {
-              pre.scrollTop = e.currentTarget.scrollTop;
-              pre.scrollLeft = e.currentTarget.scrollLeft;
-          }
       }
   };
 
@@ -856,33 +868,65 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                                     <Icon name="downloadCloud" className="w-4 h-4" /> Export...
                                 </button>
                             </div>
-
-                            <div ref={jsonEditorRef} className="relative font-mono text-xs h-96 overflow-hidden rounded-[--border-radius]">
-                                <SyntaxHighlighter
-                                    language="json"
-                                    style={theme === 'dark' ? atomDark : coy}
-                                    customStyle={{
-                                        margin: 0,
-                                        padding: '1rem',
-                                        // FIX: Use 'background' property instead of 'backgroundColor' to match the type from the theme object.
-                                        background: (theme === 'dark' ? atomDark : coy)['pre[class*="language-"]']?.background || (theme === 'dark' ? '#2d2d2d' : '#f5f2f0'),
-                                    }}
-                                    codeTagProps={{ style: { fontFamily: 'inherit' } }}
-                                >
-                                    {`${jsonText}\n`}
-                                </SyntaxHighlighter>
-                                <textarea
-                                    value={jsonText}
-                                    onScroll={handleJsonEditorScroll}
-                                    onChange={e => {
-                                        setJsonText(e.target.value);
-                                        if (jsonError) setJsonError(null);
-                                    }}
-                                    spellCheck="false"
-                                    className={`absolute inset-0 w-full h-full p-4 bg-transparent text-transparent caret-[--text-primary] resize-none border-2 rounded-[--border-radius] focus:outline-none overflow-auto ${jsonError ? 'border-red-500 focus:ring-red-500/50' : 'border-transparent focus:ring-[--border-focus]'}`}
-                                    style={{ fontFamily: 'inherit' }}
-                                />
+                            
+                            {/* Professional JSON Editor Implementation */}
+                            <div
+                                ref={scrollContainerRef}
+                                className={`h-96 overflow-auto rounded-[--border-radius] border-2 transition-colors ${jsonError ? 'border-red-500' : 'border-transparent focus-within:border-[--border-focus]'}`}
+                                style={{
+                                    // Fix: Explicitly cast background color to string to resolve TypeScript type mismatch.
+                                    backgroundColor: (theme === 'dark' ? atomDark : coy)['pre[class*="language-"]']?.background as string,
+                                    fontFamily: 'SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                                    fontSize: '13px',
+                                    lineHeight: '1.5',
+                                }}
+                            >
+                                <div ref={contentWrapperRef} className="relative w-full p-4 box-border">
+                                    <SyntaxHighlighter
+                                        language="json"
+                                        style={theme === 'dark' ? atomDark : coy}
+                                        customStyle={{
+                                            position: 'absolute',
+                                            inset: 0,
+                                            padding: 'inherit',
+                                            margin: 0,
+                                            background: 'transparent',
+                                            fontFamily: 'inherit',
+                                            fontSize: 'inherit',
+                                            lineHeight: 'inherit',
+                                            overflow: 'visible', // Parent handles scrolling
+                                        }}
+                                        codeTagProps={{
+                                            style: {
+                                                fontFamily: 'inherit',
+                                                fontSize: 'inherit',
+                                                lineHeight: 'inherit',
+                                            }
+                                        }}
+                                    >
+                                        {`${jsonText}\n`} 
+                                    </SyntaxHighlighter>
+                                    <textarea
+                                        ref={textareaRef}
+                                        value={jsonText}
+                                        onChange={e => {
+                                            setJsonText(e.target.value);
+                                            if (jsonError) setJsonError(null);
+                                        }}
+                                        spellCheck="false"
+                                        className="absolute inset-0 w-full bg-transparent text-transparent caret-[--text-primary] resize-none border-0 focus:outline-none"
+                                        style={{
+                                            fontFamily: 'inherit',
+                                            fontSize: 'inherit',
+                                            lineHeight: 'inherit',
+                                            overflow: 'hidden', // Parent handles scrolling
+                                            padding: 'inherit',
+                                            margin: 0,
+                                        }}
+                                    />
+                                </div>
                             </div>
+
 
                             <div className="flex justify-end items-center gap-4">
                                 {jsonError && <p className="text-sm text-red-500">Error: {jsonError}</p>}
