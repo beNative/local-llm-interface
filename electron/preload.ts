@@ -1,5 +1,6 @@
 
 
+
 // FIX: Switched from ES module import to CommonJS require to resolve Electron module loading errors.
 const { contextBridge, ipcRenderer } = require('electron');
 import type { CodeProject } from '../src/types';
@@ -85,6 +86,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportSettings: (settings: object) => ipcRenderer.invoke('settings:export', settings),
   importSettings: () => ipcRenderer.invoke('settings:import'),
 
+  // App Updates
+  checkForUpdates: () => ipcRenderer.invoke('updates:check'),
+  quitAndInstallUpdate: () => ipcRenderer.invoke('updates:install'),
+  onUpdateAvailable: (callback: any) => ipcRenderer.on('update-available', (_event, ...args) => callback(...args)),
+  removeUpdateAvailableListener: () => ipcRenderer.removeAllListeners('update-available'),
+  onUpdateDownloaded: (callback: any) => ipcRenderer.on('update-downloaded', (_event, ...args) => callback(...args)),
+  removeUpdateDownloadedListener: () => ipcRenderer.removeAllListeners('update-downloaded'),
+  onUpdateError: (callback: any) => ipcRenderer.on('update-error', (_event, ...args) => callback(...args)),
+  removeUpdateErrorListener: () => ipcRenderer.removeAllListeners('update-error'),
+  onUpdateNotAvailable: (callback: any) => ipcRenderer.on('update-not-available', (_event, ...args) => callback(...args)),
+  removeUpdateNotAvailableListener: () => ipcRenderer.removeAllListeners('update-not-available'),
+
   // Project Management APIs
   selectDirectory: () => ipcRenderer.invoke('dialog:select-directory'),
   createProject: (args: any) => ipcRenderer.invoke('project:create', args),
@@ -107,6 +120,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   projectFindFile: (args: { projectPath: string, fileName: string }) => ipcRenderer.invoke('project:find-file', args),
 
   // System Stats
-  onSystemStatsUpdate: (callback) => ipcRenderer.on('system-stats-update', (_event, value) => callback(value)),
-  removeAllSystemStatsUpdateListeners: () => ipcRenderer.removeAllListeners('system-stats-update'),
+  onSystemStatsUpdate: (callback: any) => ipcRenderer.on('system-stats-update', (_event, value) => callback(value)),
+  removeSystemStatsUpdateListener: () => ipcRenderer.removeAllListeners('system-stats-update'),
 });

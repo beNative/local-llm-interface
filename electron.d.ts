@@ -24,6 +24,18 @@ export interface IElectronAPI {
   exportSettings: (settings: Config) => Promise<{ success: boolean; error?: string }>;
   importSettings: () => Promise<{ success: boolean; content?: string; error?: string }>;
 
+  // App Updates
+  checkForUpdates: () => Promise<void>;
+  quitAndInstallUpdate: () => Promise<void>;
+  onUpdateAvailable: (callback: (info: any) => void) => void;
+  removeUpdateAvailableListener: () => void;
+  onUpdateDownloaded: (callback: (info: any) => void) => void;
+  removeUpdateDownloadedListener: () => void;
+  onUpdateError: (callback: (error: Error) => void) => void;
+  removeUpdateErrorListener: () => void;
+  onUpdateNotAvailable: (callback: (info: any) => void) => void;
+  removeUpdateNotAvailableListener: () => void;
+
   // Project Management APIs
   selectDirectory: () => Promise<string | null>;
   createProject: (args: { projectType: ProjectType; name: string; basePath: string }) => Promise<CodeProject>;
@@ -47,7 +59,7 @@ export interface IElectronAPI {
 
   // System Stats
   onSystemStatsUpdate: (callback: (stats: SystemStats) => void) => void;
-  removeAllSystemStatsUpdateListeners: () => void;
+  removeSystemStatsUpdateListener: () => void;
 }
 
 declare global {

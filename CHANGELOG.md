@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.17.0] - 2025-10-01
+
+### Added
+- **Professional Update System**: Implemented a comprehensive and user-friendly update system (Desktop app only).
+  - **Toast Notifications**: The app now provides non-intrusive toast notifications to inform the user about the entire update process: when an update is available, when it's downloading, and when it's ready to install.
+  - **Actionable Updates**: The "update downloaded" notification includes a "Restart & Install" button, allowing for immediate one-click updates.
+  - **Manual Update Check**: Added a "Check for Updates" button in "Settings > General > Updates" to allow users to manually trigger the update check at any time.
+
 ## [0.16.0] - 2025-09-30
 
 ### Added

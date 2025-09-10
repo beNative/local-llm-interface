@@ -13,6 +13,7 @@ The application is an [Electron](https://www.electronjs.org/) application that w
 ## 2. Technology Stack
 
 - **Electron**: Core framework for building the cross-platform desktop app.
+  - **`electron-updater`**: Handles automatic application updates.
 - **React**: Library for building the user interface.
 - **TypeScript**: For static typing and improved code quality.
 - **esbuild**: A very fast JavaScript/TypeScript bundler used for building the main, renderer, and preload scripts.
@@ -28,6 +29,7 @@ The application is an [Electron](https://www.electronjs.org/) application that w
 - `src/` (aliased in `esbuild.config.js` to root): Contains all the React application source code.
   - `components/`: Reusable React components.
   - `services/`: Modules for handling business logic (API calls, logging, etc.).
+  - `hooks/`: Reusable React hooks.
   - `types.ts`: TypeScript type definitions.
   - `constants.ts`: Application-wide constants.
   - `App.tsx`: The root React component, which manages global state.
@@ -37,7 +39,7 @@ The application is an [Electron](https://www.electronjs.org/) application that w
 
 ## 4. State Management
 
-The application employs a simple, centralized state management model. The root `App.tsx` component holds all major application state (e.g., `config`, `models`, `sessions`, `currentView`) using React's `useState` hook. State and state-updating functions are passed down to child components as props.
+The application employs a simple, centralized state management model. The root `App.tsx` component holds all major application state (e.g., `config`, `models`, `sessions`, `currentView`) using React's `useState` hook. State and state-updating functions are passed down to child components as props. For global, cross-cutting concerns like notifications, React Context is used (e.g., `ToastProvider`).
 
 ## 5. Electron IPC (Inter-Process Communication)
 
@@ -46,8 +48,23 @@ The renderer process is sandboxed and cannot directly access Node.js APIs. Commu
 - `electron/preload.ts` exposes a `window.electronAPI` object to the renderer.
 - This API includes functions like `getSettings`, `saveSettings`, `runPython`, `projectGetFileTree`, `api:make-request`, `detect:toolchains`, `projectRunCommand`, `project:find-file`, `settings:export`, and `settings:import`.
 - When a renderer function like `window.electronAPI.projectRunCommand({ projectPath, command })` is called, it sends an IPC message to the main process. The main process's handler for `project:run-command` executes the shell command within the specified project directory and returns the `stdout` and `stderr`.
+- For asynchronous events like system stats or application updates, the main process sends messages to the renderer using `mainWindow.webContents.send()`. The preload script exposes listener functions (e.g., `onUpdateAvailable`) that allow the renderer to subscribe to these events. Each listener has a corresponding `remove...Listener` function to ensure proper cleanup and prevent memory leaks.
 
 ## 6. Key Feature Implementation
+
+### Application Updates
+The update system uses the `electron-updater` library and a system of IPC events to provide a seamless user experience.
+1.  **Main Process Logic (`electron/main.ts`)**:
+    - On startup, `autoUpdater.checkForUpdates()` is called.
+    - Event listeners are attached to `autoUpdater` for `update-available`, `update-downloaded`, `update-not-available`, and `error`.
+    - When these events fire, the main process sends an IPC message (e.g., `mainWindow.webContents.send('update-available', info)`) to the renderer process.
+2.  **IPC Handlers**:
+    - `updates:check`: An `ipcMain.handle` that allows the renderer to manually trigger `autoUpdater.checkForUpdates()`.
+    - `updates:install`: An `ipcMain.handle` that calls `autoUpdater.quitAndInstall()` to restart the app and apply the update.
+3.  **Renderer Logic (`App.tsx`)**:
+    - The root `App` component uses a `useEffect` hook to register listeners for all the update-related IPC channels exposed by the preload script (e.g., `window.electronAPI.onUpdateAvailable`).
+    - When an event is received, it uses the global `ToastProvider` to display a notification to the user (e.g., "New version found, downloading...").
+    - The "Restart & Install" button in the `update-downloaded` toast is wired to call `window.electronAPI.quitAndInstallUpdate()`.
 
 ### Guaranteed JSON Mode
 This feature improves the reliability of the API Client by instructing the model to return a structured JSON response.

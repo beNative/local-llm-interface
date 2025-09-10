@@ -2,9 +2,11 @@ import React from 'react';
 import { useIconSet } from './IconProvider';
 
 // Default Icons
+import DefaultAlertCircleIcon from './icons/AlertCircleIcon';
 import DefaultBookmarkIcon from './icons/BookmarkIcon';
 import DefaultBrainCircuitIcon from './icons/BrainCircuitIcon';
 import DefaultCheckIcon from './icons/CheckIcon';
+import DefaultCheckCircleIcon from './icons/CheckCircleIcon';
 import DefaultChevronDownIcon from './icons/ChevronDownIcon';
 import DefaultChevronRightIcon from './icons/ChevronRightIcon';
 import DefaultChevronUpIcon from './icons/ChevronUpIcon';
@@ -51,9 +53,11 @@ import DefaultXCircleIcon from './icons/XCircleIcon';
 
 // Lucide Icons
 import {
+    AlertCircle as LucideAlertCircle,
     Bookmark as LucideBookmark,
     BrainCircuit as LucideBrainCircuit,
     Check as LucideCheck,
+    CheckCircle as LucideCheckCircle,
     ChevronDown as LucideChevronDown,
     ChevronRight as LucideChevronRight,
     ChevronUp as LucideChevronUp,
@@ -101,9 +105,11 @@ import {
 
 // Heroicons
 import {
+    ExclamationCircleIcon as HeroAlertCircle,
     BookmarkIcon as HeroBookmark,
     CpuChipIcon as HeroBrainCircuit,
     CheckIcon as HeroCheck,
+    CheckCircleIcon as HeroCheckCircle,
     ChevronDownIcon as HeroChevronDown,
     ChevronRightIcon as HeroChevronRight,
     ChevronUpIcon as HeroChevronUp,
@@ -154,12 +160,14 @@ import * as Feather from 'react-feather';
 
 // Font Awesome
 import {
-    FaBookmark, FaBrain, FaCheck, FaChevronDown, FaChevronRight, FaChevronUp, FaClipboard, FaCode, FaMicrochip, FaCloudDownloadAlt as FaDownloadCloud, FaFile, FaFileCode, FaFileMedical, FaFileAlt, FaFolder, FaFolderOpen, FaGlobe, FaServer as FaServerIcon, FaHammer, FaUserCog, FaInfoCircle, FaLightbulb, FaCommentMedical, FaComment, FaCube, FaMoon, FaPalette, FaPaperclip, FaPlay, FaPlus, FaMemory, FaSyncAlt, FaSearch, FaPaperPlane, FaCog, FaSlidersH, FaMagic, FaSpinner, FaStop, FaSun, FaTerminal, FaTrash, FaTimes, FaTimesCircle, FaCloudUploadAlt
+    FaExclamationCircle,
+    FaBookmark, FaBrain, FaCheck, FaCheckCircle, FaChevronDown, FaChevronRight, FaChevronUp, FaClipboard, FaCode, FaMicrochip, FaCloudDownloadAlt as FaDownloadCloud, FaFile, FaFileCode, FaFileMedical, FaFileAlt, FaFolder, FaFolderOpen, FaGlobe, FaServer as FaServerIcon, FaHammer, FaUserCog, FaInfoCircle, FaLightbulb, FaCommentMedical, FaComment, FaCube, FaMoon, FaPalette, FaPaperclip, FaPlay, FaPlus, FaMemory, FaSyncAlt, FaSearch, FaPaperPlane, FaCog, FaSlidersH, FaMagic, FaSpinner, FaStop, FaSun, FaTerminal, FaTrash, FaTimes, FaTimesCircle, FaCloudUploadAlt
 } from 'react-icons/fa';
 
 // Material Design
 import {
-    MdBookmark, MdPsychology, MdCheck, MdExpandMore, MdChevronRight, MdExpandLess as MdChevronUp, MdContentPaste, MdCode, MdDeveloperBoard, MdCloudDownload as MdDownloadCloud, MdInsertDriveFile, MdSource, MdNoteAdd, MdDescription, MdFolder, MdFolderOpen, MdPublic, MdDns, MdBuild, MdAccountBox, MdInfo, MdLightbulb, MdAddComment, MdChat, MdViewInAr, MdBrightness2, MdPalette, MdAttachFile, MdPlayArrow, MdAdd, MdMemory, MdRefresh, MdSearch, MdSend, MdSettings, MdTune, MdAutoAwesome, MdCached, MdStop, MdWbSunny, MdTerminal, MdDelete, MdClose, MdCancel, MdCloudUpload
+    MdError as MdAlertCircle,
+    MdBookmark, MdPsychology, MdCheck, MdCheckCircle, MdExpandMore, MdChevronRight, MdExpandLess as MdChevronUp, MdContentPaste, MdCode, MdDeveloperBoard, MdCloudDownload as MdDownloadCloud, MdInsertDriveFile, MdSource, MdNoteAdd, MdDescription, MdFolder, MdFolderOpen, MdPublic, MdDns, MdBuild, MdAccountBox, MdInfo, MdLightbulb, MdAddComment, MdChat, MdViewInAr, MdBrightness2, MdPalette, MdAttachFile, MdPlayArrow, MdAdd, MdMemory, MdRefresh, MdSearch, MdSend, MdSettings, MdTune, MdAutoAwesome, MdCached, MdStop, MdWbSunny, MdTerminal, MdDelete, MdClose, MdCancel, MdCloudUpload
 } from 'react-icons/md';
 
 
@@ -169,9 +177,11 @@ const AnimatedSpinner: React.FC<{ IconComponent: React.ElementType, className?: 
 
 const iconMap = {
     default: {
+        alertCircle: DefaultAlertCircleIcon,
         bookmark: DefaultBookmarkIcon,
         brainCircuit: DefaultBrainCircuitIcon,
         check: DefaultCheckIcon,
+        checkCircle: DefaultCheckCircleIcon,
         chevronDown: DefaultChevronDownIcon,
         chevronRight: DefaultChevronRightIcon,
         chevronUp: DefaultChevronUpIcon,
@@ -217,9 +227,11 @@ const iconMap = {
         xCircle: DefaultXCircleIcon,
     },
     lucide: {
+        alertCircle: LucideAlertCircle,
         bookmark: LucideBookmark,
         brainCircuit: LucideBrainCircuit,
         check: LucideCheck,
+        checkCircle: LucideCheckCircle,
         chevronDown: LucideChevronDown,
         chevronRight: LucideChevronRight,
         chevronUp: LucideChevronUp,
@@ -265,9 +277,11 @@ const iconMap = {
         xCircle: LucideXCircle,
     },
     heroicons: {
+        alertCircle: HeroAlertCircle,
         bookmark: HeroBookmark,
         brainCircuit: HeroBrainCircuit,
         check: HeroCheck,
+        checkCircle: HeroCheckCircle,
         chevronDown: HeroChevronDown,
         chevronRight: HeroChevronRight,
         chevronUp: HeroChevronUp,
@@ -313,9 +327,11 @@ const iconMap = {
         xCircle: HeroXCircle,
     },
     feather: {
+        alertCircle: Feather.AlertCircle,
         bookmark: Feather.Bookmark,
         brainCircuit: Feather.GitBranch, // Substitute
         check: Feather.Check,
+        checkCircle: Feather.CheckCircle,
         chevronDown: Feather.ChevronDown,
         chevronRight: Feather.ChevronRight,
         chevronUp: Feather.ChevronUp,
@@ -361,9 +377,11 @@ const iconMap = {
         xCircle: Feather.XCircle,
     },
     fontawesome: {
+        alertCircle: FaExclamationCircle,
         bookmark: FaBookmark,
         brainCircuit: FaBrain,
         check: FaCheck,
+        checkCircle: FaCheckCircle,
         chevronDown: FaChevronDown,
         chevronRight: FaChevronRight,
         chevronUp: FaChevronUp,
@@ -409,9 +427,11 @@ const iconMap = {
         xCircle: FaTimesCircle,
     },
     material: {
+        alertCircle: MdAlertCircle,
         bookmark: MdBookmark,
         brainCircuit: MdPsychology,
         check: MdCheck,
+        checkCircle: MdCheckCircle,
         chevronDown: MdExpandMore,
         chevronRight: MdChevronRight,
         chevronUp: MdChevronUp,

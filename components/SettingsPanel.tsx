@@ -5,6 +5,7 @@ import type { Config, LLMProviderConfig, Theme, ThemeOverrides, PredefinedPrompt
 import Icon from './Icon';
 import { DEFAULT_PROVIDERS } from '../constants';
 import { useTooltipTrigger } from '../hooks/useTooltipTrigger';
+import { useToast } from '../hooks/useToast';
 
 interface SettingsPanelProps {
   config: Config;
@@ -274,6 +275,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
   const isUpdatingFromProps = useRef(true);
   const [jsonText, setJsonText] = useState('');
   const [jsonError, setJsonError] = useState<string | null>(null);
+  const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
+  const { addToast } = useToast();
   
   const checkProviderStatus = async (providerId: string, baseUrl: string) => {
       if (!window.electronAPI) return;
@@ -508,6 +511,22 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
       }
   };
 
+  const handleCheckForUpdates = async () => {
+    if (!window.electronAPI) return;
+    setIsCheckingForUpdates(true);
+    addToast({ type: 'info', message: 'Checking for updates...', duration: 2000 });
+    try {
+        await window.electronAPI.checkForUpdates();
+    } catch (error) {
+        // The global listener in App.tsx will show a more detailed toast
+        console.error("Update check failed to initiate:", error);
+    } finally {
+        // The global listeners in App.tsx will provide final status toasts
+        // (e.g., "up to date" or "downloading"). We'll just stop the spinner here.
+        setTimeout(() => setIsCheckingForUpdates(false), 2000); // Give time for other toasts to appear
+    }
+  };
+
   const navItems: { id: SettingsSection; label: string; icon: React.ReactNode; isVisible: boolean }[] = [
       { id: 'general', label: 'General', icon: <Icon name="sliders" className="w-5 h-5"/>, isVisible: true },
       { id: 'personalization', label: 'Personalization', icon: <Icon name="palette" className="w-5 h-5"/>, isVisible: true },
@@ -623,16 +642,26 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                         </div>
                          <div className="pt-6 border-t border-[--border-primary]">
                             <h3 className="text-xl font-semibold text-[--text-secondary] mb-4">Updates</h3>
-                            <label className="flex items-center gap-3 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={!!localConfig.allowPrerelease}
-                                    onChange={(e) => handleSimpleConfigChange('allowPrerelease', e.target.checked)}
-                                    className="w-4 h-4 rounded text-indigo-600 bg-[--bg-tertiary] border-[--border-secondary] focus:ring-indigo-500"
-                                />
-                                <span className="text-sm font-medium text-[--text-muted]">Receive pre-release versions</span>
-                            </label>
-                            <p className="text-xs text-[--text-muted] mt-1 px-1">Get early access to new features. Pre-releases may be unstable.</p>
+                             <div className="flex items-center gap-4">
+                                <button
+                                    onClick={handleCheckForUpdates}
+                                    disabled={isCheckingForUpdates}
+                                    className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-lg hover:bg-[--bg-hover] disabled:opacity-60 disabled:cursor-wait"
+                                >
+                                    {isCheckingForUpdates ? <Icon name="spinner" className="w-5 h-5"/> : <Icon name="downloadCloud" className="w-5 h-5"/>}
+                                    {isCheckingForUpdates ? 'Checking...' : 'Check for Updates'}
+                                </button>
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={!!localConfig.allowPrerelease}
+                                        onChange={(e) => handleSimpleConfigChange('allowPrerelease', e.target.checked)}
+                                        className="w-4 h-4 rounded text-indigo-600 bg-[--bg-tertiary] border-[--border-secondary] focus:ring-indigo-500"
+                                    />
+                                    <span className="text-sm font-medium text-[--text-muted]">Receive pre-release versions</span>
+                                </label>
+                            </div>
+                            <p className="text-xs text-[--text-muted] mt-2 px-1">Get early access to new features. Pre-releases may be unstable.</p>
                         </div>
                     </div>
                   )}

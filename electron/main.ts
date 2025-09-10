@@ -1,7 +1,11 @@
 
 
+
+
+
 // FIX: Switched from ES module import to CommonJS require to resolve Electron module loading errors.
 const { app, BrowserWindow, shell, ipcMain, dialog } = require('electron');
+import type { BrowserWindow } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -25,6 +29,8 @@ const appDataPath = app.getPath('userData');
 
 // The path where user settings will be stored.
 const settingsPath = path.join(appDataPath, 'settings.json');
+
+let mainWindowInstance: BrowserWindow | null = null;
 
 
 /**
@@ -50,7 +56,8 @@ const readSettings = () => {
 const saveSettings = (settings: object) => {
   try {
     fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
-  } catch (error) {
+  } catch (error)
+  {
     console.error('Failed to save settings file:', error);
   }
 };
@@ -296,6 +303,8 @@ const createWindow = () => {
     title: 'Local LLM Interface',
     autoHideMenuBar: true,
   });
+
+  mainWindowInstance = mainWindow;
 
   // System-wide Stats Monitoring
   const statsInterval = setInterval(async () => {
@@ -616,6 +625,21 @@ app.whenReady().then(() => {
             console.error('Failed to import settings:', error);
             return { success: false, error: error instanceof Error ? error.message : String(error) };
         }
+    });
+
+    // --- Update Handlers ---
+    ipcMain.handle('updates:check', () => {
+        if (!app.isPackaged) {
+            console.log('Update check skipped: App is not packaged.');
+            // Send a "not available" event to give user feedback
+            mainWindowInstance?.webContents.send('update-not-available', { version: app.getVersion() });
+            return;
+        }
+        return autoUpdater.checkForUpdates();
+    });
+    
+    ipcMain.handle('updates:install', () => {
+        autoUpdater.quitAndInstall();
     });
 
 
@@ -1070,7 +1094,7 @@ end.
         autoUpdater.allowPrerelease = false;
         console.log('Not allowing pre-releases for auto-updater.');
       }
-      autoUpdater.checkForUpdatesAndNotify();
+      autoUpdater.checkForUpdates();
     }
 
     // Re-create a window on macOS when the dock icon is clicked and there are no other windows open.
@@ -1080,6 +1104,30 @@ end.
         }
     });
 });
+
+// --- AutoUpdater Event Listeners ---
+autoUpdater.on('update-available', (info) => {
+    mainWindowInstance?.webContents.send('update-available', info);
+});
+
+autoUpdater.on('update-not-available', (info) => {
+    mainWindowInstance?.webContents.send('update-not-available', info);
+});
+
+autoUpdater.on('error', (err) => {
+    mainWindowInstance?.webContents.send('update-error', err);
+});
+
+autoUpdater.on('download-progress', (progressObj) => {
+    // This can be noisy, so we don't send it to the renderer unless needed for a progress bar.
+    // For now, we'll just log it.
+    console.log(`Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}% (${progressObj.transferred}/${progressObj.total})`);
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+    mainWindowInstance?.webContents.send('update-downloaded', info);
+});
+
 
 // Quit when all windows are closed, except on macOS.
 app.on('window-all-closed', () => {

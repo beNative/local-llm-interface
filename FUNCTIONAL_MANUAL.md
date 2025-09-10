@@ -38,7 +38,9 @@ The "Settings" tab allows you to configure every aspect of the application. The 
 - **Connection**: Select your LLM provider (Ollama, LMStudio, OpenAI, etc.). Add, edit, and delete custom OpenAI-compatible providers.
 - **API Keys**: Securely enter and store API keys for providers that require them.
 - **Logging**: Enable or disable saving logs to a file.
-- **Updates**: Enable the "Receive pre-release versions" option to get early access to new features. Be aware that pre-release versions may be less stable.
+- **Updates**: This section handles application updates (Desktop App only).
+  - **Check for Updates**: Manually trigger a check for a new version of the application. You'll receive a toast notification if you're up to date, or if a new version starts downloading.
+  - **Receive pre-release versions**: Enable this option to get early access to new features. Be aware that pre-release versions may be less stable.
 
 ### Personalization
 - **Appearance**: Configure colors separately for Light and Dark themes. Use a palette of predefined colors or input custom hex codes for the chat background, user messages, and assistant messages. Preview your changes in real-time.
@@ -153,3 +155,12 @@ The chat view includes a powerful code interpreter that allows the AI to execute
   - **Copy**: A button to instantly copy the entire code snippet to your clipboard.
   - **Run Code**: For Python and JavaScript snippets, a "Run Code" button appears. Clicking it executes the code and displays the output in a modal window. In the browser version, only Python is supported and runs in a sandboxed WASM environment.
   - **Open in Browser**: For HTML snippets, this button appears and will open the code as a local HTML file in your default web browser.
+
+## 9. Application Updates (Desktop App Only)
+
+The application includes a professional, non-intrusive update system.
+- **Automatic Checks**: The app automatically checks for updates on startup.
+- **Toast Notifications**: You will be notified of the update process via small "toast" messages that appear in the bottom-right corner of the screen.
+  - A toast will appear when a new version is found and begins downloading.
+  - A second toast will appear when the download is complete. This toast includes a **"Restart & Install"** button, allowing you to update the application immediately.
+- **Manual Checks**: You can manually check for updates at any time by going to **Settings > General > Updates** and clicking the **"Check for Updates"** button.

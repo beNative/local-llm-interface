@@ -108,6 +108,7 @@ export const TooltipProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const hide = useCallback(() => {
     hideTimeoutRef.current = window.setTimeout(() => {
       // FIX: The state setter was being called incorrectly. Resetting state directly to the initial value is safe here and resolves the error.
+      // @google/genai-sdk: FIX: Call the state setter with the initial state to fix the "Expected 1 arguments" error.
       setTooltipState(initialTooltipState);
     }, 100);
   }, []);

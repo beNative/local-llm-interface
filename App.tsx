@@ -20,6 +20,8 @@ import { IconProvider } from './components/IconProvider';
 import { TooltipProvider } from './components/TooltipProvider';
 import ToolCallApprovalModal from './components/ToolCallApprovalModal';
 import { runPythonCode } from './services/pyodideService';
+import { ToastProvider } from './components/ToastProvider';
+import { useToast } from './hooks/useToast';
 
 type View = 'chat' | 'projects' | 'api' | 'settings' | 'info';
 
@@ -93,8 +95,7 @@ const RunOutputModal: React.FC<{
     );
 };
 
-
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [config, setConfig] = useState<Config | null>(null);
   const [models, setModels] = useState<Model[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState<boolean>(false);
@@ -120,6 +121,7 @@ const App: React.FC = () => {
   const [sidebarWidth, setSidebarWidth] = useState(256);
   const isResizingRef = useRef(false);
   const inThinkBlockRef = useRef<boolean>(false);
+  const { addToast } = useToast();
 
 
   // Derived state from config
@@ -345,17 +347,52 @@ const App: React.FC = () => {
     
     // Effect for system stats monitoring
     useEffect(() => {
-        if (isElectron && window.electronAPI?.onSystemStatsUpdate) {
+        if (isElectron && window.electronAPI) {
             const statsHandler = (stats: SystemStats) => setSystemStats(stats);
             window.electronAPI.onSystemStatsUpdate(statsHandler);
 
             return () => {
-                if (window.electronAPI?.removeAllSystemStatsUpdateListeners) {
-                    window.electronAPI.removeAllSystemStatsUpdateListeners();
-                }
+                window.electronAPI?.removeSystemStatsUpdateListener();
             };
         }
     }, [isElectron]);
+
+    // Effect for handling app updates
+    useEffect(() => {
+        if (isElectron && window.electronAPI) {
+            const handleUpdateAvailable = (info: any) => {
+                addToast({ type: 'info', message: `New version ${info.version} found. Downloading...`, duration: 5000 });
+            };
+            const handleUpdateDownloaded = (info: any) => {
+                addToast({
+                    type: 'success',
+                    message: `Update ${info.version} is ready to install.`,
+                    action: {
+                        label: 'Restart & Install',
+                        onClick: () => window.electronAPI!.quitAndInstallUpdate(),
+                    }
+                });
+            };
+            const handleUpdateError = (error: Error) => {
+                 addToast({ type: 'error', message: `Update failed: ${error.message}` });
+            };
+            const handleUpdateNotAvailable = (info: any) => {
+                 addToast({ type: 'success', message: 'You are on the latest version.', duration: 3000 });
+            };
+
+            window.electronAPI.onUpdateAvailable(handleUpdateAvailable);
+            window.electronAPI.onUpdateDownloaded(handleUpdateDownloaded);
+            window.electronAPI.onUpdateError(handleUpdateError);
+            window.electronAPI.onUpdateNotAvailable(handleUpdateNotAvailable);
+
+            return () => {
+                window.electronAPI!.removeUpdateAvailableListener();
+                window.electronAPI!.removeUpdateDownloadedListener();
+                window.electronAPI!.removeUpdateErrorListener();
+                window.electronAPI!.removeUpdateNotAvailableListener();
+            }
+        }
+    }, [isElectron, addToast]);
 
 
   const handleConfigChange = useCallback((newConfig: Config) => {
@@ -1253,5 +1290,11 @@ const App: React.FC = () => {
     </IconProvider>
   );
 };
+
+const App: React.FC = () => (
+  <ToastProvider>
+    <AppContent />
+  </ToastProvider>
+);
 
 export default App;
