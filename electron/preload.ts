@@ -1,5 +1,6 @@
-// FIX: Changed to import syntax to resolve module resolution errors with Electron.
-import { contextBridge, ipcRenderer } from 'electron';
+
+// FIX: Switched from ES module import to CommonJS require to resolve Electron module loading errors.
+const { contextBridge, ipcRenderer } = require('electron');
 import type { CodeProject } from '../src/types';
 
 /**

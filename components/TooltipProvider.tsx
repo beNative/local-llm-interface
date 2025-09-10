@@ -113,7 +113,7 @@ export const TooltipProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // This removes the problematic updater function call and is a more robust way to hide the tooltip.
   const hide = useCallback(() => {
     hideTimeoutRef.current = window.setTimeout(() => {
-      // FIX: Corrected an error on state update by resetting the tooltip state completely on hide. `setTooltipState` was called without arguments.
+      // FIX: Reset the tooltip state to its initial value to hide it correctly. The state setter requires an argument.
       setTooltipState(initialTooltipState);
     }, 100);
   }, []);

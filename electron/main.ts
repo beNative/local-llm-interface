@@ -1,5 +1,6 @@
-// FIX: Changed to import syntax to resolve module resolution errors with Electron.
-import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron';
+
+// FIX: Switched from ES module import to CommonJS require to resolve Electron module loading errors.
+const { app, BrowserWindow, shell, ipcMain, dialog } = require('electron');
 import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import * as fs from 'fs';

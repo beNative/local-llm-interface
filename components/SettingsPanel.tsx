@@ -654,7 +654,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                                     <input 
                                         type="range" 
                                         id="app-scale" 
-                                        min="80" max="150" step="5" 
+                                        min="50" max="400" step="5" 
                                         value={themeOverrides.scale || 100} 
                                         onChange={e => handleThemeOverridesChange('scale', e.target.valueAsNumber)}
                                         className="w-full h-2 bg-[--bg-tertiary] rounded-lg appearance-none cursor-pointer" 
