@@ -277,6 +277,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
   const { addToast } = useToast();
+  const jsonEditorRef = useRef<HTMLDivElement>(null);
   
   const checkProviderStatus = async (providerId: string, baseUrl: string) => {
       if (!window.electronAPI) return;
@@ -508,6 +509,16 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
       } catch (e) {
           const error = e instanceof Error ? e.message : 'Invalid JSON';
           setJsonError(error);
+      }
+  };
+
+  const handleJsonEditorScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
+      if (jsonEditorRef.current) {
+          const pre = jsonEditorRef.current.querySelector('pre');
+          if (pre) {
+              pre.scrollTop = e.currentTarget.scrollTop;
+              pre.scrollLeft = e.currentTarget.scrollLeft;
+          }
       }
   };
 
@@ -846,23 +857,29 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                                 </button>
                             </div>
 
-                            <div className="relative font-mono text-xs h-96">
+                            <div ref={jsonEditorRef} className="relative font-mono text-xs h-96 overflow-hidden rounded-[--border-radius]">
                                 <SyntaxHighlighter
                                     language="json"
                                     style={theme === 'dark' ? atomDark : coy}
-                                    customStyle={{ margin: 0, padding: '1rem', height: '100%', overflow: 'auto', borderRadius: 'var(--border-radius)' }}
+                                    customStyle={{
+                                        margin: 0,
+                                        padding: '1rem',
+                                        // FIX: Use 'background' property instead of 'backgroundColor' to match the type from the theme object.
+                                        background: (theme === 'dark' ? atomDark : coy)['pre[class*="language-"]']?.background || (theme === 'dark' ? '#2d2d2d' : '#f5f2f0'),
+                                    }}
                                     codeTagProps={{ style: { fontFamily: 'inherit' } }}
                                 >
-                                    {jsonText}
+                                    {`${jsonText}\n`}
                                 </SyntaxHighlighter>
                                 <textarea
                                     value={jsonText}
+                                    onScroll={handleJsonEditorScroll}
                                     onChange={e => {
                                         setJsonText(e.target.value);
                                         if (jsonError) setJsonError(null);
                                     }}
                                     spellCheck="false"
-                                    className={`absolute inset-0 w-full h-full p-4 bg-transparent text-transparent caret-[--text-primary] resize-none border-2 rounded-[--border-radius] focus:outline-none ${jsonError ? 'border-red-500 focus:ring-red-500/50' : 'border-transparent focus:ring-[--border-focus]'}`}
+                                    className={`absolute inset-0 w-full h-full p-4 bg-transparent text-transparent caret-[--text-primary] resize-none border-2 rounded-[--border-radius] focus:outline-none overflow-auto ${jsonError ? 'border-red-500 focus:ring-red-500/50' : 'border-transparent focus:ring-[--border-focus]'}`}
                                     style={{ fontFamily: 'inherit' }}
                                 />
                             </div>
