@@ -115,7 +115,6 @@ export const TooltipProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
       return () => {
         if (hideTimeoutRef.current) {
-          // FIX: The call to clearTimeout was missing the required timeout ID argument.
           window.clearTimeout(hideTimeoutRef.current);
         }
       };

@@ -1,4 +1,5 @@
-const { app, BrowserWindow, shell, ipcMain, dialog }: typeof import('electron') = require('electron');
+import type { BrowserWindow } from 'electron';
+const { app, shell, ipcMain, dialog }: typeof import('electron') = require('electron');
 import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -23,7 +24,7 @@ const appDataPath = app.getPath('userData');
 // The path where user settings will be stored.
 const settingsPath = path.join(appDataPath, 'settings.json');
 
-let mainWindowInstance: import('electron').BrowserWindow | null = null;
+let mainWindowInstance: BrowserWindow | null = null;
 let hasSentDownloadingMessage = false;
 
 
@@ -278,13 +279,14 @@ const getGpuUsage = (): Promise<number> => {
 };
 
 const createWindow = () => {
+  const { BrowserWindow } = require('electron');
   // Use __dirname to reliably resolve paths both in development and in the packaged app.
   // Esbuild correctly provides __dirname in a Node.js context.
   const preloadScriptPath = path.join(__dirname, 'preload.js');
   const indexPath = path.join(__dirname, 'index.html');
     
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  const mainWindow: BrowserWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
@@ -1095,6 +1097,7 @@ end.
 
     // Re-create a window on macOS when the dock icon is clicked and there are no other windows open.
     app.on('activate', () => {
+        const { BrowserWindow } = require('electron');
         if (BrowserWindow.getAllWindows().length === 0) {
             createWindow();
         }
