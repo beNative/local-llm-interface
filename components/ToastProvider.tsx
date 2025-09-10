@@ -1,4 +1,4 @@
-import React, { createContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useState, useCallback, ReactNode, useContext } from 'react';
 import Icon from './Icon';
 import { useTooltipTrigger } from '../hooks/useTooltipTrigger';
 
@@ -19,6 +19,8 @@ interface Toast {
 
 interface ToastContextType {
   addToast: (toast: Omit<Toast, 'id'>) => void;
+  toasts: Toast[];
+  removeToast: (id: number) => void;
 }
 
 export const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -84,6 +86,22 @@ const ToastComponent: React.FC<{ toast: Toast; onDismiss: (id: number) => void }
   );
 };
 
+export const ToastContainer: React.FC = () => {
+  const context = useContext(ToastContext);
+  if (!context) {
+    return null;
+  }
+  const { toasts, removeToast } = context;
+
+  return (
+    <div className="fixed bottom-4 right-4 z-[100] w-full max-w-sm space-y-3">
+      {toasts.map(toast => (
+        <ToastComponent key={toast.id} toast={toast} onDismiss={removeToast} />
+      ))}
+    </div>
+  );
+};
+
 export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -97,13 +115,8 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, []);
 
   return (
-    <ToastContext.Provider value={{ addToast }}>
+    <ToastContext.Provider value={{ addToast, toasts, removeToast }}>
       {children}
-      <div className="fixed bottom-4 right-4 z-[100] w-full max-w-sm space-y-3">
-        {toasts.map(toast => (
-          <ToastComponent key={toast.id} toast={toast} onDismiss={removeToast} />
-        ))}
-      </div>
     </ToastContext.Provider>
   );
 };

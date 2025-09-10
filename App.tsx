@@ -20,7 +20,7 @@ import { IconProvider } from './components/IconProvider';
 import { TooltipProvider } from './components/TooltipProvider';
 import ToolCallApprovalModal from './components/ToolCallApprovalModal';
 import { runPythonCode } from './services/pyodideService';
-import { ToastProvider } from './components/ToastProvider';
+import { ToastProvider, ToastContainer } from './components/ToastProvider';
 import { useToast } from './hooks/useToast';
 
 type View = 'chat' | 'projects' | 'api' | 'settings' | 'info';
@@ -1277,6 +1277,7 @@ const AppContent: React.FC = () => {
               />
           )}
         </div>
+        <ToastContainer />
       </TooltipProvider>
     </IconProvider>
   );
