@@ -110,7 +110,8 @@ export const TooltipProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setTooltipState(initialTooltipState);
     }, 100);
     // FIX: Add `setTooltipState` to dependency array to satisfy exhaustive-deps, which can resolve subtle tooling errors.
-  }, [setTooltipState]);
+    // The state setter function from useState has a stable identity and does not need to be in the dependency array.
+  }, []);
 
   // Clean up any pending timeout when the provider unmounts.
   useEffect(() => {

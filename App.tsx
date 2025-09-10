@@ -1169,11 +1169,22 @@ const AppContent: React.FC = () => {
   const activeProjectName = activeSession?.projectId
       ? config?.projects?.find(p => p.id === activeSession.projectId)?.name || null
       : null;
+      
+  const scale = config?.themeOverrides?.scale || 100;
+  const zoomFactor = scale > 0 ? scale / 100 : 1;
+  
+  const containerStyle: React.CSSProperties = {
+    // When zoom is applied, vh units are scaled. To counteract this and ensure
+    // the container always fills the viewport height, we calculate the inverse.
+    // e.g., if zoom is 0.8 (80%), we set height to 125vh (100/0.8).
+    // The final rendered height becomes 125vh * 0.8 = 100vh.
+    height: `calc(100vh / ${zoomFactor})`,
+  };
 
   return (
     <IconProvider iconSet={config?.themeOverrides?.iconSet || 'default'}>
       <TooltipProvider>
-        <div className="flex flex-col h-screen font-sans bg-[--bg-primary]">
+        <div style={containerStyle} className="flex flex-col font-sans bg-[--bg-primary]">
           {config && <CommandPalette 
             isOpen={isCommandPaletteOpen}
             onClose={() => setIsCommandPaletteOpen(false)}
