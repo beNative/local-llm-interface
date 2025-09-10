@@ -149,7 +149,6 @@ export interface ChatMessageUsage {
 export interface ChatMessageMetadata {
   usage?: ChatMessageUsage;
   speed?: number; // tokens/sec
-  thinking?: string;
   ragContext?: {
     files: string[];
   };

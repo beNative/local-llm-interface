@@ -95,29 +95,30 @@ const TooltipComponent: React.FC<{ tooltipState: TooltipState }> = ({ tooltipSta
 // The Provider that wraps the app
 export const TooltipProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tooltipState, setTooltipState] = useState<TooltipState>(initialTooltipState);
-  // FIX: Use a robust type for the timeout ref to avoid environment inconsistencies (Node vs Browser).
+  // FIX: Explicitly type the timeout ref as a number, which is the return type of `window.setTimeout`.
   const hideTimeoutRef = useRef<number | undefined>();
 
   const show = useCallback((content: React.ReactNode, rect: DOMRect) => {
     if(hideTimeoutRef.current) {
+        // FIX: Use `window.clearTimeout` to match `window.setTimeout` and resolve type ambiguity with Node.js's `clearTimeout`.
         window.clearTimeout(hideTimeoutRef.current);
     }
     setTooltipState({ visible: true, content, targetRect: rect });
   }, []);
 
   const hide = useCallback(() => {
+    // FIX: Explicitly use `window.setTimeout` to resolve type conflicts between DOM and Node.js environments.
     hideTimeoutRef.current = window.setTimeout(() => {
-      // FIX: The state setter was being called incorrectly. Resetting state directly to the initial value is safe here and resolves the error.
-      // @google/genai-sdk: FIX: Call the state setter with the initial state to fix the "Expected 1 arguments" error.
+      // Hide the tooltip by resetting its state.
       setTooltipState(initialTooltipState);
     }, 100);
   }, []);
 
-  // FIX: Add a cleanup function to clear any pending timeout when the provider unmounts.
+  // Clean up any pending timeout when the provider unmounts.
   useEffect(() => {
       return () => {
         if (hideTimeoutRef.current) {
-          // FIX: Use window.clearTimeout to match window.setTimeout and resolve type errors.
+          // FIX: Use `window.clearTimeout` to ensure the correct timer function is called.
           window.clearTimeout(hideTimeoutRef.current);
         }
       };

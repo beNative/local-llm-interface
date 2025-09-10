@@ -1,11 +1,4 @@
-
-
-
-
-
-// FIX: Switched from ES module import to CommonJS require to resolve Electron module loading errors.
-const { app, BrowserWindow, shell, ipcMain, dialog } = require('electron');
-import type { BrowserWindow } from 'electron';
+const { app, BrowserWindow, shell, ipcMain, dialog }: typeof import('electron') = require('electron');
 import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -30,7 +23,8 @@ const appDataPath = app.getPath('userData');
 // The path where user settings will be stored.
 const settingsPath = path.join(appDataPath, 'settings.json');
 
-let mainWindowInstance: BrowserWindow | null = null;
+let mainWindowInstance: import('electron').BrowserWindow | null = null;
+let hasSentDownloadingMessage = false;
 
 
 /**
@@ -635,6 +629,7 @@ app.whenReady().then(() => {
             mainWindowInstance?.webContents.send('update-not-available', { version: app.getVersion() });
             return;
         }
+        hasSentDownloadingMessage = false;
         return autoUpdater.checkForUpdates();
     });
     
@@ -1094,6 +1089,7 @@ end.
         autoUpdater.allowPrerelease = false;
         console.log('Not allowing pre-releases for auto-updater.');
       }
+      hasSentDownloadingMessage = false;
       autoUpdater.checkForUpdates();
     }
 
@@ -1119,12 +1115,15 @@ autoUpdater.on('error', (err) => {
 });
 
 autoUpdater.on('download-progress', (progressObj) => {
-    // This can be noisy, so we don't send it to the renderer unless needed for a progress bar.
-    // For now, we'll just log it.
+    if (!hasSentDownloadingMessage) {
+        mainWindowInstance?.webContents.send('update-downloading');
+        hasSentDownloadingMessage = true;
+    }
     console.log(`Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}% (${progressObj.transferred}/${progressObj.total})`);
 });
 
 autoUpdater.on('update-downloaded', (info) => {
+    hasSentDownloadingMessage = false; // Reset for the next update cycle
     mainWindowInstance?.webContents.send('update-downloaded', info);
 });
 

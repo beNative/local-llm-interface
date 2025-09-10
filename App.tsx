@@ -104,7 +104,6 @@ const AppContent: React.FC = () => {
   const [view, setView] = useState<View>('chat');
   const [isResponding, setIsResponding] = useState<boolean>(false);
   const [retrievalStatus, setRetrievalStatus] = useState<'idle' | 'retrieving'>('idle');
-  const [thinkingText, setThinkingText] = useState<string | null>(null);
   const [isElectron, setIsElectron] = useState(false);
   const [isLogPanelVisible, setIsLogPanelVisible] = useState(false);
   const [prefilledInput, setPrefilledInput] = useState('');
@@ -116,11 +115,8 @@ const AppContent: React.FC = () => {
   const [pendingToolCalls, setPendingToolCalls] = useState<ToolCall[] | null>(null);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const accumulatedThinkingText = useRef<string | null>(null);
-  const streamBuffer = useRef<string>('');
   const [sidebarWidth, setSidebarWidth] = useState(256);
   const isResizingRef = useRef(false);
-  const inThinkBlockRef = useRef<boolean>(false);
   const { addToast } = useToast();
 
 
@@ -310,7 +306,6 @@ const AppContent: React.FC = () => {
   // Effect to apply application scale (zoom).
   useEffect(() => {
     const scale = config?.themeOverrides?.scale || 100;
-    // FIX: Cast style to `any` to set the non-standard but widely supported `zoom` property.
     (document.documentElement.style as any).zoom = `${scale / 100}`;
     logger.debug(`Application scale set to: ${scale}%`);
   }, [config?.themeOverrides?.scale]);
@@ -361,7 +356,10 @@ const AppContent: React.FC = () => {
     useEffect(() => {
         if (isElectron && window.electronAPI) {
             const handleUpdateAvailable = (info: any) => {
-                addToast({ type: 'info', message: `New version ${info.version} found. Downloading...`, duration: 5000 });
+                addToast({ type: 'info', message: `New version ${info.version} found.` });
+            };
+            const handleUpdateDownloading = () => {
+                addToast({ type: 'info', message: `Downloading update...`, duration: 10000 });
             };
             const handleUpdateDownloaded = (info: any) => {
                 addToast({
@@ -376,17 +374,19 @@ const AppContent: React.FC = () => {
             const handleUpdateError = (error: Error) => {
                  addToast({ type: 'error', message: `Update failed: ${error.message}` });
             };
-            const handleUpdateNotAvailable = (info: any) => {
+            const handleUpdateNotAvailable = () => {
                  addToast({ type: 'success', message: 'You are on the latest version.', duration: 3000 });
             };
 
             window.electronAPI.onUpdateAvailable(handleUpdateAvailable);
+            window.electronAPI.onUpdateDownloading(handleUpdateDownloading);
             window.electronAPI.onUpdateDownloaded(handleUpdateDownloaded);
             window.electronAPI.onUpdateError(handleUpdateError);
             window.electronAPI.onUpdateNotAvailable(handleUpdateNotAvailable);
 
             return () => {
                 window.electronAPI!.removeUpdateAvailableListener();
+                window.electronAPI!.removeUpdateDownloadingListener();
                 window.electronAPI!.removeUpdateDownloadedListener();
                 window.electronAPI!.removeUpdateErrorListener();
                 window.electronAPI!.removeUpdateNotAvailableListener();
@@ -567,7 +567,6 @@ const AppContent: React.FC = () => {
       const conversation = session.messages
           .filter(m => ['user', 'assistant'].includes(m.role) && m.content)
           .slice(0, 2) // Base title on first exchange
-          // FIX: Safely handle complex ChatMessage content by checking type and extracting text.
           .map(m => {
             let contentString = '';
             if (typeof m.content === 'string') {
@@ -673,7 +672,6 @@ const AppContent: React.FC = () => {
       abortControllerRef.current = null;
       setIsResponding(false);
       setRetrievalStatus('idle');
-      setThinkingText(null);
       setPendingToolCalls(null);
       logger.info('User requested to stop generation.');
     }
@@ -789,10 +787,6 @@ const AppContent: React.FC = () => {
       const controller = new AbortController();
       abortControllerRef.current = controller;
       setIsResponding(true);
-      setThinkingText(null);
-      accumulatedThinkingText.current = null;
-      streamBuffer.current = '';
-      inThinkBlockRef.current = false;
 
       const project = config.projects?.find(p => p.id === session.projectId);
       const tools: Tool[] = [];
@@ -886,8 +880,6 @@ const AppContent: React.FC = () => {
       const project = config.projects?.find(p => p.id === currentSession.projectId) || null;
       
       const lastMessageBeforeApproval = currentSession.messages[currentSession.messages.length - 1] as AssistantToolCallMessage;
-      // FIX: Safely extract string content from the last message, which might have complex content type.
-      // Since we know this is a tool call message, its content is `string | null`.
       const assistantContent = lastMessageBeforeApproval.content;
 
       const toolResults: ToolResponseMessage[] = [];
@@ -1127,7 +1119,6 @@ const AppContent: React.FC = () => {
                         onSendMessage={handleSendMessage}
                         isResponding={isResponding || retrievalStatus === 'retrieving'}
                         retrievalStatus={retrievalStatus}
-                        thinkingText={thinkingText}
                         onStopGeneration={handleStopGeneration}
                         onRenameSession={(newName) => handleRenameSession(activeSession.id, newName)}
                         theme={config.theme || 'dark'}

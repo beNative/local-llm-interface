@@ -83,7 +83,6 @@ export class LLMServiceError extends Error {
 
 export type StreamChunk = 
   { type: 'content'; text: string } | 
-  { type: 'reasoning'; text: string } |
   { type: 'tool_calls', tool_calls: ToolCall[] };
 
 const getApiKey = (provider: LLMProviderConfig, apiKeys: Config['apiKeys']): string | undefined => {
@@ -341,7 +340,6 @@ const textCompletionGemini = async (
         config,
     });
     
-    // @google/genai-sdk: FIX: Access the .text property directly to get the response content, as per Gemini API guidelines.
     return response.text;
 };
 
@@ -421,7 +419,6 @@ const streamChatCompletionGemini = async (
 
         for await (const chunk of stream) {
             if (signal.aborted) break;
-            // @google/genai-sdk: FIX: Access the .text property directly to get text from the streaming chunk.
             const text = chunk.text;
             if (text) {
                 onChunk({ type: 'content', text });

@@ -29,6 +29,8 @@ export interface IElectronAPI {
   quitAndInstallUpdate: () => Promise<void>;
   onUpdateAvailable: (callback: (info: any) => void) => void;
   removeUpdateAvailableListener: () => void;
+  onUpdateDownloading: (callback: () => void) => void;
+  removeUpdateDownloadingListener: () => void;
   onUpdateDownloaded: (callback: (info: any) => void) => void;
   removeUpdateDownloadedListener: () => void;
   onUpdateError: (callback: (error: Error) => void) => void;

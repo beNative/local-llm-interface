@@ -1,7 +1,3 @@
-
-
-
-// FIX: Switched from ES module import to CommonJS require to resolve Electron module loading errors.
 const { contextBridge, ipcRenderer } = require('electron');
 import type { CodeProject } from '../src/types';
 
@@ -91,6 +87,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   quitAndInstallUpdate: () => ipcRenderer.invoke('updates:install'),
   onUpdateAvailable: (callback: any) => ipcRenderer.on('update-available', (_event, ...args) => callback(...args)),
   removeUpdateAvailableListener: () => ipcRenderer.removeAllListeners('update-available'),
+  onUpdateDownloading: (callback: any) => ipcRenderer.on('update-downloading', (_event) => callback()),
+  removeUpdateDownloadingListener: () => ipcRenderer.removeAllListeners('update-downloading'),
   onUpdateDownloaded: (callback: any) => ipcRenderer.on('update-downloaded', (_event, ...args) => callback(...args)),
   removeUpdateDownloadedListener: () => ipcRenderer.removeAllListeners('update-downloaded'),
   onUpdateError: (callback: any) => ipcRenderer.on('update-error', (_event, ...args) => callback(...args)),

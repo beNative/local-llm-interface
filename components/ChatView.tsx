@@ -56,33 +56,6 @@ const ContextSources: React.FC<{ files: string[] }> = ({ files }) => {
     );
 };
 
-const ThinkingLog: React.FC<{ content: string }> = ({ content }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
-
-    if (!content) return null;
-
-    return (
-        <div className="mb-2 text-xs border border-[--assistant-message-text-color]/10 rounded-lg">
-            <button
-                onClick={() => setIsExpanded(prev => !prev)}
-                className="flex items-center w-full p-2 text-left opacity-80 hover:opacity-100"
-            >
-                <BrainCircuitIcon className="w-4 h-4 mr-2 flex-shrink-0" />
-                <span className="font-semibold flex-grow">Show reasoning</span>
-                <ChevronDownIcon className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-            </button>
-            {isExpanded && (
-                <div className="p-2 border-t border-[--assistant-message-text-color]/10 prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {content}
-                    </ReactMarkdown>
-                </div>
-            )}
-        </div>
-    );
-};
-
-
 const MessageMetadata: React.FC<{ metadata: ChatMessageMetadata }> = ({ metadata }) => {
     const { usage, speed } = metadata;
 
@@ -194,7 +167,6 @@ const MemoizedChatMessage = React.memo<{
             <SpinnerIcon className="w-5 h-5 text-gray-400"/>
           ) : (
             <>
-              {msg.metadata?.thinking && <ThinkingLog content={msg.metadata.thinking} />}
               {msg.metadata?.ragContext && <ContextSources files={msg.metadata.ragContext.files} />}
               {msg.content && (
                   <div className="prose prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2 prose-pre:bg-transparent prose-pre:p-0">
@@ -238,34 +210,12 @@ const MemoizedChatMessage = React.memo<{
   );
 });
 
-const ThinkingIndicator: React.FC<{ content: string }> = ({ content }) => {
-  return (
-    <div className="flex items-start gap-4">
-      <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center">
-        <BrainCircuitIcon className="w-5 h-5 text-[--accent-chat] animate-pulse" />
-      </div>
-      <div className="p-4 rounded-2xl rounded-bl-lg shadow-sm w-full bg-[--assistant-message-bg-color] border border-[--border-primary]">
-        <h4 className="font-semibold text-sm text-[--assistant-message-text-color]/80 mb-2 flex items-center gap-2">
-          <SpinnerIcon className="w-4 h-4" />
-          Thinking...
-        </h4>
-        <div className="prose prose-sm max-w-none text-[--assistant-message-text-color]/90 max-h-48 overflow-y-auto">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {content}
-          </ReactMarkdown>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 interface ChatViewProps {
   session: ChatSession;
   provider: LLMProviderConfig | null;
   onSendMessage: (content: string | ChatMessageContentPart[], options?: { useRAG: boolean }) => void;
   isResponding: boolean;
   retrievalStatus: 'idle' | 'retrieving';
-  thinkingText: string | null;
   onStopGeneration: () => void;
   onRenameSession: (newName: string) => void;
   theme: Theme;
@@ -287,7 +237,6 @@ const PersonaSelectorItem: React.FC<{
   prompt: SystemPrompt;
   onSelect: (id: string) => void;
 }> = ({ prompt, onSelect }) => {
-  // Hook is called at the top level of this component, which is correct.
   const promptTooltip = useTooltipTrigger(prompt.content);
 
   return (
@@ -301,7 +250,7 @@ const PersonaSelectorItem: React.FC<{
   );
 };
 
-export default function ChatView({ session, provider, onSendMessage, isResponding, retrievalStatus, thinkingText, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onSetSessionGenerationConfig, onSetSessionAgentToolsEnabled, onRunCodeSnippet }: ChatViewProps) {
+export default function ChatView({ session, provider, onSendMessage, isResponding, retrievalStatus, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onSetSessionGenerationConfig, onSetSessionAgentToolsEnabled, onRunCodeSnippet }: ChatViewProps) {
   const [input, setInput] = useState('');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -412,7 +361,7 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, thinkingText]);
+  }, [messages]);
   
   useEffect(() => {
     if (predefinedInput) {
@@ -470,7 +419,6 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
         reader.onloadend = () => {
             setAttachedImage(reader.result as string);
         };
-        // FIX: Corrected typo from readDataURL to readAsDataURL.
         reader.readAsDataURL(file);
     }
   };
@@ -759,33 +707,29 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
       <main className="flex-1 overflow-y-auto p-[var(--space-4)] space-y-[var(--space-6)]">
           {filteredMessages.map((msg, index) => {
               const isLastMessage = index === filteredMessages.length - 1;
-              if (isLastMessage && isResponding && msg.role === 'assistant') {
-                  return (
-                      <React.Fragment key="responding-assistant-fragment">
-                          {thinkingText && <ThinkingIndicator content={thinkingText} />}
-                          {(msg.content || !thinkingText || ('tool_calls' in msg && msg.tool_calls)) &&
-                              <MemoizedChatMessage
-                                  key={`${msg.role}-${index}`}
-                                  msg={msg}
-                                  markdownComponents={markdownComponents}
-                                  theme={theme}
-                                  isResponding={true}
-                              />
-                          }
-                      </React.Fragment>
-                  );
-              }
               return (
                   <MemoizedChatMessage
                       key={`${msg.role}-${index}`}
                       msg={msg}
                       markdownComponents={markdownComponents}
                       theme={theme}
-                      isResponding={false}
+                      isResponding={isLastMessage && isResponding}
                   />
               );
           })}
-          {retrievalStatus === 'retrieving' && <ThinkingIndicator content="Analyzing project to find relevant context..." />}
+          {retrievalStatus === 'retrieving' && (
+              <div className="flex items-start gap-4">
+                  <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center">
+                      <BrainCircuitIcon className="w-5 h-5 text-[--accent-chat] animate-pulse" />
+                  </div>
+                  <div className="p-4 rounded-2xl rounded-bl-lg shadow-sm w-full bg-[--assistant-message-bg-color] border border-[--border-primary]">
+                      <h4 className="font-semibold text-sm text-[--assistant-message-text-color]/80 flex items-center gap-2">
+                          <SpinnerIcon className="w-4 h-4" />
+                          Analyzing project to find relevant context...
+                      </h4>
+                  </div>
+              </div>
+          )}
           <div ref={messagesEndRef} />
       </main>
       <footer className="p-[var(--space-4)] bg-[--bg-primary] border-t border-[--border-primary] flex-shrink-0">
