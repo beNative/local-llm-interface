@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Config, LLMProviderConfig, Theme, ThemeOverrides, PredefinedPrompt, ColorOverrides, SystemPrompt, ToolchainStatus, Toolchain, IconSet, LLMProviderType } from '../types';
 import Icon from './Icon';
 import { DEFAULT_PROVIDERS } from '../constants';
@@ -270,6 +272,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
   const [isAddingProvider, setIsAddingProvider] = useState(false);
   const [providerStatuses, setProviderStatuses] = useState<Record<string, 'online' | 'offline' | 'checking' | 'unknown'>>({});
   const isUpdatingFromProps = useRef(true);
+  const [jsonText, setJsonText] = useState('');
+  const [jsonError, setJsonError] = useState<string | null>(null);
   
   const checkProviderStatus = async (providerId: string, baseUrl: string) => {
       if (!window.electronAPI) return;
@@ -308,6 +312,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
   useEffect(() => {
     isUpdatingFromProps.current = true;
     setLocalConfig(config);
+    setJsonText(JSON.stringify(config, null, 2));
   }, [config]);
 
   useEffect(() => {
@@ -464,6 +469,43 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
       ...current,
       systemPrompts: (current.systemPrompts || []).filter(p => p.id !== promptId),
     }));
+  };
+
+  const handleExportSettings = async () => {
+    if (!window.electronAPI) return;
+    const result = await window.electronAPI.exportSettings(localConfig);
+    if (!result.success) {
+        alert(`Failed to export settings: ${result.error}`);
+    }
+  };
+
+  const handleImportSettings = async () => {
+      if (!window.electronAPI) return;
+      const result = await window.electronAPI.importSettings();
+      if (result.error) {
+          alert(`Failed to import settings: ${result.error}`);
+          return;
+      }
+      if (result.success && result.content) {
+          try {
+              const importedConfig = JSON.parse(result.content);
+              onConfigChange(importedConfig);
+              alert('Settings imported successfully. The app will now use the new configuration.');
+          } catch (e) {
+              alert(`Failed to parse imported settings file. It might be invalid JSON. Error: ${e instanceof Error ? e.message : String(e)}`);
+          }
+      }
+  };
+
+  const handleSaveJson = () => {
+      try {
+          const parsedConfig = JSON.parse(jsonText);
+          setJsonError(null);
+          onConfigChange(parsedConfig);
+      } catch (e) {
+          const error = e instanceof Error ? e.message : 'Invalid JSON';
+          setJsonError(error);
+      }
   };
 
   const navItems: { id: SettingsSection; label: string; icon: React.ReactNode; isVisible: boolean }[] = [
@@ -749,6 +791,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
               );
           case 'advanced':
               return (
+                <div>
                   <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
                       <h3 className="text-xl font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">Toolchains</h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
@@ -759,6 +802,51 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                         <ToolchainSelector label="Delphi/RAD Studio Compiler" isLoading={isLoadingTools} toolchains={toolchains?.delphi || []} selectedValue={localConfig.selectedDelphiPath} onChange={(v) => handleToolchainChange('selectedDelphiPath', v)} />
                       </div>
                   </div>
+                  <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm mt-6">
+                        <h3 className="text-xl font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">Raw Settings File (settings.json)</h3>
+                        <div className="space-y-4">
+                            <p className="text-sm text-[--text-muted]">
+                                View and edit the raw JSON configuration. Be careful, as incorrect changes can break the application.
+                            </p>
+                            <div className="flex gap-2">
+                                <button onClick={handleImportSettings} className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-lg hover:bg-[--bg-hover]">
+                                    <Icon name="uploadCloud" className="w-4 h-4" /> Import...
+                                </button>
+                                <button onClick={handleExportSettings} className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-lg hover:bg-[--bg-hover]">
+                                    <Icon name="downloadCloud" className="w-4 h-4" /> Export...
+                                </button>
+                            </div>
+
+                            <div className="relative font-mono text-xs h-96">
+                                <SyntaxHighlighter
+                                    language="json"
+                                    style={theme === 'dark' ? atomDark : coy}
+                                    customStyle={{ margin: 0, padding: '1rem', height: '100%', overflow: 'auto', borderRadius: 'var(--border-radius)' }}
+                                    codeTagProps={{ style: { fontFamily: 'inherit' } }}
+                                >
+                                    {jsonText}
+                                </SyntaxHighlighter>
+                                <textarea
+                                    value={jsonText}
+                                    onChange={e => {
+                                        setJsonText(e.target.value);
+                                        if (jsonError) setJsonError(null);
+                                    }}
+                                    spellCheck="false"
+                                    className={`absolute inset-0 w-full h-full p-4 bg-transparent text-transparent caret-[--text-primary] resize-none border-2 rounded-[--border-radius] focus:outline-none ${jsonError ? 'border-red-500 focus:ring-red-500/50' : 'border-transparent focus:ring-[--border-focus]'}`}
+                                    style={{ fontFamily: 'inherit' }}
+                                />
+                            </div>
+
+                            <div className="flex justify-end items-center gap-4">
+                                {jsonError && <p className="text-sm text-red-500">Error: {jsonError}</p>}
+                                <button onClick={handleSaveJson} className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700">
+                                    Save JSON
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
               );
       }
   }

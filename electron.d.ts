@@ -21,6 +21,8 @@ export interface IElectronAPI {
   makeApiRequest: (request: ApiRequest) => Promise<ApiResponse>;
   detectToolchains: () => Promise<ToolchainStatus>;
   checkProviderHealth: (baseUrl: string) => Promise<boolean>;
+  exportSettings: (settings: Config) => Promise<{ success: boolean; error?: string }>;
+  importSettings: () => Promise<{ success: boolean; content?: string; error?: string }>;
 
   // Project Management APIs
   selectDirectory: () => Promise<string | null>;

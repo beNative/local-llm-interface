@@ -1,4 +1,5 @@
 
+
 // FIX: Switched from ES module import to CommonJS require to resolve Electron module loading errors.
 const { app, BrowserWindow, shell, ipcMain, dialog } = require('electron');
 import { autoUpdater } from 'electron-updater';
@@ -574,6 +575,47 @@ app.whenReady().then(() => {
                 resolve(false);
             }
         });
+    });
+
+    ipcMain.handle('settings:export', async (_, settings) => {
+        try {
+            const { canceled, filePath } = await dialog.showSaveDialog({
+                title: 'Export Settings',
+                defaultPath: 'settings.json',
+                filters: [{ name: 'JSON Files', extensions: ['json'] }],
+            });
+
+            if (canceled || !filePath) {
+                return { success: true }; // Not an error, user just canceled
+            }
+
+            await writeFile(filePath, JSON.stringify(settings, null, 2), 'utf-8');
+            return { success: true };
+        } catch (error) {
+            console.error('Failed to export settings:', error);
+            return { success: false, error: error instanceof Error ? error.message : String(error) };
+        }
+    });
+
+    ipcMain.handle('settings:import', async () => {
+        try {
+            const { canceled, filePaths } = await dialog.showOpenDialog({
+                title: 'Import Settings',
+                filters: [{ name: 'JSON Files', extensions: ['json'] }],
+                properties: ['openFile'],
+            });
+
+            if (canceled || !filePaths || filePaths.length === 0) {
+                return { success: true, content: null }; // Canceled
+            }
+            
+            const filePath = filePaths[0];
+            const content = await readFile(filePath, 'utf-8');
+            return { success: true, content };
+        } catch (error) {
+            console.error('Failed to import settings:', error);
+            return { success: false, error: error instanceof Error ? error.message : String(error) };
+        }
     });
 
 

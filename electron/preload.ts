@@ -1,4 +1,5 @@
 
+
 // FIX: Switched from ES module import to CommonJS require to resolve Electron module loading errors.
 const { contextBridge, ipcRenderer } = require('electron');
 import type { CodeProject } from '../src/types';
@@ -80,6 +81,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @returns {Promise<boolean>} A promise that resolves with true if online, false otherwise.
    */
   checkProviderHealth: (baseUrl: string) => ipcRenderer.invoke('provider:health-check', baseUrl),
+
+  exportSettings: (settings: object) => ipcRenderer.invoke('settings:export', settings),
+  importSettings: () => ipcRenderer.invoke('settings:import'),
 
   // Project Management APIs
   selectDirectory: () => ipcRenderer.invoke('dialog:select-directory'),

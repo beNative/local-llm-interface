@@ -45,6 +45,7 @@ import DefaultStopIcon from './icons/StopIcon';
 import DefaultSunIcon from './icons/SunIcon';
 import DefaultTerminalIcon from './icons/TerminalIcon';
 import DefaultTrashIcon from './icons/TrashIcon';
+import DefaultUploadCloudIcon from './icons/UploadCloudIcon';
 import DefaultXIcon from './icons/XIcon';
 import DefaultXCircleIcon from './icons/XCircleIcon';
 
@@ -93,6 +94,7 @@ import {
     Sun as LucideSun,
     Terminal as LucideTerminal,
     Trash2 as LucideTrash,
+    UploadCloud as LucideUploadCloud,
     X as LucideX,
     XCircle as LucideXCircle,
 } from 'lucide-react';
@@ -142,6 +144,7 @@ import {
     SunIcon as HeroSun,
     CommandLineIcon as HeroTerminal,
     TrashIcon as HeroTrash,
+    ArrowUpTrayIcon as HeroUploadCloud,
     XMarkIcon as HeroX,
     XCircleIcon as HeroXCircle,
 } from '@heroicons/react/24/outline';
@@ -151,12 +154,12 @@ import * as Feather from 'react-feather';
 
 // Font Awesome
 import {
-    FaBookmark, FaBrain, FaCheck, FaChevronDown, FaChevronRight, FaChevronUp, FaClipboard, FaCode, FaMicrochip, FaCloudDownloadAlt as FaDownloadCloud, FaFile, FaFileCode, FaFileMedical, FaFileAlt, FaFolder, FaFolderOpen, FaGlobe, FaServer as FaServerIcon, FaHammer, FaUserCog, FaInfoCircle, FaLightbulb, FaCommentMedical, FaComment, FaCube, FaMoon, FaPalette, FaPaperclip, FaPlay, FaPlus, FaMemory, FaSyncAlt, FaSearch, FaPaperPlane, FaCog, FaSlidersH, FaMagic, FaSpinner, FaStop, FaSun, FaTerminal, FaTrash, FaTimes, FaTimesCircle
+    FaBookmark, FaBrain, FaCheck, FaChevronDown, FaChevronRight, FaChevronUp, FaClipboard, FaCode, FaMicrochip, FaCloudDownloadAlt as FaDownloadCloud, FaFile, FaFileCode, FaFileMedical, FaFileAlt, FaFolder, FaFolderOpen, FaGlobe, FaServer as FaServerIcon, FaHammer, FaUserCog, FaInfoCircle, FaLightbulb, FaCommentMedical, FaComment, FaCube, FaMoon, FaPalette, FaPaperclip, FaPlay, FaPlus, FaMemory, FaSyncAlt, FaSearch, FaPaperPlane, FaCog, FaSlidersH, FaMagic, FaSpinner, FaStop, FaSun, FaTerminal, FaTrash, FaTimes, FaTimesCircle, FaCloudUploadAlt
 } from 'react-icons/fa';
 
 // Material Design
 import {
-    MdBookmark, MdPsychology, MdCheck, MdExpandMore, MdChevronRight, MdExpandLess as MdChevronUp, MdContentPaste, MdCode, MdDeveloperBoard, MdCloudDownload as MdDownloadCloud, MdInsertDriveFile, MdSource, MdNoteAdd, MdDescription, MdFolder, MdFolderOpen, MdPublic, MdDns, MdBuild, MdAccountBox, MdInfo, MdLightbulb, MdAddComment, MdChat, MdViewInAr, MdBrightness2, MdPalette, MdAttachFile, MdPlayArrow, MdAdd, MdMemory, MdRefresh, MdSearch, MdSend, MdSettings, MdTune, MdAutoAwesome, MdCached, MdStop, MdWbSunny, MdTerminal, MdDelete, MdClose, MdCancel
+    MdBookmark, MdPsychology, MdCheck, MdExpandMore, MdChevronRight, MdExpandLess as MdChevronUp, MdContentPaste, MdCode, MdDeveloperBoard, MdCloudDownload as MdDownloadCloud, MdInsertDriveFile, MdSource, MdNoteAdd, MdDescription, MdFolder, MdFolderOpen, MdPublic, MdDns, MdBuild, MdAccountBox, MdInfo, MdLightbulb, MdAddComment, MdChat, MdViewInAr, MdBrightness2, MdPalette, MdAttachFile, MdPlayArrow, MdAdd, MdMemory, MdRefresh, MdSearch, MdSend, MdSettings, MdTune, MdAutoAwesome, MdCached, MdStop, MdWbSunny, MdTerminal, MdDelete, MdClose, MdCancel, MdCloudUpload
 } from 'react-icons/md';
 
 
@@ -209,6 +212,7 @@ const iconMap = {
         sun: DefaultSunIcon,
         terminal: DefaultTerminalIcon,
         trash: DefaultTrashIcon,
+        uploadCloud: DefaultUploadCloudIcon,
         x: DefaultXIcon,
         xCircle: DefaultXCircleIcon,
     },
@@ -256,6 +260,7 @@ const iconMap = {
         sun: LucideSun,
         terminal: LucideTerminal,
         trash: LucideTrash,
+        uploadCloud: LucideUploadCloud,
         x: LucideX,
         xCircle: LucideXCircle,
     },
@@ -303,6 +308,7 @@ const iconMap = {
         sun: HeroSun,
         terminal: HeroTerminal,
         trash: HeroTrash,
+        uploadCloud: HeroUploadCloud,
         x: HeroX,
         xCircle: HeroXCircle,
     },
@@ -350,6 +356,7 @@ const iconMap = {
         sun: Feather.Sun,
         terminal: Feather.Terminal,
         trash: Feather.Trash2,
+        uploadCloud: Feather.UploadCloud,
         x: Feather.X,
         xCircle: Feather.XCircle,
     },
@@ -397,6 +404,7 @@ const iconMap = {
         sun: FaSun,
         terminal: FaTerminal,
         trash: FaTrash,
+        uploadCloud: FaCloudUploadAlt,
         x: FaTimes,
         xCircle: FaTimesCircle,
     },
@@ -444,6 +452,7 @@ const iconMap = {
         sun: MdWbSunny,
         terminal: MdTerminal,
         trash: MdDelete,
+        uploadCloud: MdCloudUpload,
         x: MdClose,
         xCircle: MdCancel,
     },

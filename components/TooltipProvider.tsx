@@ -96,8 +96,7 @@ const TooltipComponent: React.FC<{ tooltipState: TooltipState }> = ({ tooltipSta
 export const TooltipProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tooltipState, setTooltipState] = useState<TooltipState>(initialTooltipState);
   // FIX: Use a robust type for the timeout ref to avoid environment inconsistencies (Node vs Browser).
-  // Using `any` here to avoid type conflicts between Node's `NodeJS.Timeout` and the browser's `number` for timer IDs.
-  const hideTimeoutRef = useRef<any>();
+  const hideTimeoutRef = useRef<number | undefined>();
 
   const show = useCallback((content: React.ReactNode, rect: DOMRect) => {
     if(hideTimeoutRef.current) {
@@ -106,15 +105,12 @@ export const TooltipProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setTooltipState({ visible: true, content, targetRect: rect });
   }, []);
 
-  // FIX: Corrected an error where `setTimeout` was called with an immediate function execution result (`undefined`)
-  // instead of a function reference. The state update is now wrapped in an arrow function to ensure it's
-  // executed by the timer, not when the timer is set.
   // FIX: Resolved a cryptic error on state update by resetting the tooltip state completely on hide. 
   // This removes the problematic updater function call and is a more robust way to hide the tooltip.
   const hide = useCallback(() => {
     hideTimeoutRef.current = window.setTimeout(() => {
-      // FIX: The state setter was called with no arguments, causing an error. It now receives the initial state object to correctly reset the tooltip.
-      setTooltipState(initialTooltipState);
+      // FIX: The state setter was called with no arguments, causing an error. Using a functional update form `() => newState` is safer in async contexts like setTimeout.
+      setTooltipState(() => initialTooltipState);
     }, 100);
   }, []);
 
