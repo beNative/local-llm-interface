@@ -114,6 +114,15 @@ The chat view is the primary interface for interacting with the LLM.
 - **Session List**: All your conversations are listed here. Each entry shows the session title and the model used. A **code icon** appears next to chats that are linked to a project.
 - **Session Actions**: Hover over a session to reveal buttons for automatically generating a name or deleting the session.
 
+### Integrated Python Interpreter (Desktop App Only)
+
+The chat view includes a powerful code interpreter that allows the AI to execute Python code.
+
+- **How to Use**: Simply include a Python code block in your message and ask the AI to run it (e.g., "Calculate the 20th Fibonacci number with this Python code" or "What's the output of this script?").
+- **Execution**: The AI will recognize the request and use the `executePython` tool. This action is considered potentially dangerous, so it will require your approval in the security modal, just like writing files or running terminal commands.
+- **Output**: The standard output (`stdout`) and standard error (`stderr`) from the script's execution are captured and displayed directly in the chat as the result of the tool call. The AI will then use this output to give you a final answer.
+- **Configuration**: The interpreter uses the Python executable you have configured in **Settings > Advanced > Toolchains**.
+
 ### Project Context & The Project Agent
 - **Starting a Project Chat**: The best way to start a project-based chat is to go to the **Projects** view and click the **"Chat about Project"** button on the project you want to discuss.
 - **Persistent Context**: When a chat is linked to a project, its name will be clearly displayed in the chat header. This context is permanent for that session.

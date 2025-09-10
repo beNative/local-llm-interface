@@ -59,7 +59,7 @@ This feature improves the reliability of the API Client by instructing the model
 
 ### Tool Use / Function Calling
 This transforms the chat into an agent. The entire workflow is orchestrated by the `processConversationTurn` and `handleToolApproval` functions in `App.tsx`.
-1.  **Tool Definition**: A static list of available `Tool` objects is defined in `App.tsx`. These tools (`listFiles`, `readFile`, `writeFile`, `runTerminalCommand`) are passed to the LLM service.
+1.  **Tool Definition**: A list of available `Tool` objects is defined in `App.tsx`. A global `executePython` tool is always available in the desktop app. Project-specific tools (`listFiles`, `readFile`, `writeFile`, `runTerminalCommand`) are added to the list only when a project is active and the "Project Agent" is enabled. These definitions are passed to the LLM service.
 2.  **API Call**: `services/llmService.ts`'s `streamChatCompletion` function includes the `tools` array in the request to the LLM.
 3.  **Response Parsing**: The service streams the response, watching for `tool_calls` chunks. It carefully assembles streamed JSON fragments into complete `ToolCall` objects.
 4.  **Approval Flow**: Back in `App.tsx`, if the response contains tool calls, they are stored in the `pendingToolCalls` state, which triggers the `ToolCallApprovalModal`. The modal distinguishes between safe (read-only) and dangerous (write/execute) tools, requiring explicit user consent for the latter.

@@ -691,21 +691,27 @@ const App: React.FC = () => {
     });
   };
 
-  const executeToolCall = async (project: CodeProject, toolCall: ToolCall): Promise<any> => {
+  const executeToolCall = async (toolCall: ToolCall, project: CodeProject | null): Promise<any> => {
       const { name, arguments: argsStr } = toolCall.function;
       logger.info(`Executing tool: ${name} with args: ${argsStr}`);
       const args = JSON.parse(argsStr);
 
       try {
           switch(name) {
+              case 'executePython':
+                  if (!window.electronAPI) throw new Error("Code interpreter is only available in the desktop app.");
+                  return await window.electronAPI.runPython(args.code);
               case 'listFiles':
+                  if (!project) throw new Error("No active project. Cannot list files.");
                   return await window.electronAPI!.projectListFilesRecursive(project.path);
               case 'readFile': {
+                  if (!project) throw new Error("No active project. Cannot read file.");
                   const fullPath = await window.electronAPI!.projectFindFile({ projectPath: project.path, fileName: args.path });
                   if (!fullPath) throw new Error(`File not found: ${args.path}`);
                   return await window.electronAPI!.readProjectFile(fullPath);
               }
               case 'writeFile': {
+                  if (!project) throw new Error("No active project. Cannot write file.");
                   // The approval flow needs the original content for a diff. We must read it *before* writing.
                   const fullPath = await window.electronAPI!.projectFindFile({ projectPath: project.path, fileName: args.path }) || `${project.path}/${args.path}`;
                   let originalContent = null;
@@ -718,6 +724,7 @@ const App: React.FC = () => {
                   return { success: true, originalContent };
               }
               case 'runTerminalCommand': {
+                  if (!project) throw new Error("No active project. Cannot run terminal command.");
                   const { stdout, stderr } = await window.electronAPI!.projectRunCommand({ projectPath: project.path, command: args.command });
                   return { stdout, stderr };
               }
@@ -750,23 +757,44 @@ const App: React.FC = () => {
       streamBuffer.current = '';
       inThinkBlockRef.current = false;
 
-      let tools: Tool[] | undefined = undefined;
       const project = config.projects?.find(p => p.id === session.projectId);
+      const tools: Tool[] = [];
 
+      if (isElectron) {
+          // Always add the code interpreter tool in the desktop app
+          tools.push({
+              type: 'function',
+              function: {
+                  name: 'executePython',
+                  description: 'Executes a Python code snippet and returns its standard output and standard error. This is the primary way to run code.',
+                  parameters: {
+                      type: 'object',
+                      properties: {
+                          code: {
+                              type: 'string',
+                              description: 'The Python code to execute.'
+                          }
+                      },
+                      required: ['code']
+                  }
+              }
+          });
+      }
+      
       if (project && isElectron && session.agentToolsEnabled) {
-          tools = [
+          tools.push(
             { type: 'function', function: { name: 'listFiles', description: 'Recursively lists all files and directories within the project, returning an array of relative paths.', parameters: { type: 'object', properties: {} } } },
             { type: 'function', function: { name: 'readFile', description: "Reads a file's content.", parameters: { type: 'object', properties: { path: { type: 'string', description: 'The relative path to the file from the project root.' } }, required: ['path'] } } },
             { type: 'function', function: { name: 'writeFile', description: "Writes content to a file, overwriting it if it exists or creating it if it doesn't.", parameters: { type: 'object', properties: { path: { type: 'string', description: 'The relative path to the file from the project root.' }, content: { type: 'string', description: 'The new file content.' } }, required: ['path', 'content'] } } },
             { type: 'function', function: { name: 'runTerminalCommand', description: "Executes a shell command in the project's root directory.", parameters: { type: 'object', properties: { command: { type: 'string', description: 'The command to execute.' } }, required: ['command'] } } },
-          ];
+          );
       }
 
       let accumulatedContent = '';
       let accumulatedToolCalls: ToolCall[] = [];
 
       await streamChatCompletion(
-          providerForSession, config.apiKeys, session.modelId, messages, tools, controller.signal,
+          providerForSession, config.apiKeys, session.modelId, messages, tools.length > 0 ? tools : undefined, controller.signal,
           (chunk) => { // onChunk
               if (chunk.type === 'content') {
                   accumulatedContent += chunk.text;
@@ -810,7 +838,7 @@ const App: React.FC = () => {
 
 
   const handleToolApproval = async (approvedCalls: ToolCall[]) => {
-      if (!activeSessionId || !activeSession?.projectId || !config) return;
+      if (!activeSessionId || !config) return;
       
       const currentSession = config.sessions?.find(s => s.id === activeSessionId);
       if (!currentSession) return;
@@ -818,13 +846,8 @@ const App: React.FC = () => {
       setPendingToolCalls(null);
       setIsResponding(true);
 
-      const project = config.projects?.find(p => p.id === activeSession.projectId);
-      if (!project) {
-          logger.error("Cannot execute tools: Active project not found.");
-          setIsResponding(false);
-          return;
-      }
-
+      const project = config.projects?.find(p => p.id === currentSession.projectId) || null;
+      
       const lastMessageBeforeApproval = currentSession.messages[currentSession.messages.length - 1] as AssistantToolCallMessage;
       // FIX: Safely extract string content from the last message, which might have complex content type.
       // Since we know this is a tool call message, its content is `string | null`.
@@ -844,7 +867,7 @@ const App: React.FC = () => {
       for (const call of approvedCalls) {
           let result: any;
           if (call.approved) {
-              result = await executeToolCall(project, call);
+              result = await executeToolCall(call, project);
           } else {
               result = "Tool execution was denied by the user.";
           }

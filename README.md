@@ -8,8 +8,9 @@ A user-friendly desktop application to chat with locally installed LLMs serviced
 - **Model Discovery**: Automatically fetches and displays a list of available models from the connected service.
 - **Detailed Model Info**: View technical details for Ollama models, including file size, family, parameter count, and the full `Modelfile` content, before starting a chat.
 - **Polished Chat Interface**: A clean, modern chat view for interacting with your chosen model.
+- **Integrated Python Interpreter**: Execute Python code snippets directly from the chat and see the output.
 - **Agentic Tool Use (Function Calling)**: Transform the AI into an active agent that can browse project files, read/write content, and execute terminal commands to fulfill complex requests.
-- **Secure by Design**: Any potentially dangerous AI action (writing files, running commands) requires explicit user approval via an interactive modal before it can be executed.
+- **Secure by Design**: Any potentially dangerous AI action (writing files, running commands, executing code) requires explicit user approval via an interactive modal before it can be executed.
 - **AI-Assisted File Modifications**: Ask the AI to refactor or modify project files directly from the chat. Review the proposed changes in an interactive diff view and apply them with a single click.
 - **Versatile API Client**: A dedicated view to generate, edit, and send HTTP requests using natural language prompts, perfect for testing APIs.
 - **Guaranteed JSON Output**: An optional mode in the API client that instructs compatible models to return valid, structured JSON, dramatically improving reliability.

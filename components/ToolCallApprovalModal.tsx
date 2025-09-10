@@ -8,7 +8,7 @@ interface ToolCallApprovalModalProps {
     onClose: () => void;
 }
 
-const isDangerous = (toolName: string) => ['writeFile', 'runTerminalCommand'].includes(toolName);
+const isDangerous = (toolName: string) => ['writeFile', 'runTerminalCommand', 'executePython'].includes(toolName);
 
 const ToolCallApprovalModal: React.FC<ToolCallApprovalModalProps> = ({ toolCalls, onFinalize, onClose }) => {
     const [callStates, setCallStates] = useState<Record<string, boolean>>(() =>

@@ -10,6 +10,7 @@ import { useTooltipTrigger } from '../hooks/useTooltipTrigger';
 const getIconForTool = (toolName: string) => {
     if (toolName.includes('File')) return 'fileCode';
     if (toolName.includes('Terminal')) return 'terminal';
+    if (toolName.includes('Python')) return 'code';
     return 'hammer';
 };
 
