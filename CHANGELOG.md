@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.18.0] - 2025-10-02
+
+### Fixed
+- **Critical Startup Crash**: Resolved a fatal error where the application would show a blank screen on startup. This was caused by the `ToastProvider` attempting to use tooltips before the `TooltipProvider` was available in the React component tree. The provider order has been corrected to ensure stability.
+- **Console Error**: Removed a link to a non-existent `index.css` file from `index.html` that was causing an error in the developer console.
+
 ## [0.17.0] - 2025-10-01
 
 ### Added

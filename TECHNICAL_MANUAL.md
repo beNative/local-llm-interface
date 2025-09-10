@@ -39,7 +39,7 @@ The application is an [Electron](https://www.electronjs.org/) application that w
 
 ## 4. State Management
 
-The application employs a simple, centralized state management model. The root `App.tsx` component holds all major application state (e.g., `config`, `models`, `sessions`, `currentView`) using React's `useState` hook. State and state-updating functions are passed down to child components as props. For global, cross-cutting concerns like notifications, React Context is used (e.g., `ToastProvider`).
+The application employs a simple, centralized state management model. The root `App.tsx` component holds all major application state (e.g., `config`, `models`, `sessions`, `currentView`) using React's `useState` hook. State and state-updating functions are passed down to child components as props. For global, cross-cutting concerns like notifications, React Context is used (e.g., `ToastProvider`). Care is taken to ensure correct provider nesting, as components like `ToastComponent` may depend on contexts from other providers (e.g., `TooltipProvider`).
 
 ## 5. Electron IPC (Inter-Process Communication)
 
