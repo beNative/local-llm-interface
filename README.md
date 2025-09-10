@@ -28,6 +28,7 @@ A user-friendly desktop application to chat with locally installed LLMs serviced
 - **Advanced Logging**: A dockable, filterable logging panel shows all internal application events for easy debugging.
 - **Persistent Settings**: Remembers your connection settings, projects, and theme preference between sessions.
 - **Standard Installation Behavior**: Adheres to OS standards by storing settings and logs in the user's application data directory for better system integration.
+- **Professional Update System**: Receive non-intrusive toast notifications for update availability and download progress, with a one-click install option. A manual 'Check for Updates' button is also available in settings.
 - **Pre-release Updates**: Opt-in to receive pre-release versions for early access to new features.
 - **About Dialog**: An in-app dialog provides version, credits, and copyright information.
 - **Light & Dark Themes**: Switch between themes to suit your preference.

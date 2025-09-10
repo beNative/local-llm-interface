@@ -95,19 +95,16 @@ const TooltipComponent: React.FC<{ tooltipState: TooltipState }> = ({ tooltipSta
 // The Provider that wraps the app
 export const TooltipProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tooltipState, setTooltipState] = useState<TooltipState>(initialTooltipState);
-  // FIX: Explicitly type the timeout ref as a number, which is the return type of `window.setTimeout`.
   const hideTimeoutRef = useRef<number | undefined>();
 
   const show = useCallback((content: React.ReactNode, rect: DOMRect) => {
     if(hideTimeoutRef.current) {
-        // FIX: Use `window.clearTimeout` to match `window.setTimeout` and resolve type ambiguity with Node.js's `clearTimeout`.
         window.clearTimeout(hideTimeoutRef.current);
     }
     setTooltipState({ visible: true, content, targetRect: rect });
   }, []);
 
   const hide = useCallback(() => {
-    // FIX: Explicitly use `window.setTimeout` to resolve type conflicts between DOM and Node.js environments.
     hideTimeoutRef.current = window.setTimeout(() => {
       // Hide the tooltip by resetting its state.
       setTooltipState(initialTooltipState);
@@ -118,7 +115,7 @@ export const TooltipProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
       return () => {
         if (hideTimeoutRef.current) {
-          // FIX: Use `window.clearTimeout` to ensure the correct timer function is called.
+          // FIX: The call to clearTimeout was missing the required timeout ID argument.
           window.clearTimeout(hideTimeoutRef.current);
         }
       };

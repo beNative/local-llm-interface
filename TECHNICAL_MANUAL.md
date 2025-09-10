@@ -46,9 +46,9 @@ The application employs a simple, centralized state management model. The root `
 The renderer process is sandboxed and cannot directly access Node.js APIs. Communication with the main process is handled via IPC:
 
 - `electron/preload.ts` exposes a `window.electronAPI` object to the renderer.
-- This API includes functions like `getSettings`, `saveSettings`, `runPython`, `projectGetFileTree`, `api:make-request`, `detect:toolchains`, `projectRunCommand`, `project:find-file`, `settings:export`, and `settings:import`.
+- This API includes functions like `getSettings`, `saveSettings`, `runPython`, `projectGetFileTree`, `api:make-request`, `detect:toolchains`, `projectRunCommand`, `project:find-file`, `settings:export`, `settings:import`, `updates:check`, and `updates:install`.
 - When a renderer function like `window.electronAPI.projectRunCommand({ projectPath, command })` is called, it sends an IPC message to the main process. The main process's handler for `project:run-command` executes the shell command within the specified project directory and returns the `stdout` and `stderr`.
-- For asynchronous events like system stats or application updates, the main process sends messages to the renderer using `mainWindow.webContents.send()`. The preload script exposes listener functions (e.g., `onUpdateAvailable`) that allow the renderer to subscribe to these events. Each listener has a corresponding `remove...Listener` function to ensure proper cleanup and prevent memory leaks.
+- For asynchronous events like system stats or application updates, the main process sends messages to the renderer using `mainWindow.webContents.send()`. The preload script exposes listener functions (e.g., `onUpdateAvailable`, `onUpdateDownloading`, `onUpdateDownloaded`) that allow the renderer to subscribe to these events. Each listener has a corresponding `remove...Listener` function to ensure proper cleanup and prevent memory leaks.
 
 ## 6. Key Feature Implementation
 
@@ -56,7 +56,7 @@ The renderer process is sandboxed and cannot directly access Node.js APIs. Commu
 The update system uses the `electron-updater` library and a system of IPC events to provide a seamless user experience.
 1.  **Main Process Logic (`electron/main.ts`)**:
     - On startup, `autoUpdater.checkForUpdates()` is called.
-    - Event listeners are attached to `autoUpdater` for `update-available`, `update-downloaded`, `update-not-available`, and `error`.
+    - Event listeners are attached to `autoUpdater` for `update-available`, `update-downloaded`, `update-not-available`, and `error`. A special `update-downloading` event is synthesized on the first `download-progress` chunk for more granular feedback.
     - When these events fire, the main process sends an IPC message (e.g., `mainWindow.webContents.send('update-available', info)`) to the renderer process.
 2.  **IPC Handlers**:
     - `updates:check`: An `ipcMain.handle` that allows the renderer to manually trigger `autoUpdater.checkForUpdates()`.
