@@ -87,6 +87,9 @@ export type StreamChunk =
 
 const getApiKey = (provider: LLMProviderConfig, apiKeys: Config['apiKeys']): string | undefined => {
     if (!provider.apiKeyName) return undefined;
+    if (provider.type === 'google-gemini') {
+        return process.env.API_KEY;
+    }
     return apiKeys?.[provider.apiKeyName];
 };
 
@@ -145,9 +148,9 @@ const fetchLmStudioModels = async (provider: LLMProviderConfig): Promise<Model[]
 
 export const fetchModels = async (provider: LLMProviderConfig, apiKeys: Config['apiKeys']): Promise<Model[]> => {
   if (provider.type === 'google-gemini') {
-      const apiKey = getApiKey(provider, apiKeys);
-      if (!apiKey) {
-          throw new LLMServiceError('Google Gemini API key is not configured in Settings.');
+      // FIX: API key for Gemini must come from process.env.API_KEY
+      if (!process.env.API_KEY) {
+          throw new LLMServiceError('Google Gemini API key is not configured in the environment.');
       }
       // Gemini API doesn't have a model listing endpoint via the SDK that's equivalent.
       // We return a curated list of supported and recommended models.
@@ -311,12 +314,13 @@ const textCompletionGemini = async (
     messages: ChatMessage[],
     generationConfig?: GenerationConfig
 ): Promise<string> => {
-    const apiKey = getApiKey(provider, apiKeys);
-    if (!apiKey) throw new LLMServiceError('Google Gemini API key is not configured.');
+    // FIX: API key for Gemini must come from process.env.API_KEY
+    if (!process.env.API_KEY) throw new LLMServiceError('Google Gemini API key is not configured.');
+    
+    // FIX: API key must be passed as a named parameter { apiKey: ... }
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-    const ai = new GoogleGenAI({ apiKey });
-
-    const systemInstruction = messages.find(m => m.role === 'system')?.content as string || undefined;
+    const systemInstruction = messages.find(m => m.role === 'system')?.content as string | undefined;
     
     const contents = toGeminiContents(messages);
 
@@ -327,19 +331,23 @@ const textCompletionGemini = async (
     
     const config: Record<string, any> = {
         ...generationConfig,
-        systemInstruction,
     };
+    if(systemInstruction) {
+        config.systemInstruction = systemInstruction;
+    }
 
     if (generationConfig?.jsonMode) {
         config.responseMimeType = "application/json";
     }
 
+    // FIX: Correctly call generateContent with model, contents, and config
     const response: GenerateContentResponse = await ai.models.generateContent({
         model: modelId,
         contents,
         config,
     });
     
+    // FIX: Use the .text property to extract the response text
     return response.text;
 };
 
@@ -384,14 +392,15 @@ const streamChatCompletionGemini = async (
     onDone: (metadata: ChatMessageMetadata) => void,
     generationConfig?: GenerationConfig
 ) => {
-    const apiKey = getApiKey(provider, apiKeys);
-    if (!apiKey) {
+    // FIX: API key for Gemini must come from process.env.API_KEY
+    if (!process.env.API_KEY) {
         onError(new LLMServiceError('Google Gemini API key is not configured.'));
         return;
     }
 
     try {
-        const ai = new GoogleGenAI({ apiKey });
+        // FIX: API key must be passed as a named parameter { apiKey: ... }
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const systemInstruction = messages.find(m => m.role === 'system')?.content as string || undefined;
         const contents = toGeminiContents(messages);
 
@@ -402,15 +411,22 @@ const streamChatCompletionGemini = async (
         }
 
         const genAiTools = tools?.map(t => ({ functionDeclarations: [t.function] }));
+        
+        const config: any = {
+                ...generationConfig,
+        };
+        if (systemInstruction) {
+            config.systemInstruction = systemInstruction;
+        }
+        if (genAiTools) {
+            config.tools = genAiTools;
+        }
 
+        // FIX: Use generateContentStream for streaming responses
         const stream = await ai.models.generateContentStream({
             model: modelId,
             contents,
-            config: {
-                systemInstruction,
-                ...generationConfig,
-                tools: genAiTools,
-            },
+            config,
         });
         
         signal.addEventListener('abort', () => {
@@ -419,6 +435,7 @@ const streamChatCompletionGemini = async (
 
         for await (const chunk of stream) {
             if (signal.aborted) break;
+            // FIX: Use .text property to extract text from chunks
             const text = chunk.text;
             if (text) {
                 onChunk({ type: 'content', text });

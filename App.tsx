@@ -22,6 +22,7 @@ import ToolCallApprovalModal from './components/ToolCallApprovalModal';
 import { runPythonCode } from './services/pyodideService';
 import { ToastProvider, ToastContainer } from './components/ToastProvider';
 import { useToast } from './hooks/useToast';
+import TitleBar from './components/TitleBar';
 
 type View = 'chat' | 'projects' | 'api' | 'settings' | 'info';
 
@@ -118,6 +119,7 @@ const AppContent: React.FC = () => {
   const [sidebarWidth, setSidebarWidth] = useState(256);
   const isResizingRef = useRef(false);
   const { addToast } = useToast();
+  const [isMaximized, setIsMaximized] = useState(false);
 
 
   // Derived state from config
@@ -393,6 +395,17 @@ const AppContent: React.FC = () => {
             }
         }
     }, [isElectron, addToast]);
+    
+    // Effect for window state changes (maximize/unmaximize)
+    useEffect(() => {
+        if (isElectron && window.electronAPI) {
+            const handler = (maximized: boolean) => setIsMaximized(maximized);
+            window.electronAPI.onWindowStateChange(handler);
+            return () => {
+                window.electronAPI?.removeWindowStateChangeListener();
+            };
+        }
+    }, [isElectron]);
 
 
   const handleConfigChange = useCallback((newConfig: Config) => {
@@ -1113,7 +1126,6 @@ const AppContent: React.FC = () => {
                  const providerForSession = providers.find(p => p.id === activeSession.providerId) || null;
                  return (
                     <ChatView
-                        key={activeSession.id}
                         session={activeSession}
                         provider={providerForSession}
                         onSendMessage={handleSendMessage}
@@ -1184,7 +1196,7 @@ const AppContent: React.FC = () => {
   return (
     <IconProvider iconSet={config?.themeOverrides?.iconSet || 'default'}>
       <TooltipProvider>
-        <div style={containerStyle} className="flex flex-col font-sans bg-[--bg-primary]">
+        <div style={containerStyle} className="flex flex-col font-sans bg-[--bg-primary] h-screen overflow-hidden text-[--text-primary]">
           {config && <CommandPalette 
             isOpen={isCommandPaletteOpen}
             onClose={() => setIsCommandPaletteOpen(false)}
@@ -1207,45 +1219,59 @@ const AppContent: React.FC = () => {
                 onClose={() => setPendingToolCalls(null)}
               />
           )}
-          <header className="flex items-center justify-between p-[var(--space-2)] border-b border-[--border-primary] bg-[--bg-primary] sticky top-0 z-10 flex-shrink-0">
-            <nav className="flex items-center gap-1">
-              <NavButton active={view === 'chat'} onClick={() => setView('chat')} title="Switch to the main chat interface" ariaLabel="Chat View" view="chat">
-                <Icon name="messageSquare" className="w-5 h-5" />
-                <span>Chat</span>
-              </NavButton>
-              <NavButton active={view === 'projects'} onClick={() => setView('projects')} title="Manage local code projects" ariaLabel="Projects View" view="projects">
-                <Icon name="code" className="w-5 h-5" />
-                <span>Projects</span>
-              </NavButton>
-              <NavButton active={view === 'api'} onClick={() => setView('api')} title="Test HTTP endpoints using natural language" ariaLabel="API Client View" view="api">
-                <Icon name="server" className="w-5 h-5" />
-                <span>API Client</span>
-              </NavButton>
-              <NavButton active={view === 'settings'} onClick={() => setView('settings')} title="Configure application settings" ariaLabel="Settings View" view="settings">
-                <Icon name="settings" className="w-5 h-5" />
-                <span>Settings</span>
-              </NavButton>
-              <NavButton active={view === 'info'} onClick={() => setView('info')} title="View application documentation and manuals" ariaLabel="Info View" view="info">
-                <Icon name="info" className="w-5 h-5" />
-                <span>Info</span>
-              </NavButton>
-            </nav>
+          
+          {isElectron && config ? (
+            <TitleBar
+                activeView={view}
+                onNavigate={setView}
+                onToggleLogs={() => setIsLogPanelVisible(!isLogPanelVisible)}
+                onToggleTheme={handleThemeToggle}
+                theme={config.theme || 'dark'}
+                onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+                isMaximized={isMaximized}
+            />
+          ) : (
+            <header className="flex items-center justify-between p-[var(--space-2)] border-b border-[--border-primary] bg-[--bg-primary] sticky top-0 z-10 flex-shrink-0">
+              <nav className="flex items-center gap-1">
+                <NavButton active={view === 'chat'} onClick={() => setView('chat')} title="Switch to the main chat interface" ariaLabel="Chat View" view="chat">
+                  <Icon name="messageSquare" className="w-5 h-5" />
+                  <span>Chat</span>
+                </NavButton>
+                <NavButton active={view === 'projects'} onClick={() => setView('projects')} title="Manage local code projects" ariaLabel="Projects View" view="projects">
+                  <Icon name="code" className="w-5 h-5" />
+                  <span>Projects</span>
+                </NavButton>
+                <NavButton active={view === 'api'} onClick={() => setView('api')} title="Test HTTP endpoints using natural language" ariaLabel="API Client View" view="api">
+                  <Icon name="server" className="w-5 h-5" />
+                  <span>API Client</span>
+                </NavButton>
+                <NavButton active={view === 'settings'} onClick={() => setView('settings')} title="Configure application settings" ariaLabel="Settings View" view="settings">
+                  <Icon name="settings" className="w-5 h-5" />
+                  <span>Settings</span>
+                </NavButton>
+                <NavButton active={view === 'info'} onClick={() => setView('info')} title="View application documentation and manuals" ariaLabel="Info View" view="info">
+                  <Icon name="info" className="w-5 h-5" />
+                  <span>Info</span>
+                </NavButton>
+              </nav>
 
-            <div className="flex items-center gap-2 pr-2">
-              <div className="hidden sm:block text-xs text-[--text-muted] border border-[--border-secondary] rounded-md px-2 py-1 font-mono">
-                    Cmd/Ctrl + K
+              <div className="flex items-center gap-2 pr-2">
+                <div className="hidden sm:block text-xs text-[--text-muted] border border-[--border-secondary] rounded-md px-2 py-1 font-mono">
+                      Cmd/Ctrl + K
+                </div>
+                <button
+                  onClick={() => setIsLogPanelVisible(!isLogPanelVisible)}
+                  className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-primary] focus:ring-[--border-focus]"
+                  aria-label="Toggle logs panel"
+                  title="Toggle the application logs panel for debugging"
+                  >
+                  <Icon name="fileText" className="w-5 h-5" />
+                  </button>
+                <ThemeSwitcher theme={config?.theme || 'dark'} onToggle={handleThemeToggle} />
               </div>
-              <button
-                onClick={() => setIsLogPanelVisible(!isLogPanelVisible)}
-                className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-primary] focus:ring-[--border-focus]"
-                aria-label="Toggle logs panel"
-                title="Toggle the application logs panel for debugging"
-                >
-                <Icon name="fileText" className="w-5 h-5" />
-                </button>
-              <ThemeSwitcher theme={config?.theme || 'dark'} onToggle={handleThemeToggle} />
-            </div>
-          </header>
+            </header>
+          )}
+
           <main className="flex-1 flex overflow-hidden">
             {view === 'chat' && activeSession && (
               <>

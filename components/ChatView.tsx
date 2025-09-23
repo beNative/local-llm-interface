@@ -295,6 +295,18 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
     setEditedTitle(sessionName);
   }, [sessionName]);
 
+// FIX: This hook resets component state when switching sessions.
+// This replaces the need for a `key` prop on the component instance, resolving a type error.
+  useEffect(() => {
+    setInput('');
+    setAttachedImage(null);
+    setIsEditingTitle(false);
+    setIsModelSelectorOpen(false);
+    setIsPersonaSelectorOpen(false);
+    setIsParamsOpen(false);
+    setIsPromptsOpen(false);
+  }, [session.id]);
+
   useEffect(() => {
     if (isEditingTitle) {
       titleInputRef.current?.focus();

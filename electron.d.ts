@@ -62,6 +62,14 @@ export interface IElectronAPI {
   // System Stats
   onSystemStatsUpdate: (callback: (stats: SystemStats) => void) => void;
   removeSystemStatsUpdateListener: () => void;
+  
+  // Window Controls
+  minimizeWindow: () => Promise<void>;
+  maximizeWindow: () => Promise<void>;
+  unmaximizeWindow: () => Promise<void>;
+  closeWindow: () => Promise<void>;
+  onWindowStateChange: (callback: (isMaximized: boolean) => void) => void;
+  removeWindowStateChangeListener: () => void;
 }
 
 declare global {

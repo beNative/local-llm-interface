@@ -37,24 +37,44 @@ const TooltipComponent: React.FC<{ tooltipState: TooltipState }> = ({ tooltipSta
 
     useLayoutEffect(() => {
         if (tooltipState.visible && tooltipState.targetRect && tooltipRef.current) {
-            const tooltipNode = tooltipRef.current;
-            const { innerWidth, innerHeight } = window;
-            const offset = 10;
-
-            const { width: tooltipWidth, height: tooltipHeight } = tooltipNode.getBoundingClientRect();
+            // 1. Get the current zoom factor from the root element. Fallback to 1 if not set.
+            // FIX: Cast style to `any` to access the non-standard `zoom` property and prevent a TypeScript error.
+            const zoomFactor = parseFloat((document.documentElement.style as any).zoom || '1');
             
+            const tooltipNode = tooltipRef.current;
+            const offset = 10; // The desired offset in layout pixels.
+
+            // The tooltip's own dimensions must also be un-scaled to be used in layout pixel calculations.
+            const { width: scaledTooltipWidth, height: scaledTooltipHeight } = tooltipNode.getBoundingClientRect();
+            const tooltipWidth = scaledTooltipWidth / zoomFactor;
+            const tooltipHeight = scaledTooltipHeight / zoomFactor;
+
+            // 2. Un-scale the targetRect coordinates to get layout coordinates.
+            const layoutRect = {
+                top: tooltipState.targetRect.top / zoomFactor,
+                left: tooltipState.targetRect.left / zoomFactor,
+                bottom: tooltipState.targetRect.bottom / zoomFactor,
+                width: tooltipState.targetRect.width / zoomFactor,
+                height: tooltipState.targetRect.height / zoomFactor,
+            };
+
+            // 3. Get the layout viewport dimensions.
+            const layoutViewportWidth = window.innerWidth / zoomFactor;
+            const layoutViewportHeight = window.innerHeight / zoomFactor;
+            
+            // 4. Calculate position using layout coordinates.
             // Default position: above, centered
-            let top = tooltipState.targetRect.top - tooltipHeight - offset;
-            let left = tooltipState.targetRect.left + (tooltipState.targetRect.width / 2) - (tooltipWidth / 2);
+            let top = layoutRect.top - tooltipHeight - offset;
+            let left = layoutRect.left + (layoutRect.width / 2) - (tooltipWidth / 2);
 
             // Adjust if clipped at the top
             if (top < offset) {
-                top = tooltipState.targetRect.bottom + offset;
+                top = layoutRect.bottom + offset;
             }
 
             // Adjust if it would now be clipped at the bottom
-            if (top + tooltipHeight > innerHeight - offset) {
-                top = innerHeight - tooltipHeight - offset;
+            if (top + tooltipHeight > layoutViewportHeight - offset) {
+                top = layoutViewportHeight - tooltipHeight - offset;
             }
 
             // Adjust if clipped on the left
@@ -63,13 +83,12 @@ const TooltipComponent: React.FC<{ tooltipState: TooltipState }> = ({ tooltipSta
             }
 
             // Adjust if clipped on the right
-            if (left + tooltipWidth > innerWidth - offset) {
-                left = innerWidth - tooltipWidth - offset;
+            if (left + tooltipWidth > layoutViewportWidth - offset) {
+                left = layoutViewportWidth - tooltipWidth - offset;
             }
 
             setPosition({ top, left });
         } else if (!tooltipState.visible) {
-            // Reset position when hidden to trigger remeasurement on next show
             setPosition({ top: -9999, left: -9999 });
         }
     }, [tooltipState]);
@@ -109,9 +128,7 @@ export const TooltipProvider: React.FC<{ children: React.ReactNode }> = ({ child
       // Hide the tooltip by resetting its state.
       setTooltipState(initialTooltipState);
     }, 100);
-    // Fix: Added `setTooltipState` to the dependency array. While the function identity is stable,
-    // this satisfies the exhaustive-deps lint rule which may be causing a misleading build error.
-  }, [setTooltipState]);
+  }, []);
 
   // Clean up any pending timeout when the provider unmounts.
   useEffect(() => {

@@ -79,7 +79,8 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({ entry, onFileClick, level }
 
     const files = e.dataTransfer.files;
     if (files.length > 0) {
-        const fileNames = Array.from(files).map(f => f.name).join('\n - ');
+        // FIX: Explicitly type the item in the map function to `File` to resolve the type error.
+        const fileNames = Array.from(files).map((f: File) => f.name).join('\n - ');
         const confirmationMessage = `Are you sure you want to add ${files.length} file(s) to the "${entry.name}" folder?\n\n- ${fileNames}`;
 
         if (window.confirm(confirmationMessage)) {
