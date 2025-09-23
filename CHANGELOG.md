@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.19.0] - 2025-10-03
+
+### Added
+- **Custom VS Code-Style Title Bar**: Replaced the standard OS title bar with a custom, integrated header for a modern, seamless look (Desktop app only).
+- **Integrated Command Palette**: The command palette search is now embedded directly in the new custom title bar for quick and easy access.
+
+### Changed
+- Refined application layout to support the new frameless window design.
+
 ## [0.18.0] - 2025-10-02
 
 ### Fixed

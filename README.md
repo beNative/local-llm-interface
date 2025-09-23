@@ -4,10 +4,13 @@ A user-friendly desktop application to chat with locally installed LLMs serviced
 
 ## Features
 
+- **Custom Title Bar**: A sleek, VS Code-style title bar with integrated search and custom window controls for a modern desktop experience (Desktop app only).
+- **Integrated Command Palette**: The powerful `Cmd/Ctrl+K` command palette is now visually anchored to the search box in the custom title bar, allowing for quick and intuitive navigation.
 - **Multiple Provider Support**: Connect to Ollama, LMStudio, or a custom OpenAI-compatible server.
 - **Model Discovery**: Automatically fetches and displays a list of available models from the connected service.
 - **Detailed Model Info**: View technical details for Ollama models, including file size, family, parameter count, and the full `Modelfile` content, before starting a chat.
 - **Polished Chat Interface**: A clean, modern chat view for interacting with your chosen model.
+- **Multimodal Chat**: Attach images to your prompts for models that support it.
 - **Integrated Python Interpreter**: Execute Python code snippets directly from the chat and see the output.
 - **Agentic Tool Use (Function Calling)**: Transform the AI into an active agent that can browse project files, read/write content, and execute terminal commands to fulfill complex requests.
 - **Secure by Design**: Any potentially dangerous AI action (writing files, running commands, executing code) requires explicit user approval via an interactive modal before it can be executed.
@@ -18,8 +21,6 @@ A user-friendly desktop application to chat with locally installed LLMs serviced
 - **In-App File Editor**: A built-in file viewer and editor to browse and modify your project files without leaving the application.
 - **Code Execution**: Run Python/Node.js code snippets or entire projects directly from the interface.
 - **System Prompts (Personas)**: Create and switch between different AI personas (e.g., "Senior DevOps Engineer") to tailor responses for specific tasks.
-- **Command Palette**: A Spotlight-style interface (`Cmd/Ctrl+K`) to instantly search and navigate to chats, projects, files, and application views.
-- **Multimodal Chat**: Attach images to your prompts for models that support it.
 - **Advanced Customization**: Customize chat colors, font family, font size, and icon sets in the Settings panel.
 - **Raw Settings Management**: View, edit, import, and export the application's raw `settings.json` file directly from a syntax-highlighted editor in the advanced settings.
 - **Configurable UI Scale and Density**: Adjust the application's zoom level and the spacing of controls (Compact, Normal, Comfortable) for a personalized viewing experience.

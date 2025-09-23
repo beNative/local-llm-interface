@@ -1,4 +1,5 @@
 
+
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import type { Model, ChatMessage, ChatMessageMetadata, ChatMessageUsage, GenerationConfig, ModelDetails, Config, LLMProviderConfig, ChatMessageContentPart, Tool, ToolCall, ToolResponseMessage } from '../types';
 import { logger } from './logger';
@@ -157,6 +158,7 @@ export const fetchModels = async (provider: LLMProviderConfig, apiKeys: Config['
       // We return a curated list of supported and recommended models.
       logger.info('Returning curated list of Google Gemini models.');
       return [
+        // FIX: Use recommended model name 'gemini-2.5-flash'
         { id: 'gemini-2.5-flash', name: 'gemini-2.5-flash', object: 'model', created: Date.now() / 1000, owned_by: 'google', },
       ];
   }

@@ -52,6 +52,16 @@ The renderer process is sandboxed and cannot directly access Node.js APIs. Commu
 
 ## 6. Key Feature Implementation
 
+### Custom Title Bar
+The application utilizes Electron's frameless window feature to achieve a modern, integrated UI, similar to applications like VS Code.
+1.  **Frameless Window**: In `electron/main.ts`, the `BrowserWindow` is created with the `frame: false` option. This removes the default OS-provided window frame (title bar, minimize/maximize/close buttons).
+2.  **Custom React Component**: A dedicated React component, `TitleBar.tsx`, is rendered at the top of the `App` component. This component is responsible for drawing the entire custom title bar UI.
+3.  **Draggable Region**: The main container of the `TitleBar` component has the CSS property `-webkit-app-region: drag;` applied. This tells Electron that this area should act as a draggable handle for the window.
+4.  **Non-Draggable Elements**: All interactive elements within the title bar (navigation buttons, search box, window controls) have `-webkit-app-region: no-drag;` applied so that they remain clickable and don't trigger a window drag.
+5.  **IPC for Window Controls**: The custom minimize, maximize, and close buttons in the `TitleBar` component are simple HTML buttons. Their `onClick` handlers call functions exposed on the `window.electronAPI` object (e.g., `minimizeWindow()`). These functions, defined in `electron/preload.ts`, send IPC messages (`window:minimize`, `window:maximize`, `window:close`) to the main process.
+6.  **Main Process Handlers**: In `electron/main.ts`, `ipcMain.handle` listeners for these channels call the corresponding `BrowserWindow` methods (`mainWindow.minimize()`, etc.) to control the actual native window.
+7.  **State Sync**: To correctly display the maximize/restore icon, the main process listens for the `maximize` and `unmaximize` events on the `BrowserWindow` instance. When these events fire, it sends a `window-state-changed` IPC message to the renderer, which updates its state and re-renders the correct icon.
+
 ### Application Updates
 The update system uses the `electron-updater` library and a system of IPC events to provide a seamless user experience.
 1.  **Main Process Logic (`electron/main.ts`)**:

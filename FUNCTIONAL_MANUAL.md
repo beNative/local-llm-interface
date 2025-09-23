@@ -2,20 +2,23 @@
 
 This document provides a detailed guide on how to use the Local LLM Interface application.
 
-## 1. Main Interface
+## 1. Main Interface (Desktop App)
 
-The application window is composed of a header, a main content area, a status bar, and an optional logging panel.
+The application window is composed of a custom title bar, a main content area, a status bar, and an optional logging panel.
 
-### Header Bar
+### Custom Title Bar
 
-The header is always visible and contains the primary navigation and control elements:
+The desktop application features a modern, VS Code-style title bar that replaces the standard operating system window frame. This provides a more integrated and seamless user experience.
 
-- **Navigation Bar**: A sleek, pill-shaped bar to switch between the main application views: "Chat", "Projects", "API Client", "Settings", and "Info". The active view is highlighted with a color accent.
-- **Command Palette Shortcut**: A `Cmd/Ctrl + K` hint is displayed. Pressing this key combination opens the command palette for quick navigation.
-- **Logs Button**: (File icon) Toggles the visibility of the logging panel at the bottom of the screen.
-- **Theme Switcher**: (Sun/Moon icon) Toggles between light and dark mode instantly.
+- **Draggable Region**: The entire bar (except for interactive elements like buttons) can be clicked and dragged to move the window.
+- **Integrated Command Palette**: At the center is a search box. Clicking it opens the powerful Command Palette directly below, allowing for instant searching of chats, files, and actions. The `Cmd/Ctrl+K` shortcut still works as well.
+- **Navigation**: A compact set of buttons allows for quick navigation between the main views: Chat, Projects, API Client, Settings, and Info.
+- **Application Controls**: On the right side, you'll find quick-access buttons for toggling the Logs panel and switching between light/dark themes.
+- **Window Controls**: The far right of the title bar contains custom-styled buttons for minimizing, maximizing/restoring, and closing the application window, just like a standard title bar.
 
-### Status Bar (Desktop App Only)
+*(Note: When run in a web browser, the application will display a simpler, standard header bar inside the browser tab.)*
+
+### Status Bar
 
 At the very bottom of the window, the status bar provides real-time feedback on the application's health and context:
 - **Left Side (Context)**: Shows the current LLM provider (e.g., Ollama), connection status, active model, and active project context for the current chat.
@@ -23,7 +26,7 @@ At the very bottom of the window, the status bar provides real-time feedback on 
 
 ## 2. Command Palette
 
-Press `Cmd+K` or `Ctrl+K` to open the command palette. This is a powerful search interface that allows you to instantly:
+Press `Cmd+K` or `Ctrl+K`, or click the search box in the custom title bar to open the command palette. This is a powerful search interface that allows you to instantly:
 - Navigate to any view (Chat, Projects, etc.).
 - Switch to any of your past chat sessions.
 - Open any file from any of your projects in the editor.
