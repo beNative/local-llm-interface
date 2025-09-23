@@ -1,4 +1,6 @@
-import * as electron from 'electron';
+
+// FIX: Changed from namespace import to destructured import to resolve module access errors.
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -18,12 +20,12 @@ declare const __dirname: string;
 
 // The path to the user's application data directory. This is the standard
 // location for storing application configuration files.
-const appDataPath = electron.app.getPath('userData');
+const appDataPath = app.getPath('userData');
 
 // The path where user settings will be stored.
 const settingsPath = path.join(appDataPath, 'settings.json');
 
-let mainWindowInstance: electron.BrowserWindow | null = null;
+let mainWindowInstance: BrowserWindow | null = null;
 let hasSentDownloadingMessage = false;
 
 
@@ -284,7 +286,7 @@ const createWindow = () => {
   const indexPath = path.join(__dirname, 'index.html');
     
   // Create the browser window.
-  const mainWindow: electron.BrowserWindow = new electron.BrowserWindow({
+  const mainWindow: BrowserWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
@@ -359,24 +361,24 @@ const createWindow = () => {
 
   // Open external links in the user's default browser instead of a new Electron window.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-      electron.shell.openExternal(url);
+      shell.openExternal(url);
       return { action: 'deny' };
   });
 };
 
 // This method will be called when Electron has finished initialization.
-electron.app.whenReady().then(() => {
+app.whenReady().then(() => {
     // Set up IPC listeners for the renderer process
-    electron.ipcMain.handle('settings:get', readSettings);
-    electron.ipcMain.handle('settings:save', (_, settings) => saveSettings(settings));
+    ipcMain.handle('settings:get', readSettings);
+    ipcMain.handle('settings:save', (_, settings) => saveSettings(settings));
 
-    electron.ipcMain.handle('app:is-packaged', () => {
-        return electron.app.isPackaged;
+    ipcMain.handle('app:is-packaged', () => {
+        return app.isPackaged;
     });
 
-    electron.ipcMain.handle('app:get-version', () => electron.app.getVersion());
+    ipcMain.handle('app:get-version', () => app.getVersion());
 
-    electron.ipcMain.handle('detect:toolchains', async (): Promise<ToolchainStatus> => {
+    ipcMain.handle('detect:toolchains', async (): Promise<ToolchainStatus> => {
         console.log("Detecting toolchains...");
         const [python, java, nodejs, delphi] = await Promise.all([
             detectPythonInterpreters(),
@@ -388,9 +390,9 @@ electron.app.whenReady().then(() => {
         return { python, java, nodejs, delphi };
     });
 
-    electron.ipcMain.handle('log:write', (_, entry: { timestamp: string, level: string, message: string }) => {
+    ipcMain.handle('log:write', (_, entry: { timestamp: string, level: string, message: string }) => {
         try {
-            const logDir = electron.app.getPath('userData');
+            const logDir = app.getPath('userData');
             const date = new Date().toISOString().split('T')[0];
             const logFile = path.join(logDir, `local-llm-interface-${date}.log`);
             const formatted = `[${entry.timestamp}] [${entry.level}] ${entry.message}\n`;
@@ -403,7 +405,7 @@ electron.app.whenReady().then(() => {
         }
     });
 
-    electron.ipcMain.handle('python:run', async (_, code: string): Promise<{ stdout: string; stderr: string }> => {
+    ipcMain.handle('python:run', async (_, code: string): Promise<{ stdout: string; stderr: string }> => {
         const settings: any = readSettings();
         const pythonCommand = settings?.selectedPythonPath || 'python';
 
@@ -445,7 +447,7 @@ electron.app.whenReady().then(() => {
         }
     });
 
-    electron.ipcMain.handle('nodejs:run', async (_, code: string): Promise<{ stdout: string; stderr: string }> => {
+    ipcMain.handle('nodejs:run', async (_, code: string): Promise<{ stdout: string; stderr: string }> => {
         const settings: any = readSettings();
         const nodeCommand = settings?.selectedNodePath || 'node';
         const tempDir = os.tmpdir();
@@ -484,14 +486,14 @@ electron.app.whenReady().then(() => {
         }
     });
     
-    electron.ipcMain.handle('html:run', async (_, code: string): Promise<{ stdout: string; stderr: string }> => {
+    ipcMain.handle('html:run', async (_, code: string): Promise<{ stdout: string; stderr: string }> => {
         const tempDir = os.tmpdir();
         const tempFileName = `html_snippet_${crypto.randomBytes(6).toString('hex')}.html`;
         const tempFilePath = path.join(tempDir, tempFileName);
 
         try {
             fs.writeFileSync(tempFilePath, code, 'utf-8');
-            await electron.shell.openPath(tempFilePath);
+            await shell.openPath(tempFilePath);
             // We don't delete the temp file so the browser has time to load it.
             // The OS will clean up the temp directory eventually.
             return {
@@ -505,7 +507,7 @@ electron.app.whenReady().then(() => {
         }
     });
 
-    electron.ipcMain.handle('api:make-request', async (_, req: ApiRequest): Promise<ApiResponse> => {
+    ipcMain.handle('api:make-request', async (_, req: ApiRequest): Promise<ApiResponse> => {
         console.log('Making API request:', req);
         const { url, method, headers, body } = req;
         const requestModule = url.startsWith('https') ? httpsRequest : httpRequest;
@@ -554,7 +556,7 @@ electron.app.whenReady().then(() => {
         });
     });
     
-    electron.ipcMain.handle('provider:health-check', async (_, baseUrl: string): Promise<boolean> => {
+    ipcMain.handle('provider:health-check', async (_, baseUrl: string): Promise<boolean> => {
         // A simple health check. We don't care about the response body, just that the server is listening.
         return new Promise((resolve) => {
             try {
@@ -592,9 +594,9 @@ electron.app.whenReady().then(() => {
         });
     });
 
-    electron.ipcMain.handle('settings:export', async (_, settings) => {
+    ipcMain.handle('settings:export', async (_, settings) => {
         try {
-            const { canceled, filePath } = await electron.dialog.showSaveDialog({
+            const { canceled, filePath } = await dialog.showSaveDialog({
                 title: 'Export Settings',
                 defaultPath: 'settings.json',
                 filters: [{ name: 'JSON Files', extensions: ['json'] }],
@@ -612,9 +614,9 @@ electron.app.whenReady().then(() => {
         }
     });
 
-    electron.ipcMain.handle('settings:import', async () => {
+    ipcMain.handle('settings:import', async () => {
         try {
-            const { canceled, filePaths } = await electron.dialog.showOpenDialog({
+            const { canceled, filePaths } = await dialog.showOpenDialog({
                 title: 'Import Settings',
                 filters: [{ name: 'JSON Files', extensions: ['json'] }],
                 properties: ['openFile'],
@@ -634,31 +636,31 @@ electron.app.whenReady().then(() => {
     });
 
     // --- Window Control Handlers ---
-    electron.ipcMain.handle('window:minimize', () => mainWindowInstance?.minimize());
-    electron.ipcMain.handle('window:maximize', () => mainWindowInstance?.maximize());
-    electron.ipcMain.handle('window:unmaximize', () => mainWindowInstance?.unmaximize());
-    electron.ipcMain.handle('window:close', () => mainWindowInstance?.close());
+    ipcMain.handle('window:minimize', () => mainWindowInstance?.minimize());
+    ipcMain.handle('window:maximize', () => mainWindowInstance?.maximize());
+    ipcMain.handle('window:unmaximize', () => mainWindowInstance?.unmaximize());
+    ipcMain.handle('window:close', () => mainWindowInstance?.close());
 
     // --- Update Handlers ---
-    electron.ipcMain.handle('updates:check', () => {
-        if (!electron.app.isPackaged) {
+    ipcMain.handle('updates:check', () => {
+        if (!app.isPackaged) {
             console.log('Update check skipped: App is not packaged.');
             // Send a "not available" event to give user feedback
-            mainWindowInstance?.webContents.send('update-not-available', { version: electron.app.getVersion() });
+            mainWindowInstance?.webContents.send('update-not-available', { version: app.getVersion() });
             return;
         }
         hasSentDownloadingMessage = false;
         return autoUpdater.checkForUpdates();
     });
     
-    electron.ipcMain.handle('updates:install', () => {
+    ipcMain.handle('updates:install', () => {
         autoUpdater.quitAndInstall();
     });
 
 
     // Project Management Handlers
-    electron.ipcMain.handle('dialog:select-directory', async () => {
-        const { canceled, filePaths } = await electron.dialog.showOpenDialog({
+    ipcMain.handle('dialog:select-directory', async () => {
+        const { canceled, filePaths } = await dialog.showOpenDialog({
             properties: ['openDirectory']
         });
         if (!canceled && filePaths.length > 0) {
@@ -667,7 +669,7 @@ electron.app.whenReady().then(() => {
         return null;
     });
 
-    electron.ipcMain.handle('project:create', async (_, { projectType, name, basePath }: { projectType: ProjectType, name: string, basePath: string }) => {
+    ipcMain.handle('project:create', async (_, { projectType, name, basePath }: { projectType: ProjectType, name: string, basePath: string }) => {
         const projectPath = path.join(basePath, name);
         if (fs.existsSync(projectPath)) {
             throw new Error(`Project directory already exists: ${projectPath}`);
@@ -773,14 +775,14 @@ end.
         };
     });
 
-    electron.ipcMain.handle('project:delete', async (_, projectPath: string) => {
+    ipcMain.handle('project:delete', async (_, projectPath: string) => {
         if (fs.existsSync(projectPath)) {
             fs.rmSync(projectPath, { recursive: true, force: true });
         }
     });
 
-    electron.ipcMain.handle('project:open-folder', async (_, folderPath: string) => {
-        electron.shell.openPath(folderPath);
+    ipcMain.handle('project:open-folder', async (_, folderPath: string) => {
+        shell.openPath(folderPath);
     });
     
     const isPathInAllowedBase = (filePath: string) => {
@@ -798,16 +800,16 @@ end.
         return allowedBasePaths.some(base => normalizedFilePath.startsWith(path.normalize(base) + path.sep));
     };
     
-    electron.ipcMain.handle('project:open-webapp', async (_, projectPath: string) => {
+    ipcMain.handle('project:open-webapp', async (_, projectPath: string) => {
         const indexPath = path.join(projectPath, 'index.html');
         if (isPathInAllowedBase(projectPath) && fs.existsSync(indexPath)) {
-            electron.shell.openPath(indexPath);
+            shell.openPath(indexPath);
         } else {
             throw new Error(`index.html not found in project or path is not allowed: ${projectPath}`);
         }
     });
 
-    electron.ipcMain.handle('project:install-deps', async (_, project: CodeProject) => {
+    ipcMain.handle('project:install-deps', async (_, project: CodeProject) => {
         const settings: any = readSettings();
         if (project.type === 'python') {
             const reqFile = path.join(project.path, 'requirements.txt');
@@ -828,7 +830,7 @@ end.
         return { stdout: '', stderr: `Dependency installation is not applicable for project type: ${project.type}` };
     });
     
-    electron.ipcMain.handle('project:run', async (_, project: CodeProject): Promise<{ stdout: string; stderr: string }> => {
+    ipcMain.handle('project:run', async (_, project: CodeProject): Promise<{ stdout: string; stderr: string }> => {
         const settings: any = readSettings();
         if (!isPathInAllowedBase(project.path)) {
             return { stdout: '', stderr: 'Execution denied: project path is not in an allowed base directory.' };
@@ -837,7 +839,7 @@ end.
         if (project.type === 'webapp') {
             const indexPath = path.join(project.path, 'index.html');
             if (fs.existsSync(indexPath)) {
-                electron.shell.openPath(indexPath);
+                shell.openPath(indexPath);
                 return { stdout: `Successfully opened ${indexPath} in the default browser.`, stderr: '' };
             }
             return { stdout: '', stderr: `Could not find index.html in ${project.path}` };
@@ -910,7 +912,7 @@ end.
             const indexPath = path.join(project.path, 'index.html');
             if (fs.existsSync(indexPath)) {
                 console.log(`No script entry point found for nodejs project ${project.name}, but found index.html. Opening in browser.`);
-                electron.shell.openPath(indexPath);
+                shell.openPath(indexPath);
                 return { stdout: `No script found. Opened ${indexPath} in the default browser.`, stderr: '' };
             }
 
@@ -946,7 +948,7 @@ end.
         return { stdout: '', stderr: `Project type "${project.type}" cannot be run.` };
     });
 
-    electron.ipcMain.handle('project:run-script', async (_, { project, code }: { project: CodeProject, code: string }) => {
+    ipcMain.handle('project:run-script', async (_, { project, code }: { project: CodeProject, code: string }) => {
         const settings: any = readSettings();
         const extension = project.type === 'python' ? 'py' : project.type === 'java' ? 'java' : 'js';
         const tempFileName = `script_${crypto.randomBytes(6).toString('hex')}.${extension}`;
@@ -972,7 +974,7 @@ end.
     });
 
     // File System Handlers for Project Viewer
-    electron.ipcMain.handle('project:read-dir', async (_, dirPath: string) => {
+    ipcMain.handle('project:read-dir', async (_, dirPath: string) => {
         if (!isPathInAllowedBase(dirPath)) throw new Error('Access denied to path.');
         
         const dirents = await readdir(dirPath, { withFileTypes: true });
@@ -993,12 +995,12 @@ end.
         });
     });
 
-    electron.ipcMain.handle('project:read-file', async (_, filePath: string) => {
+    ipcMain.handle('project:read-file', async (_, filePath: string) => {
         if (!isPathInAllowedBase(filePath)) throw new Error('Access denied to path.');
         return await readFile(filePath, 'utf-8');
     });
 
-    electron.ipcMain.handle('project:write-file', async (_, filePath: string, content: string) => {
+    ipcMain.handle('project:write-file', async (_, filePath: string, content: string) => {
         const dirPath = path.dirname(filePath);
         if (!isPathInAllowedBase(dirPath)) throw new Error('Access denied to path.');
         
@@ -1006,7 +1008,7 @@ end.
         await writeFile(filePath, content, 'utf-8');
     });
 
-    electron.ipcMain.handle('project:add-file-from-path', async (_, { sourcePath, targetDir }: { sourcePath: string, targetDir: string }) => {
+    ipcMain.handle('project:add-file-from-path', async (_, { sourcePath, targetDir }: { sourcePath: string, targetDir: string }) => {
         if (!isPathInAllowedBase(targetDir)) throw new Error('Access denied to path.');
         const targetPath = path.join(targetDir, path.basename(sourcePath));
         await copyFile(sourcePath, targetPath);
@@ -1032,25 +1034,25 @@ end.
         return files;
     };
     
-    electron.ipcMain.handle('project:get-all-files', async (_, projectPath: string) => {
+    ipcMain.handle('project:get-all-files', async (_, projectPath: string) => {
         if (!isPathInAllowedBase(projectPath)) throw new Error('Access denied to path.');
         return await getAllFilesRecursive(projectPath);
     });
 
-    electron.ipcMain.handle('project:list-files-recursive', async (_, projectPath: string): Promise<string[]> => {
+    ipcMain.handle('project:list-files-recursive', async (_, projectPath: string): Promise<string[]> => {
         if (!isPathInAllowedBase(projectPath)) throw new Error('Access denied to path.');
         const allFiles = await getAllFilesRecursive(projectPath);
         return allFiles.map(f => path.relative(projectPath, f.path));
     });
 
-    electron.ipcMain.handle('project:run-command', async (_, { projectPath, command }: { projectPath: string, command: string }) => {
+    ipcMain.handle('project:run-command', async (_, { projectPath, command }: { projectPath: string, command: string }) => {
         if (!isPathInAllowedBase(projectPath)) throw new Error('Access denied to path.');
         const [cmd, ...args] = command.split(' ');
         console.log(`Running command in project: ${cmd} with args: ${args.join(' ')} in ${projectPath}`);
         return await runCommand(cmd, args, projectPath);
     });
 
-    electron.ipcMain.handle('project:find-file', async (_, { projectPath, fileName }: { projectPath: string, fileName: string }) => {
+    ipcMain.handle('project:find-file', async (_, { projectPath, fileName }: { projectPath: string, fileName: string }) => {
         if (!isPathInAllowedBase(projectPath)) throw new Error('Access denied to path.');
         const allFiles = await getAllFilesRecursive(projectPath);
         // Find a file that ends with the requested fileName. This allows for partial paths like `src/utils.js`
@@ -1087,7 +1089,7 @@ end.
         return tree;
     };
 
-    electron.ipcMain.handle('project:get-file-tree', async (_, projectPath: string) => {
+    ipcMain.handle('project:get-file-tree', async (_, projectPath: string) => {
         if (!isPathInAllowedBase(projectPath)) throw new Error('Access denied to path.');
         const projectName = path.basename(projectPath);
         const tree = await generateFileTree(projectPath);
@@ -1098,7 +1100,7 @@ end.
     createWindow();
 
     // Check for app updates when the app is packaged.
-    if (electron.app.isPackaged) {
+    if (app.isPackaged) {
       const settings = readSettings() as any;
       if (settings && settings.allowPrerelease) {
         autoUpdater.allowPrerelease = true;
@@ -1112,8 +1114,8 @@ end.
     }
 
     // Re-create a window on macOS when the dock icon is clicked and there are no other windows open.
-    electron.app.on('activate', () => {
-        if (electron.BrowserWindow.getAllWindows().length === 0) {
+    app.on('activate', () => {
+        if (BrowserWindow.getAllWindows().length === 0) {
             createWindow();
         }
     });
@@ -1147,8 +1149,8 @@ autoUpdater.on('update-downloaded', (info) => {
 
 
 // Quit when all windows are closed, except on macOS.
-electron.app.on('window-all-closed', () => {
+app.on('window-all-closed', () => {
   if (os.platform() !== 'darwin') {
-    electron.app.quit();
+    app.quit();
   }
 });

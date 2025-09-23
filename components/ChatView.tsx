@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -296,7 +297,7 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
   }, [sessionName]);
 
 // FIX: This hook resets component state when switching sessions.
-// This replaces the need for a `key` prop on the component instance, resolving a type error.
+// This prevents carrying over state like input text or attachments between different conversations.
   useEffect(() => {
     setInput('');
     setAttachedImage(null);

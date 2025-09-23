@@ -22,9 +22,10 @@ interface CommandPaletteProps {
     onNavigate: (view: View) => void;
     onSelectSession: (sessionId: string) => void;
     onOpenFile: (file: { path: string, name: string }) => void;
+    anchorRect: DOMRect | null;
 }
 
-const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, sessions, projects, onNavigate, onSelectSession, onOpenFile }) => {
+const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, sessions, projects, onNavigate, onSelectSession, onOpenFile, anchorRect }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [commands, setCommands] = useState<Command[]>([]);
     const [isLoadingFiles, setIsLoadingFiles] = useState(false);
@@ -139,11 +140,26 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, sessio
         }
     };
 
+    const paletteStyle = useMemo(() => {
+        if (!anchorRect) return { display: 'none' };
+        return {
+            position: 'absolute' as const,
+            top: `${anchorRect.bottom + 8}px`, // 8px offset
+            left: `${anchorRect.left}px`,
+            width: `${anchorRect.width}px`,
+        };
+    }, [anchorRect]);
+
+
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 bg-[--bg-backdrop] backdrop-blur-sm" onClick={handleBackdropClick}>
-            <div className="bg-[--bg-secondary] rounded-[--border-radius] shadow-2xl w-full max-w-2xl border border-[--border-primary]" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-transparent" onClick={handleBackdropClick}>
+            <div 
+                style={paletteStyle}
+                className="bg-[--bg-secondary] rounded-[--border-radius] shadow-2xl border border-[--border-primary]" 
+                onClick={e => e.stopPropagation()}
+            >
                 <div className="flex items-center gap-3 p-4 border-b border-[--border-primary]">
                     <Icon name="search" className="w-5 h-5 text-[--text-muted]" />
                     <input

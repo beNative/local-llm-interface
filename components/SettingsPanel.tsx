@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -874,7 +875,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                                 ref={scrollContainerRef}
                                 className={`h-96 overflow-auto rounded-[--border-radius] border-2 transition-colors ${jsonError ? 'border-red-500' : 'border-transparent focus-within:border-[--border-focus]'}`}
                                 style={{
-                                    // Fix: Explicitly cast background color to string to resolve TypeScript type mismatch.
+                                    // FIX: Explicitly cast background color to string to resolve TypeScript type mismatch.
                                     backgroundColor: (theme === 'dark' ? atomDark : coy)['pre[class*="language-"]']?.background as string,
                                     fontFamily: 'SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
                                     fontSize: '13px',

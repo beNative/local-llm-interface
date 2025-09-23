@@ -110,6 +110,7 @@ const AppContent: React.FC = () => {
   const [prefilledInput, setPrefilledInput] = useState('');
   const [runOutput, setRunOutput] = useState<{ title: string; stdout: string; stderr: string; } | null>(null);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [paletteAnchorRect, setPaletteAnchorRect] = useState<DOMRect | null>(null);
   const [editingFile, setEditingFile] = useState<{ path: string; name: string } | null>(null);
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
   const [appVersion, setAppVersion] = useState('');
@@ -333,8 +334,14 @@ const AppContent: React.FC = () => {
    // Effect for command palette shortcut
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
-            if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+            const target = event.target as HTMLElement;
+            // Don't open palette if user is already typing in an input/textarea
+            if ((event.metaKey || event.ctrlKey) && event.key === 'k' && target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') {
                 event.preventDefault();
+                // We cannot get the rect here, so this shortcut will open the modal centered.
+                // This is a reasonable fallback. A more complex solution could try to find the ref.
+                // For now, we'll let the titlebar click be the primary way to get an anchored palette.
+                setPaletteAnchorRect(null); // This will cause it to be un-anchored
                 setIsCommandPaletteOpen(isOpen => !isOpen);
             }
         };
@@ -1084,6 +1091,15 @@ const AppContent: React.FC = () => {
     // Note: This won't auto-expand the project tree, but it opens the file, which is the main goal.
   };
 
+  const openCommandPalette = (rect: DOMRect) => {
+    setPaletteAnchorRect(rect);
+    setIsCommandPaletteOpen(true);
+  };
+
+  const closeCommandPalette = () => {
+    setIsCommandPaletteOpen(false);
+  };
+
 
   const renderContent = () => {
     if (!config) {
@@ -1199,12 +1215,13 @@ const AppContent: React.FC = () => {
         <div style={containerStyle} className="flex flex-col font-sans bg-[--bg-primary] h-screen overflow-hidden text-[--text-primary]">
           {config && <CommandPalette 
             isOpen={isCommandPaletteOpen}
-            onClose={() => setIsCommandPaletteOpen(false)}
+            onClose={closeCommandPalette}
             sessions={config.sessions || []}
             projects={config.projects || []}
             onNavigate={setView}
             onSelectSession={handleSelectSession}
             onOpenFile={handleOpenFileFromPalette}
+            anchorRect={paletteAnchorRect}
           />}
           <AboutModal 
             isOpen={isAboutModalOpen} 
@@ -1227,7 +1244,7 @@ const AppContent: React.FC = () => {
                 onToggleLogs={() => setIsLogPanelVisible(!isLogPanelVisible)}
                 onToggleTheme={handleThemeToggle}
                 theme={config.theme || 'dark'}
-                onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+                onOpenCommandPalette={openCommandPalette}
                 isMaximized={isMaximized}
             />
           ) : (

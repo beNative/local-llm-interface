@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import Icon from './Icon';
 import ThemeSwitcher from './ThemeSwitcher';
 import type { Theme } from '../types';
@@ -35,15 +35,22 @@ interface TitleBarProps {
     onToggleLogs: () => void;
     onToggleTheme: () => void;
     theme: Theme;
-    onOpenCommandPalette: () => void;
+    onOpenCommandPalette: (rect: DOMRect) => void;
     isMaximized: boolean;
 }
 
 const TitleBar: React.FC<TitleBarProps> = ({ activeView, onNavigate, onToggleLogs, onToggleTheme, theme, onOpenCommandPalette, isMaximized }) => {
-    
+    const searchBoxRef = useRef<HTMLDivElement>(null);
+
     const handleMinimize = () => window.electronAPI?.minimizeWindow();
     const handleMaximize = () => isMaximized ? window.electronAPI?.unmaximizeWindow() : window.electronAPI?.maximizeWindow();
     const handleClose = () => window.electronAPI?.closeWindow();
+
+    const handleSearchClick = () => {
+        if (searchBoxRef.current) {
+            onOpenCommandPalette(searchBoxRef.current.getBoundingClientRect());
+        }
+    };
 
     return (
         <div 
@@ -57,7 +64,8 @@ const TitleBar: React.FC<TitleBarProps> = ({ activeView, onNavigate, onToggleLog
 
             {/* Center: Search / Command Palette */}
             <div 
-                onClick={onOpenCommandPalette}
+                ref={searchBoxRef}
+                onClick={handleSearchClick}
                 style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
                 className="flex-grow max-w-xl mx-4"
             >
