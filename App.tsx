@@ -117,7 +117,7 @@ const AppContent: React.FC = () => {
   const [pendingToolCalls, setPendingToolCalls] = useState<ToolCall[] | null>(null);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const [sidebarWidth, setSidebarWidth] = useState(256);
+  const [sidebarWidth, setSidebarWidth] = useState(205); // 20% reduction from the previous 256px default
   const isResizingRef = useRef(false);
   const { addToast } = useToast();
   const [isMaximized, setIsMaximized] = useState(false);

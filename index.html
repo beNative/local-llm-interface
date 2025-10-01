@@ -6,6 +6,10 @@
     <title>Local LLM Interface</title>
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <style>
+      html {
+        font-size: 80%; /* Reduce overall rem-based sizing by 20% to align with Windows scaling */
+      }
+
       :root {
         --bg-primary: #ffffff;
         --bg-secondary: #f8fafc;
@@ -44,7 +48,7 @@
         --assistant-message-bg-color: var(--bg-tertiary);
         --assistant-message-text-color: var(--text-primary);
         --chat-font-family: sans-serif;
-        --chat-font-size: 16px;
+        --chat-font-size: calc(16px * 0.8); /* Keep chat text aligned with the reduced global scale */
 
         /* Density & Scale Variables */
         --font-size-sm: 0.875rem;
