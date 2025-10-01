@@ -58,3 +58,9 @@ To create a distributable executable, run:
 `npm run package`
 
 The output will be in the `release/` directory. The installer will place all necessary files, including this documentation, into the installation directory.
+
+### Application Icon
+
+- Place an SVG file (preferably named `icon.svg`) anywhere within the `assets/` directory tree.
+- Running `npm run build` automatically validates the SVG and generates platform-specific icon assets (`.icns`, `.ico`, and `.png`) under `build/icons/`.
+- If no SVG is found or the file is invalid, a fallback icon is generated so packaging can still proceed.

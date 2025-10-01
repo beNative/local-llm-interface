@@ -40,6 +40,7 @@
     "electron-builder": "^24.13.3",
     "esbuild": "^0.23.0",
     "fs-extra": "^11.2.0",
+    "sharp": "^0.33.4",
     "typescript": "^5.5.3"
   },
   "build": {
@@ -56,8 +57,15 @@
       "owner": "beNative",
       "repo": "local-llm-interface"
     },
+    "mac": {
+      "icon": "build/icons/icon.icns"
+    },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icons/icon.ico"
+    },
+    "linux": {
+      "icon": "build/icons/icon.png"
     },
     "nsis": {
       "oneClick": false,
