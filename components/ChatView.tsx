@@ -546,7 +546,7 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
         onDrop={handleDrop}
     >
       <header className="flex items-center justify-between p-[var(--space-4)] bg-[--bg-primary] border-b border-[--border-primary] gap-[var(--space-4)]">
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
           <ProviderIcon provider={provider} className="w-6 h-6 text-[--accent-chat] flex-shrink-0"/>
           <div className="flex flex-col min-w-0">
             {isEditingTitle ? (
@@ -559,9 +559,9 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
                 className="text-lg font-semibold bg-transparent border-b border-[--border-focus] focus:outline-none text-[--text-primary] w-full"
               />
             ) : (
-              <h2 
+              <h2
                 {...titleTooltip}
-                className="text-lg font-semibold text-[--text-primary] truncate cursor-pointer hover:bg-[--bg-hover] px-2 -ml-2 py-1 rounded-lg"
+                className="text-lg font-semibold text-[--text-primary] truncate cursor-pointer hover:bg-[--bg-hover] px-2 py-1 rounded-lg"
                 onClick={() => setIsEditingTitle(true)}
               >
                 {session.name}
@@ -569,10 +569,10 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
             )}
             <div className='flex items-center gap-3'>
               <div className="relative" ref={modelSelectorRef}>
-                  <button 
+                  <button
                       {...modelTooltip}
-                      onClick={() => setIsModelSelectorOpen(prev => !prev)} 
-                      className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] px-2 -ml-2 py-0.5 rounded-lg hover:bg-[--bg-hover]"
+                      onClick={() => setIsModelSelectorOpen(prev => !prev)}
+                      className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] px-2 py-0.5 rounded-lg hover:bg-[--bg-hover]"
                   >
                       <span className="truncate max-w-xs">{provider?.name} / {session.modelId}</span>
                       <ChevronDownIcon className={`w-3 h-3 transition-transform ${isModelSelectorOpen ? 'rotate-180' : ''}`} />
@@ -596,10 +596,10 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
                   )}
               </div>
                <div className="relative" ref={personaSelectorRef}>
-                <button 
+               <button
                     {...personaTooltip}
-                    onClick={() => setIsPersonaSelectorOpen(prev => !prev)} 
-                    className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] px-2 -ml-2 py-0.5 rounded-lg hover:bg-[--bg-hover]"
+                    onClick={() => setIsPersonaSelectorOpen(prev => !prev)}
+                    className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] px-2 py-0.5 rounded-lg hover:bg-[--bg-hover]"
                 >
                     <IdentityIcon className="w-3.5 h-3.5" />
                     <span className="truncate max-w-xs">Persona: {currentPersonaName}</span>
@@ -631,10 +631,10 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
                 )}
               </div>
                <div className="relative" ref={paramsSelectorRef}>
-                <button 
+                <button
                     {...paramsTooltip}
-                    onClick={() => setIsParamsOpen(prev => !prev)} 
-                    className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] px-2 -ml-2 py-0.5 rounded-lg hover:bg-[--bg-hover]"
+                    onClick={() => setIsParamsOpen(prev => !prev)}
+                    className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] px-2 py-0.5 rounded-lg hover:bg-[--bg-hover]"
                 >
                     <SlidersIcon className="w-3.5 h-3.5" />
                     <span>Parameters</span>
