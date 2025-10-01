@@ -160,6 +160,20 @@ const AppContent: React.FC = () => {
     setView('settings');
   }, []);
 
+  const handleThemeToggle = useCallback(() => {
+    setConfig(currentConfig => {
+      if (!currentConfig) return null;
+      const newTheme = currentConfig.theme === 'light' ? 'dark' : 'light';
+      logger.info(`Theme toggled to ${newTheme}.`);
+      return { ...currentConfig, theme: newTheme };
+    });
+  }, []);
+
+  const handleNewChat = useCallback(() => {
+    setConfig(c => (c ? { ...c, activeSessionId: undefined } : null));
+    setView('chat');
+  }, []);
+
   const performShortcutAction = useCallback((actionId: ShortcutActionId) => {
     switch (actionId) {
       case 'toggleCommandPalette':
@@ -579,15 +593,6 @@ const AppContent: React.FC = () => {
     });
   }, []);
 
-  const handleThemeToggle = () => {
-      setConfig(currentConfig => {
-        if (!currentConfig) return null;
-        const newTheme = currentConfig.theme === 'light' ? 'dark' : 'light';
-        logger.info(`Theme toggled to ${newTheme}.`);
-        return { ...currentConfig, theme: newTheme };
-      });
-  };
-
   const loadModels = useCallback(async () => {
     if (!activeProvider || !config) {
         setError("Provider configuration not loaded. Please select a provider in Settings.");
@@ -617,11 +622,6 @@ const AppContent: React.FC = () => {
   
   const handleSelectSession = (sessionId: string) => {
     setConfig(c => c ? ({ ...c, activeSessionId: sessionId }) : null);
-    setView('chat');
-  };
-
-  const handleNewChat = () => {
-    setConfig(c => c ? ({ ...c, activeSessionId: undefined }) : null);
     setView('chat');
   };
 
