@@ -42,37 +42,48 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
             {activeSessionId === session.id && (
                 <div className="absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 bg-[--accent-chat] rounded-r-full" />
             )}
-            <button onClick={() => onSelectSession(session.id)} className="w-full flex items-start gap-2.5 text-left truncate px-[var(--space-3)] py-[var(--space-2)]">
+            <div className="flex items-stretch">
+              <button
+                onClick={() => onSelectSession(session.id)}
+                className="flex flex-1 items-start gap-2.5 text-left truncate px-[var(--space-3)] py-[var(--space-2)]"
+              >
                 <Icon name="messageSquare" className="w-4 h-4 flex-shrink-0 mt-1" />
-                <div className="flex-1 truncate pr-14">
-                    <span className={`flex items-center gap-2 truncate ${activeSessionId === session.id ? 'text-[--text-primary]' : ''}`}>
-                      {session.projectId && <Icon name="code" className="w-3.5 h-3.5 flex-shrink-0" />}
-                      <span className="truncate">{session.name}</span>
-                    </span>
-                    <span className="block text-xs opacity-70 truncate font-normal">{session.modelId}</span>
+                <div className="min-w-0 flex-1 truncate">
+                  <span
+                    className={`flex items-center gap-2 truncate ${
+                      activeSessionId === session.id ? 'text-[--text-primary]' : ''
+                    }`}
+                  >
+                    {session.projectId && <Icon name="code" className="w-3.5 h-3.5 flex-shrink-0" />}
+                    <span className="truncate">{session.name}</span>
+                  </span>
+                  <span className="block text-xs opacity-70 truncate font-normal">{session.modelId}</span>
                 </div>
-            </button>
-            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-transparent rounded-md">
-              <button
-                {...generateNameTooltip}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onGenerateSessionName(session.id);
-                }}
-                className="p-1.5 rounded-md text-[--text-muted] hover:bg-[--accent-chat]/10 hover:text-[--accent-chat]"
-              >
-                <Icon name="sparkles" className="w-4 h-4" />
               </button>
-              <button
-                {...deleteSessionTooltip}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDeleteSession(session.id);
-                }}
-                className="p-1.5 rounded-md text-[--text-muted] hover:bg-red-500/10 hover:text-red-500"
+              <div
+                className="hidden items-center gap-1.5 pl-[var(--space-1)] pr-[var(--space-2)] py-[var(--space-2)] opacity-0 transition-opacity pointer-events-none group-hover:flex group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:flex group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
               >
-                <Icon name="trash" className="w-4 h-4" />
-              </button>
+                <button
+                  {...generateNameTooltip}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onGenerateSessionName(session.id);
+                  }}
+                  className="p-1.5 rounded-md text-[--text-muted] hover:bg-[--accent-chat]/10 hover:text-[--accent-chat]"
+                >
+                  <Icon name="sparkles" className="w-4 h-4" />
+                </button>
+                <button
+                  {...deleteSessionTooltip}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteSession(session.id);
+                  }}
+                  className="p-1.5 rounded-md text-[--text-muted] hover:bg-red-500/10 hover:text-red-500"
+                >
+                  <Icon name="trash" className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
         ))}
