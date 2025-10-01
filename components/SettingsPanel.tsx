@@ -2,11 +2,13 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import type { Config, LLMProviderConfig, Theme, ThemeOverrides, PredefinedPrompt, ColorOverrides, SystemPrompt, ToolchainStatus, Toolchain, IconSet, LLMProviderType } from '../types';
+import type { Config, LLMProviderConfig, Theme, ThemeOverrides, PredefinedPrompt, ColorOverrides, SystemPrompt, ToolchainStatus, Toolchain, IconSet, LLMProviderType, ShortcutSettings } from '../types';
 import Icon from './Icon';
 import { DEFAULT_PROVIDERS } from '../constants';
 import { useTooltipTrigger } from '../hooks/useTooltipTrigger';
 import { useToast } from '../hooks/useToast';
+import KeyboardShortcutsEditor from './KeyboardShortcutsEditor';
+import { ensureShortcutSettings, getDefaultShortcutSettings } from '../shortcuts';
 
 interface SettingsPanelProps {
   config: Config;
@@ -15,7 +17,7 @@ interface SettingsPanelProps {
   theme: Theme;
 }
 
-type SettingsSection = 'general' | 'personalization' | 'content' | 'advanced';
+type SettingsSection = 'general' | 'personalization' | 'content' | 'shortcuts' | 'advanced';
 
 const PREDEFINED_COLORS = [
   // Grayscale
@@ -265,7 +267,7 @@ const StatusIndicator: React.FC<{ status: 'online' | 'offline' | 'checking' | 'u
 
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, isElectron, theme }) => {
-  const [localConfig, setLocalConfig] = useState<Config>(config);
+  const [localConfig, setLocalConfig] = useState<Config>({ ...config, shortcuts: ensureShortcutSettings(config.shortcuts) });
   const [activeAppearanceTab, setActiveAppearanceTab] = useState<Theme>(theme);
   const [toolchains, setToolchains] = useState<ToolchainStatus | null>(null);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
@@ -338,8 +340,9 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
 
   useEffect(() => {
     isUpdatingFromProps.current = true;
-    setLocalConfig(config);
-    setJsonText(JSON.stringify(config, null, 2));
+    const normalized = { ...config, shortcuts: ensureShortcutSettings(config.shortcuts) };
+    setLocalConfig(normalized);
+    setJsonText(JSON.stringify(normalized, null, 2));
   }, [config]);
 
   useEffect(() => {
@@ -373,6 +376,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
   const activeThemeDefaults = activeAppearanceTab === 'dark' ? defaults.dark : defaults.light;
   const themeOverrides = localConfig.themeOverrides || {};
   const activeColorOverrides = (activeAppearanceTab === 'dark' ? themeOverrides.dark : themeOverrides.light) || {};
+  const normalizedShortcuts = useMemo(() => ensureShortcutSettings(localConfig.shortcuts), [localConfig.shortcuts]);
   
   const handleSelectProvider = (providerId: string) => {
     setLocalConfig(current => ({ ...current, selectedProviderId: providerId }));
@@ -455,6 +459,20 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
             ...current.themeOverrides,
             [activeAppearanceTab]: {},
         }
+    }));
+  };
+
+  const handleShortcutsChange = (updatedShortcuts: ShortcutSettings) => {
+    setLocalConfig(current => ({
+      ...current,
+      shortcuts: ensureShortcutSettings(updatedShortcuts),
+    }));
+  };
+
+  const handleResetAllShortcuts = () => {
+    setLocalConfig(current => ({
+      ...current,
+      shortcuts: getDefaultShortcutSettings(),
     }));
   };
 
@@ -555,6 +573,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
       { id: 'general', label: 'General', icon: <Icon name="sliders" className="w-5 h-5"/>, isVisible: true },
       { id: 'personalization', label: 'Personalization', icon: <Icon name="palette" className="w-5 h-5"/>, isVisible: true },
       { id: 'content', label: 'Content', icon: <Icon name="bookmark" className="w-5 h-5"/>, isVisible: true },
+      { id: 'shortcuts', label: 'Keyboard & Shortcuts', icon: <Icon name="terminal" className="w-5 h-5"/>, isVisible: true },
       { id: 'advanced', label: 'Advanced', icon: <Icon name="cpu" className="w-5 h-5"/>, isVisible: isElectron },
   ];
 
@@ -841,6 +860,15 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                         </div>
                     </div>
                  </div>
+              );
+          case 'shortcuts':
+              return (
+                <KeyboardShortcutsEditor
+                  shortcuts={normalizedShortcuts}
+                  onShortcutsChange={handleShortcutsChange}
+                  onRestoreDefaults={handleResetAllShortcuts}
+                  isElectron={isElectron}
+                />
               );
           case 'advanced':
               return (

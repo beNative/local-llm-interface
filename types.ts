@@ -79,6 +79,66 @@ export interface Config {
   selectedJavaPath?: string;
   selectedNodePath?: string;
   selectedDelphiPath?: string;
+  shortcuts?: ShortcutSettings;
+}
+
+// Keyboard Shortcuts
+export type ShortcutScope = 'app' | 'global';
+
+export type ShortcutCategory =
+  | 'navigation'
+  | 'chat'
+  | 'views'
+  | 'system';
+
+export type ShortcutActionId =
+  | 'toggleCommandPalette'
+  | 'startNewChat'
+  | 'focusChatInput'
+  | 'toggleLogsPanel'
+  | 'toggleTheme'
+  | 'openSettings'
+  | 'showChatView'
+  | 'showProjectsView'
+  | 'showApiView'
+  | 'showInfoView';
+
+export interface ShortcutGlobalBinding {
+  key: string | null;
+  enabled: boolean;
+}
+
+export interface ShortcutAssignment {
+  app: string | null;
+  global?: ShortcutGlobalBinding;
+}
+
+export type ShortcutSettings = Record<ShortcutActionId, ShortcutAssignment>;
+
+export interface ShortcutActionDefinition {
+  id: ShortcutActionId;
+  label: string;
+  description: string;
+  category: ShortcutCategory;
+  supportsGlobal: boolean;
+  defaultApp?: string | null;
+  defaultGlobal?: string | null;
+  defaultGlobalEnabled?: boolean;
+  allowWhenTyping?: boolean;
+  order: number;
+}
+
+export interface GlobalShortcutRegistrationInput {
+  actionId: ShortcutActionId;
+  accelerator: string;
+  enabled: boolean;
+}
+
+export interface GlobalShortcutRegistrationResult {
+  actionId: ShortcutActionId;
+  accelerator: string;
+  success: boolean;
+  error?: string;
 }
 
 // Language Model and Chat Types

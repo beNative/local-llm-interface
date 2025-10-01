@@ -2,7 +2,7 @@
 
 // FIX: Changed from destructured import to namespace import to resolve module access errors.
 import * as electron from 'electron';
-import type { CodeProject } from '../src/types';
+import type { CodeProject, GlobalShortcutRegistrationInput, ShortcutActionId } from '../src/types';
 
 /**
  * Expose protected methods that allow the renderer process to use
@@ -21,6 +21,10 @@ electron.contextBridge.exposeInMainWorld('electronAPI', {
    * @returns {Promise<void>} A promise that resolves when the settings are saved.
    */
   saveSettings: (settings: object) => electron.ipcRenderer.invoke('settings:save', settings),
+
+  registerGlobalShortcuts: (shortcuts: GlobalShortcutRegistrationInput[]) => electron.ipcRenderer.invoke('shortcuts:register-global', shortcuts),
+  onShortcutTriggered: (callback: (actionId: ShortcutActionId) => void) => electron.ipcRenderer.on('shortcuts:trigger', (_event, actionId) => callback(actionId)),
+  removeShortcutTriggeredListener: () => electron.ipcRenderer.removeAllListeners('shortcuts:trigger'),
 
   /**
    * Checks if the application is running in a packaged state.
