@@ -10,14 +10,15 @@ import { useToast } from '../hooks/useToast';
 import KeyboardShortcutsEditor from './KeyboardShortcutsEditor';
 import { ensureShortcutSettings, getDefaultShortcutSettings } from '../shortcuts';
 
+export type SettingsSection = 'general' | 'personalization' | 'content' | 'shortcuts' | 'advanced';
+
 interface SettingsPanelProps {
   config: Config;
   onConfigChange: (newConfig: Config) => void;
   isElectron: boolean;
   theme: Theme;
+  initialSection?: SettingsSection | null;
 }
-
-type SettingsSection = 'general' | 'personalization' | 'content' | 'shortcuts' | 'advanced';
 
 const PREDEFINED_COLORS = [
   // Grayscale
@@ -266,12 +267,12 @@ const StatusIndicator: React.FC<{ status: 'online' | 'offline' | 'checking' | 'u
 };
 
 
-const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, isElectron, theme }) => {
+const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, isElectron, theme, initialSection }) => {
   const [localConfig, setLocalConfig] = useState<Config>({ ...config, shortcuts: ensureShortcutSettings(config.shortcuts) });
   const [activeAppearanceTab, setActiveAppearanceTab] = useState<Theme>(theme);
   const [toolchains, setToolchains] = useState<ToolchainStatus | null>(null);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
-  const [activeSection, setActiveSection] = useState<SettingsSection>('general');
+  const [activeSection, setActiveSection] = useState<SettingsSection>(initialSection ?? 'general');
   const [editingProvider, setEditingProvider] = useState<LLMProviderConfig | null>(null);
   const [isAddingProvider, setIsAddingProvider] = useState(false);
   const [providerStatuses, setProviderStatuses] = useState<Record<string, 'online' | 'offline' | 'checking' | 'unknown'>>({});
@@ -280,6 +281,12 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
   const { addToast } = useToast();
+
+  useEffect(() => {
+    if (initialSection && initialSection !== activeSection) {
+      setActiveSection(initialSection);
+    }
+  }, [initialSection, activeSection]);
 
   // Refs for the new JSON editor implementation
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -595,6 +602,23 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
           case 'general':
               return (
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                  <div className="xl:col-span-2 bg-[--bg-primary] border border-[--border-primary] rounded-[--border-radius] shadow-sm p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <h3 className="text-xl font-semibold text-[--text-secondary]">Keyboard Shortcuts</h3>
+                      <p className="text-sm text-[--text-muted] mt-1 max-w-xl">
+                        Customize shortcuts for every action, manage global accelerators, and resolve conflicts in one dedicated editor.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setActiveSection('shortcuts')}
+                        className="px-4 py-2 text-sm font-medium text-white bg-[--accent-settings] rounded-lg shadow hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[--accent-settings]"
+                      >
+                        Open Keyboard Shortcut Editor
+                      </button>
+                    </div>
+                  </div>
                   {(editingProvider || isAddingProvider) && (
                     <ProviderEditorModal
                       provider={editingProvider}

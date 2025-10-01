@@ -3,7 +3,7 @@ import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatM
 import { APP_NAME, DEFAULT_PROVIDERS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
 import { fetchModels, streamChatCompletion, LLMServiceError, generateTextCompletion, StreamChunk } from './services/llmService';
 import { logger } from './services/logger';
-import SettingsPanel from './components/SettingsPanel';
+import SettingsPanel, { type SettingsSection } from './components/SettingsPanel';
 import ModelSelector from './components/ModelSelector';
 import ChatView from './components/ChatView';
 import ThemeSwitcher from './components/ThemeSwitcher';
@@ -119,6 +119,7 @@ const AppContent: React.FC = () => {
   const [appVersion, setAppVersion] = useState('');
   const [pendingToolCalls, setPendingToolCalls] = useState<ToolCall[] | null>(null);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
+  const [targetSettingsSection, setTargetSettingsSection] = useState<SettingsSection | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(205); // 20% reduction from the previous 256px default
   const chatInputFocusHandlerRef = useRef<(() => void) | null>(null);
@@ -154,6 +155,11 @@ const AppContent: React.FC = () => {
     chatInputFocusHandlerRef.current = handler;
   }, []);
 
+  const openSettings = useCallback((section?: SettingsSection | null) => {
+    setTargetSettingsSection(section ?? null);
+    setView('settings');
+  }, []);
+
   const performShortcutAction = useCallback((actionId: ShortcutActionId) => {
     switch (actionId) {
       case 'toggleCommandPalette':
@@ -161,7 +167,7 @@ const AppContent: React.FC = () => {
         setIsCommandPaletteOpen(prev => !prev);
         break;
       case 'openSettings':
-        setView('settings');
+        openSettings();
         break;
       case 'startNewChat':
         handleNewChat();
@@ -192,7 +198,7 @@ const AppContent: React.FC = () => {
       default:
         break;
     }
-  }, [handleThemeToggle, handleNewChat]);
+  }, [handleThemeToggle, handleNewChat, openSettings]);
 
   // Effect for one-time app initialization and loading settings
   useEffect(() => {
@@ -1166,7 +1172,7 @@ const AppContent: React.FC = () => {
   };
   
   const handleGoToSettings = () => {
-    setView('settings');
+    openSettings();
   };
 
   const handleResizeMouseMove = useCallback((e: MouseEvent) => {
@@ -1203,11 +1209,21 @@ const AppContent: React.FC = () => {
     };
   }, [handleResizeMouseMove, handleResizeMouseUp]);
 
+  useEffect(() => {
+    if (view !== 'settings' && targetSettingsSection !== null) {
+      setTargetSettingsSection(null);
+    }
+  }, [view, targetSettingsSection]);
+
   const handleOpenFileFromPalette = (file: { path: string; name: string }) => {
     setView('projects');
     setEditingFile(file);
     // Note: This won't auto-expand the project tree, but it opens the file, which is the main goal.
   };
+
+  const handleOpenKeyboardShortcuts = useCallback(() => {
+    openSettings('shortcuts');
+  }, [openSettings]);
 
   const openCommandPalette = (rect: DOMRect) => {
     setPaletteAnchorRect(rect);
@@ -1226,11 +1242,12 @@ const AppContent: React.FC = () => {
 
     switch(view) {
         case 'settings':
-            return <SettingsPanel 
-                config={config} 
-                onConfigChange={handleConfigChange} 
+            return <SettingsPanel
+                config={config}
+                onConfigChange={handleConfigChange}
                 isElectron={isElectron}
                 theme={config.theme || 'dark'}
+                initialSection={targetSettingsSection}
               />;
         case 'info':
             return <InfoView theme={config.theme || 'dark'} onOpenAbout={() => setIsAboutModalOpen(true)} />;
@@ -1331,7 +1348,7 @@ const AppContent: React.FC = () => {
   return (
     <IconProvider iconSet={config?.themeOverrides?.iconSet || 'default'}>
         <div style={containerStyle} className="flex flex-col font-sans bg-[--bg-primary] h-screen overflow-hidden text-[--text-primary]">
-          {config && <CommandPalette 
+          {config && <CommandPalette
             isOpen={isCommandPaletteOpen}
             onClose={closeCommandPalette}
             sessions={config.sessions || []}
@@ -1340,6 +1357,7 @@ const AppContent: React.FC = () => {
             onSelectSession={handleSelectSession}
             onOpenFile={handleOpenFileFromPalette}
             anchorRect={paletteAnchorRect}
+            onShowKeyboardShortcuts={handleOpenKeyboardShortcuts}
           />}
           <AboutModal 
             isOpen={isAboutModalOpen} 
@@ -1380,7 +1398,7 @@ const AppContent: React.FC = () => {
                   <Icon name="server" className="w-5 h-5" />
                   <span>API Client</span>
                 </NavButton>
-                <NavButton active={view === 'settings'} onClick={() => setView('settings')} title="Configure application settings" ariaLabel="Settings View" view="settings">
+                <NavButton active={view === 'settings'} onClick={() => openSettings()} title="Configure application settings" ariaLabel="Settings View" view="settings">
                   <Icon name="settings" className="w-5 h-5" />
                   <span>Settings</span>
                 </NavButton>
