@@ -330,7 +330,7 @@ const formatResponseBody = (body: string, contentType: any) => {
                                {['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].map(m => <option key={m} value={m}>{m}</option>)}
                             </select>
                             <input type="text" value={apiRequest.url} onChange={e => setApiRequest({...apiRequest, url: e.target.value})} placeholder="https://api.example.com/data" className="flex-grow px-3 py-2 font-mono text-sm text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg focus:outline-none focus:ring-2 focus:ring-[--border-focus]"/>
-                            <button {...sendRequestTooltip} onClick={handleSendRequest} disabled={isLoading} className="flex items-center justify-center w-12 h-10 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-green-400">
+                            <button {...sendRequestTooltip} onClick={handleSendRequest} disabled={isLoading} className="flex items-center justify-center shrink-0 px-3 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-green-400">
                                 {isLoading ? <Icon name="spinner" className="w-5 h-5"/> : <Icon name="send" className="w-5 h-5" />}
                             </button>
                         </div>
