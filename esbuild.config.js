@@ -2,6 +2,7 @@ const esbuild = require('esbuild');
 const fs = require('fs-extra');
 const path = require('path');
 const sharp = require('sharp');
+const pngToIco = require('png-to-ico');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 const { appBuilderPath } = require('app-builder-bin');
@@ -103,6 +104,19 @@ async function writePlatformIcons(svgContent, originDescription) {
   const png256 = await sharp(basePng).resize(256, 256).png().toBuffer();
   await fs.writeFile(path.join(iconOutputDir, 'icon-256.png'), png256);
 
+  const iconVariants = {
+    128: await sharp(basePng).resize(128, 128).png().toBuffer(),
+    64: await sharp(basePng).resize(64, 64).png().toBuffer(),
+    48: await sharp(basePng).resize(48, 48).png().toBuffer(),
+    32: await sharp(basePng).resize(32, 32).png().toBuffer(),
+    24: await sharp(basePng).resize(24, 24).png().toBuffer(),
+    16: await sharp(basePng).resize(16, 16).png().toBuffer(),
+  };
+
+  for (const [size, buffer] of Object.entries(iconVariants)) {
+    await fs.writeFile(path.join(iconOutputDir, `icon-${size}.png`), buffer);
+  }
+
   const pngInputs = [
     path.join(iconOutputDir, 'icon-1024.png'),
     path.join(iconOutputDir, 'icon-512.png'),
@@ -110,7 +124,17 @@ async function writePlatformIcons(svgContent, originDescription) {
   ];
 
   await generateNativeIcon('icns', pngInputs, path.join(iconOutputDir, 'icon.icns'));
-  await generateNativeIcon('ico', pngInputs, path.join(iconOutputDir, 'icon.ico'));
+
+  const icoBuffer = await pngToIco([
+    png256,
+    iconVariants[128],
+    iconVariants[64],
+    iconVariants[48],
+    iconVariants[32],
+    iconVariants[24],
+    iconVariants[16],
+  ]);
+  await fs.writeFile(path.join(iconOutputDir, 'icon.ico'), icoBuffer);
 
   console.log(`[icon] Generated platform icons from ${originDescription}.`);
 }
