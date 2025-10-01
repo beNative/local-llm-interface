@@ -1215,7 +1215,6 @@ const AppContent: React.FC = () => {
 
   return (
     <IconProvider iconSet={config?.themeOverrides?.iconSet || 'default'}>
-      <TooltipProvider>
         <div style={containerStyle} className="flex flex-col font-sans bg-[--bg-primary] h-screen overflow-hidden text-[--text-primary]">
           {config && <CommandPalette 
             isOpen={isCommandPaletteOpen}
@@ -1335,15 +1334,16 @@ const AppContent: React.FC = () => {
               />
           )}
         </div>
-        <ToastContainer />
-      </TooltipProvider>
     </IconProvider>
   );
 };
 
 const App: React.FC = () => (
   <ToastProvider>
-    <AppContent />
+    <TooltipProvider>
+      <AppContent />
+      <ToastContainer />
+    </TooltipProvider>
   </ToastProvider>
 );
 
