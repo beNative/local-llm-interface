@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import Icon from './Icon';
 import ThemeSwitcher from './ThemeSwitcher';
 import type { Theme } from '../types';
+import { useTooltipTrigger } from '../hooks/useTooltipTrigger';
 
 type View = 'chat' | 'projects' | 'api' | 'settings' | 'info';
 
@@ -12,10 +13,12 @@ const TitleBarNavButton: React.FC<{
     view: View;
     title: string;
 }> = ({ active, onClick, children, view, title }) => {
+    const tooltipProps = useTooltipTrigger(title);
     return (
         <button
             onClick={onClick}
-            title={title}
+            aria-label={title}
+            {...tooltipProps}
             style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
             className={`relative flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-colors duration-200 ${
                 active
@@ -41,6 +44,7 @@ interface TitleBarProps {
 
 const TitleBar: React.FC<TitleBarProps> = ({ activeView, onNavigate, onToggleLogs, onToggleTheme, theme, onOpenCommandPalette, isMaximized }) => {
     const searchBoxRef = useRef<HTMLDivElement>(null);
+    const logsTooltip = useTooltipTrigger('Toggle logs panel');
 
     const handleMinimize = () => window.electronAPI?.minimizeWindow();
     const handleMaximize = () => isMaximized ? window.electronAPI?.unmaximizeWindow() : window.electronAPI?.maximizeWindow();
@@ -105,7 +109,7 @@ const TitleBar: React.FC<TitleBarProps> = ({ activeView, onNavigate, onToggleLog
                         onClick={onToggleLogs}
                         className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover]"
                         aria-label="Toggle logs panel"
-                        title="Toggle Logs"
+                        {...logsTooltip}
                     >
                         <Icon name="fileText" className="w-4 h-4" />
                     </button>

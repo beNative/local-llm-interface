@@ -57,6 +57,19 @@ const ContextSources: React.FC<{ files: string[] }> = ({ files }) => {
     );
 };
 
+const PredefinedPromptButton: React.FC<{ prompt: PredefinedPrompt; onSelect: (content: string) => void; }> = ({ prompt, onSelect }) => {
+    const tooltipProps = useTooltipTrigger(prompt.content);
+    return (
+        <button
+            {...tooltipProps}
+            onClick={() => onSelect(prompt.content)}
+            className="w-full text-left block px-3 py-1.5 text-sm text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary] truncate"
+        >
+            {prompt.title}
+        </button>
+    );
+};
+
 const MessageMetadata: React.FC<{ metadata: ChatMessageMetadata }> = ({ metadata }) => {
     const { usage, speed } = metadata;
 
@@ -784,14 +797,11 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
                               <div className="p-2 text-xs font-semibold text-[--text-muted] border-b border-[--border-primary]">Saved Prompts</div>
                               {predefinedPrompts.length > 0 ? (
                                   predefinedPrompts.map(p => (
-                                      <button 
+                                      <PredefinedPromptButton
                                           key={p.id}
-                                          onClick={() => handleSelectPrompt(p.content)}
-                                          title={p.content}
-                                          className="w-full text-left block px-3 py-1.5 text-sm text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary] truncate"
-                                      >
-                                          {p.title}
-                                      </button>
+                                          prompt={p}
+                                          onSelect={handleSelectPrompt}
+                                      />
                                   ))
                               ) : (
                                   <p className="p-3 text-sm text-center text-[--text-muted]">No prompts saved yet. Add some in Settings.</p>

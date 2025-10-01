@@ -94,20 +94,23 @@ const TooltipComponent: React.FC<{ tooltipState: TooltipState }> = ({ tooltipSta
         }
     }, [tooltipState]);
 
+    const visibilityClass =
+        tooltipState.visible && position.top > -9999
+            ? 'opacity-100 translate-y-0 scale-100'
+            : 'opacity-0 translate-y-1 scale-95';
+
     return (
         <div
             ref={tooltipRef}
-            className={`fixed z-[100] max-w-xs px-3 py-1.5 text-sm font-medium text-white bg-gray-900 rounded-md shadow-lg dark:bg-slate-900/90 dark:border dark:border-slate-700 backdrop-blur-sm transition-opacity duration-200 ${
-                tooltipState.visible && position.top > -9999 ? 'opacity-100' : 'opacity-0'
-            }`}
-            style={{ 
-                top: `${position.top}px`, 
+            className={`fixed z-[100] max-w-xs px-3 py-2 text-sm font-medium text-white bg-slate-950/95 dark:bg-slate-900/95 border border-white/10 dark:border-white/5 rounded-lg shadow-2xl backdrop-blur-md transform-gpu transition-all duration-200 ease-out ${visibilityClass}`}
+            style={{
+                top: `${position.top}px`,
                 left: `${position.left}px`,
                 pointerEvents: 'none',
             }}
             role="tooltip"
         >
-            {tooltipState.content}
+            <span className="block text-left leading-snug tracking-wide">{tooltipState.content}</span>
         </div>
     );
 };

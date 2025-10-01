@@ -136,6 +136,7 @@ const ProjectCard: React.FC<{
     const openFolderTooltip = useTooltipTrigger("Open project folder in your file explorer");
     const deleteTooltip = useTooltipTrigger("Permanently delete this project and all its files. This action cannot be undone.");
     const expandTooltip = useTooltipTrigger(isExpanded ? "Collapse file explorer" : "Expand file explorer");
+    const pathTooltip = useTooltipTrigger(project.path);
 
     return (
         <div className={`bg-[--bg-primary] rounded-[--border-radius] border border-[--border-primary] flex flex-col transition-all duration-200 ${isExpanded ? 'shadow-xl ring-2 ring-[--accent-projects]/50' : 'hover:shadow-md'}`}>
@@ -150,7 +151,12 @@ const ProjectCard: React.FC<{
                     </div>
                 </div>
                 
-                <p className="text-xs text-[--text-muted] font-mono break-all h-8 overflow-hidden" title={project.path}>{project.path}</p>
+                <p
+                    className="text-xs text-[--text-muted] font-mono break-all h-8 overflow-hidden"
+                    {...pathTooltip}
+                >
+                    {project.path}
+                </p>
             
                 <div className="grid grid-cols-2 gap-2 mt-4">
                      <button {...chatTooltip} onClick={onChat} disabled={isBusy} className="col-span-2 text-sm px-4 py-2 rounded-lg bg-[--accent-projects] text-white hover:brightness-95 disabled:opacity-60 disabled:cursor-wait flex items-center justify-center gap-2 font-semibold">
