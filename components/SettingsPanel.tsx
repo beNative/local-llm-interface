@@ -212,7 +212,7 @@ const ToolchainSelector: React.FC<{
           <option value="default">System Default (from PATH)</option>
           {toolchains.length > 0 && <option disabled>--- Detected ---</option>}
           {toolchains.map(tool => (
-            <option key={tool.path} value={tool.path} title={tool.path}>
+            <option key={tool.path} value={tool.path}>
               {tool.name} ({tool.path})
             </option>
           ))}

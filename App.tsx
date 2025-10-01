@@ -23,6 +23,7 @@ import { runPythonCode } from './services/pyodideService';
 import { ToastProvider, ToastContainer } from './components/ToastProvider';
 import { useToast } from './hooks/useToast';
 import TitleBar from './components/TitleBar';
+import { useTooltipTrigger } from './hooks/useTooltipTrigger';
 
 type View = 'chat' | 'projects' | 'api' | 'settings' | 'info';
 
@@ -35,11 +36,12 @@ const NavButton: React.FC<{
   title: string;
 }> = ({ active, onClick, children, ariaLabel, view, title }) => {
     const accentVar = `var(--accent-${view})`;
+    const tooltipProps = useTooltipTrigger(title);
     return (
         <button
             onClick={onClick}
-            title={title}
             aria-label={ariaLabel}
+            {...tooltipProps}
             className={`relative flex items-center gap-[var(--space-2)] px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--font-size-sm)] font-medium rounded-lg transition-colors duration-200 ${
                 active
                     ? `text-[--accent-${view}]`
@@ -118,6 +120,8 @@ const AppContent: React.FC = () => {
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(205); // 20% reduction from the previous 256px default
+
+  const toggleLogsTooltip = useTooltipTrigger('Toggle the application logs panel for debugging');
   const isResizingRef = useRef(false);
   const { addToast } = useToast();
   const [isMaximized, setIsMaximized] = useState(false);
@@ -1280,7 +1284,7 @@ const AppContent: React.FC = () => {
                   onClick={() => setIsLogPanelVisible(!isLogPanelVisible)}
                   className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-primary] focus:ring-[--border-focus]"
                   aria-label="Toggle logs panel"
-                  title="Toggle the application logs panel for debugging"
+                  {...toggleLogsTooltip}
                   >
                   <Icon name="fileText" className="w-5 h-5" />
                   </button>

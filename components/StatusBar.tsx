@@ -49,10 +49,11 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
     
     const providerTooltip = useTooltipTrigger(statusText);
     const modelTooltip = useTooltipTrigger("Select a model to start a new chat");
-    const projectTooltip = useTooltipTrigger(`Active Project Context: ${activeProject}`);
+    const projectTooltip = useTooltipTrigger(activeProject ? `Active Project Context: ${activeProject}` : 'Active Project Context');
     const cpuTooltip = useTooltipTrigger("System-wide CPU Usage");
     const gpuTooltip = useTooltipTrigger(stats?.gpu !== undefined && stats.gpu >= 0 ? `System-wide GPU Usage: ${stats.gpu.toFixed(0)}%` : "System-wide GPU Usage (N/A or Requires NVIDIA GPU)");
     const ramTooltip = useTooltipTrigger("System-wide RAM Usage");
+    const versionTooltip = useTooltipTrigger(version ? `Application Version ${version}` : 'Application Version');
 
 
     useEffect(() => {
@@ -189,7 +190,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
                 {version && (
                     <>
                         <div className="w-px h-4 bg-[--border-primary]" />
-                        <span title={`Application Version ${version}`}>v{version}</span>
+                        <span {...versionTooltip}>v{version}</span>
                     </>
                 )}
             </div>
