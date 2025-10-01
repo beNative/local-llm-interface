@@ -2,20 +2,23 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import type { Config, LLMProviderConfig, Theme, ThemeOverrides, PredefinedPrompt, ColorOverrides, SystemPrompt, ToolchainStatus, Toolchain, IconSet, LLMProviderType } from '../types';
+import type { Config, LLMProviderConfig, Theme, ThemeOverrides, PredefinedPrompt, ColorOverrides, SystemPrompt, ToolchainStatus, Toolchain, IconSet, LLMProviderType, ShortcutSettings } from '../types';
 import Icon from './Icon';
 import { DEFAULT_PROVIDERS } from '../constants';
 import { useTooltipTrigger } from '../hooks/useTooltipTrigger';
 import { useToast } from '../hooks/useToast';
+import KeyboardShortcutsEditor from './KeyboardShortcutsEditor';
+import { ensureShortcutSettings, getDefaultShortcutSettings } from '../shortcuts';
+
+export type SettingsSection = 'general' | 'personalization' | 'content' | 'shortcuts' | 'advanced';
 
 interface SettingsPanelProps {
   config: Config;
   onConfigChange: (newConfig: Config) => void;
   isElectron: boolean;
   theme: Theme;
+  initialSection?: SettingsSection | null;
 }
-
-type SettingsSection = 'general' | 'personalization' | 'content' | 'advanced';
 
 const PREDEFINED_COLORS = [
   // Grayscale
@@ -264,12 +267,12 @@ const StatusIndicator: React.FC<{ status: 'online' | 'offline' | 'checking' | 'u
 };
 
 
-const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, isElectron, theme }) => {
-  const [localConfig, setLocalConfig] = useState<Config>(config);
+const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, isElectron, theme, initialSection }) => {
+  const [localConfig, setLocalConfig] = useState<Config>({ ...config, shortcuts: ensureShortcutSettings(config.shortcuts) });
   const [activeAppearanceTab, setActiveAppearanceTab] = useState<Theme>(theme);
   const [toolchains, setToolchains] = useState<ToolchainStatus | null>(null);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
-  const [activeSection, setActiveSection] = useState<SettingsSection>('general');
+  const [activeSection, setActiveSection] = useState<SettingsSection>(initialSection ?? 'general');
   const [editingProvider, setEditingProvider] = useState<LLMProviderConfig | null>(null);
   const [isAddingProvider, setIsAddingProvider] = useState(false);
   const [providerStatuses, setProviderStatuses] = useState<Record<string, 'online' | 'offline' | 'checking' | 'unknown'>>({});
@@ -278,6 +281,12 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
   const { addToast } = useToast();
+
+  useEffect(() => {
+    if (initialSection && initialSection !== activeSection) {
+      setActiveSection(initialSection);
+    }
+  }, [initialSection, activeSection]);
 
   // Refs for the new JSON editor implementation
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -338,8 +347,9 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
 
   useEffect(() => {
     isUpdatingFromProps.current = true;
-    setLocalConfig(config);
-    setJsonText(JSON.stringify(config, null, 2));
+    const normalized = { ...config, shortcuts: ensureShortcutSettings(config.shortcuts) };
+    setLocalConfig(normalized);
+    setJsonText(JSON.stringify(normalized, null, 2));
   }, [config]);
 
   useEffect(() => {
@@ -373,6 +383,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
   const activeThemeDefaults = activeAppearanceTab === 'dark' ? defaults.dark : defaults.light;
   const themeOverrides = localConfig.themeOverrides || {};
   const activeColorOverrides = (activeAppearanceTab === 'dark' ? themeOverrides.dark : themeOverrides.light) || {};
+  const normalizedShortcuts = useMemo(() => ensureShortcutSettings(localConfig.shortcuts), [localConfig.shortcuts]);
   
   const handleSelectProvider = (providerId: string) => {
     setLocalConfig(current => ({ ...current, selectedProviderId: providerId }));
@@ -455,6 +466,20 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
             ...current.themeOverrides,
             [activeAppearanceTab]: {},
         }
+    }));
+  };
+
+  const handleShortcutsChange = (updatedShortcuts: ShortcutSettings) => {
+    setLocalConfig(current => ({
+      ...current,
+      shortcuts: ensureShortcutSettings(updatedShortcuts),
+    }));
+  };
+
+  const handleResetAllShortcuts = () => {
+    setLocalConfig(current => ({
+      ...current,
+      shortcuts: getDefaultShortcutSettings(),
     }));
   };
 
@@ -555,6 +580,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
       { id: 'general', label: 'General', icon: <Icon name="sliders" className="w-5 h-5"/>, isVisible: true },
       { id: 'personalization', label: 'Personalization', icon: <Icon name="palette" className="w-5 h-5"/>, isVisible: true },
       { id: 'content', label: 'Content', icon: <Icon name="bookmark" className="w-5 h-5"/>, isVisible: true },
+      { id: 'shortcuts', label: 'Keyboard & Shortcuts', icon: <Icon name="terminal" className="w-5 h-5"/>, isVisible: true },
       { id: 'advanced', label: 'Advanced', icon: <Icon name="cpu" className="w-5 h-5"/>, isVisible: isElectron },
   ];
 
@@ -576,6 +602,23 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
           case 'general':
               return (
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                  <div className="xl:col-span-2 bg-[--bg-primary] border border-[--border-primary] rounded-[--border-radius] shadow-sm p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <h3 className="text-xl font-semibold text-[--text-secondary]">Keyboard Shortcuts</h3>
+                      <p className="text-sm text-[--text-muted] mt-1 max-w-xl">
+                        Customize shortcuts for every action, manage global accelerators, and resolve conflicts in one dedicated editor.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setActiveSection('shortcuts')}
+                        className="px-4 py-2 text-sm font-medium text-white bg-[--accent-settings] rounded-lg shadow hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[--accent-settings]"
+                      >
+                        Open Keyboard Shortcut Editor
+                      </button>
+                    </div>
+                  </div>
                   {(editingProvider || isAddingProvider) && (
                     <ProviderEditorModal
                       provider={editingProvider}
@@ -841,6 +884,15 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                         </div>
                     </div>
                  </div>
+              );
+          case 'shortcuts':
+              return (
+                <KeyboardShortcutsEditor
+                  shortcuts={normalizedShortcuts}
+                  onShortcutsChange={handleShortcutsChange}
+                  onRestoreDefaults={handleResetAllShortcuts}
+                  isElectron={isElectron}
+                />
               );
           case 'advanced':
               return (

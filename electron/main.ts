@@ -12,7 +12,7 @@ import * as crypto from 'crypto';
 import { request as httpRequest } from 'http';
 import { request as httpsRequest } from 'https';
 import type { IncomingHttpHeaders } from 'http';
-import type { ApiRequest, ApiResponse, CodeProject, ProjectType, Toolchain, ToolchainStatus } from '../src/types';
+import type { ApiRequest, ApiResponse, CodeProject, GlobalShortcutRegistrationInput, GlobalShortcutRegistrationResult, ProjectType, ShortcutActionId, Toolchain, ToolchainStatus } from '../src/types';
 
 // Let TypeScript know that __dirname is a global variable in this Node.js environment.
 // This is necessary because we are using ES Modules, which don't have __dirname by default.
@@ -28,6 +28,7 @@ const settingsPath = path.join(appDataPath, 'settings.json');
 
 let mainWindowInstance: electron.BrowserWindow | null = null;
 let hasSentDownloadingMessage = false;
+const registeredGlobalShortcuts = new Map<string, ShortcutActionId>();
 
 
 /**
@@ -372,6 +373,64 @@ electron.app.whenReady().then(() => {
     // Set up IPC listeners for the renderer process
     electron.ipcMain.handle('settings:get', readSettings);
     electron.ipcMain.handle('settings:save', (_, settings) => saveSettings(settings));
+    electron.ipcMain.handle('shortcuts:register-global', (_event, registrations: GlobalShortcutRegistrationInput[]): GlobalShortcutRegistrationResult[] => {
+      registeredGlobalShortcuts.forEach((_, accelerator) => {
+        electron.globalShortcut.unregister(accelerator);
+      });
+      registeredGlobalShortcuts.clear();
+
+      const results: GlobalShortcutRegistrationResult[] = [];
+      const usedAccelerators = new Map<string, ShortcutActionId>();
+
+      registrations.forEach(({ actionId, accelerator, enabled }) => {
+        if (!enabled || !accelerator) {
+          results.push({ actionId, accelerator, success: true });
+          return;
+        }
+
+        const existing = usedAccelerators.get(accelerator);
+        if (existing) {
+          results.push({
+            actionId,
+            accelerator,
+            success: false,
+            error: `Conflicts with ${existing}`,
+          });
+          return;
+        }
+
+        try {
+          const success = electron.globalShortcut.register(accelerator, () => {
+            if (!mainWindowInstance) {
+              return;
+            }
+            if (mainWindowInstance.isMinimized()) {
+              mainWindowInstance.restore();
+            }
+            mainWindowInstance.show();
+            mainWindowInstance.focus();
+            mainWindowInstance.webContents.send('shortcuts:trigger', actionId);
+          });
+
+          if (success) {
+            usedAccelerators.set(accelerator, actionId);
+            registeredGlobalShortcuts.set(accelerator, actionId);
+            results.push({ actionId, accelerator, success: true });
+          } else {
+            results.push({ actionId, accelerator, success: false, error: 'Registration failed' });
+          }
+        } catch (error) {
+          results.push({
+            actionId,
+            accelerator,
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      });
+
+      return results;
+    });
 
     electron.ipcMain.handle('app:is-packaged', () => {
         return electron.app.isPackaged;
@@ -1154,4 +1213,8 @@ electron.app.on('window-all-closed', () => {
   if (os.platform() !== 'darwin') {
     electron.app.quit();
   }
+});
+
+electron.app.on('will-quit', () => {
+  electron.globalShortcut.unregisterAll();
 });

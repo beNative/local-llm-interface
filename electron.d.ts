@@ -1,4 +1,4 @@
-import type { Config, LogEntry, CodeProject, ProjectType, FileSystemEntry, ApiRequest, ApiResponse, ToolchainStatus } from './types';
+import type { Config, LogEntry, CodeProject, ProjectType, FileSystemEntry, ApiRequest, ApiResponse, ToolchainStatus, GlobalShortcutRegistrationInput, GlobalShortcutRegistrationResult, ShortcutActionId } from './types';
 
 export interface SystemStats {
   cpu: number;
@@ -12,6 +12,7 @@ export interface SystemStats {
 export interface IElectronAPI {
   getSettings: () => Promise<Config | null>;
   saveSettings: (settings: Config) => Promise<void>;
+  registerGlobalShortcuts: (shortcuts: GlobalShortcutRegistrationInput[]) => Promise<GlobalShortcutRegistrationResult[]>;
   isPackaged: () => Promise<boolean>;
   getVersion: () => Promise<string>;
   runPython: (code: string) => Promise<{ stdout: string; stderr: string }>;
@@ -70,6 +71,8 @@ export interface IElectronAPI {
   closeWindow: () => Promise<void>;
   onWindowStateChange: (callback: (isMaximized: boolean) => void) => void;
   removeWindowStateChangeListener: () => void;
+  onShortcutTriggered: (callback: (actionId: ShortcutActionId) => void) => void;
+  removeShortcutTriggeredListener: () => void;
 }
 
 declare global {

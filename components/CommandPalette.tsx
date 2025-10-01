@@ -23,9 +23,10 @@ interface CommandPaletteProps {
     onSelectSession: (sessionId: string) => void;
     onOpenFile: (file: { path: string, name: string }) => void;
     anchorRect: DOMRect | null;
+    onShowKeyboardShortcuts: () => void;
 }
 
-const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, sessions, projects, onNavigate, onSelectSession, onOpenFile, anchorRect }) => {
+const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, sessions, projects, onNavigate, onSelectSession, onOpenFile, anchorRect, onShowKeyboardShortcuts }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [commands, setCommands] = useState<Command[]>([]);
     const [isLoadingFiles, setIsLoadingFiles] = useState(false);
@@ -44,6 +45,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, sessio
                 { type: 'view', id: 'view_projects', name: 'Go to Projects', icon: <Icon name="code" className="w-4 h-4"/>, action: () => onNavigate('projects') },
                 { type: 'view', id: 'view_api', name: 'Go to API Client', icon: <Icon name="server" className="w-4 h-4"/>, action: () => onNavigate('api') },
                 { type: 'view', id: 'view_settings', name: 'Go to Settings', icon: <Icon name="settings" className="w-4 h-4"/>, action: () => onNavigate('settings') },
+                { type: 'view', id: 'view_settings_shortcuts', name: 'Open Keyboard Shortcuts', description: 'Customize keyboard shortcuts', icon: <Icon name="terminal" className="w-4 h-4"/>, action: () => onShowKeyboardShortcuts() },
                 { type: 'view', id: 'view_info', name: 'Go to Info', icon: <Icon name="info" className="w-4 h-4"/>, action: () => onNavigate('info') },
             ];
             
@@ -89,7 +91,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, sessio
         } else {
             setSearchTerm('');
         }
-    }, [isOpen, sessions, projects, onNavigate, onSelectSession, onOpenFile]);
+    }, [isOpen, sessions, projects, onNavigate, onSelectSession, onOpenFile, onShowKeyboardShortcuts]);
 
     const filteredCommands = useMemo(() => {
         if (!searchTerm) return commands;

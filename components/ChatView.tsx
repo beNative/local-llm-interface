@@ -245,6 +245,7 @@ interface ChatViewProps {
   onSetSessionGenerationConfig: (generationConfig: GenerationConfig) => void;
   onSetSessionAgentToolsEnabled: (enabled: boolean) => void;
   onRunCodeSnippet: (language: string, code: string) => void;
+  onRegisterInputFocusHandler?: (handler: (() => void) | null) => void;
 }
 
 const PersonaSelectorItem: React.FC<{
@@ -264,7 +265,7 @@ const PersonaSelectorItem: React.FC<{
   );
 };
 
-export default function ChatView({ session, provider, onSendMessage, isResponding, retrievalStatus, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onSetSessionGenerationConfig, onSetSessionAgentToolsEnabled, onRunCodeSnippet }: ChatViewProps) {
+export default function ChatView({ session, provider, onSendMessage, isResponding, retrievalStatus, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onSetSessionGenerationConfig, onSetSessionAgentToolsEnabled, onRunCodeSnippet, onRegisterInputFocusHandler }: ChatViewProps) {
   const [input, setInput] = useState('');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -308,6 +309,15 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
   useEffect(() => {
     setEditedTitle(sessionName);
   }, [sessionName]);
+
+  useEffect(() => {
+    if (!onRegisterInputFocusHandler) return;
+    const handler = () => textareaRef.current?.focus();
+    onRegisterInputFocusHandler(handler);
+    return () => {
+      onRegisterInputFocusHandler(null);
+    };
+  }, [onRegisterInputFocusHandler]);
 
 // FIX: This hook resets component state when switching sessions.
 // This prevents carrying over state like input text or attachments between different conversations.

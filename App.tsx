@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, FileSystemEntry, SystemStats, GenerationConfig, LLMProviderConfig, Tool, ToolCall, AssistantToolCallMessage, ToolResponseMessage, StandardChatMessage, ChatMessageContentPartText } from './types';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, FileSystemEntry, SystemStats, GenerationConfig, LLMProviderConfig, Tool, ToolCall, AssistantToolCallMessage, ToolResponseMessage, StandardChatMessage, ChatMessageContentPartText, ShortcutActionId, ShortcutSettings } from './types';
 import { APP_NAME, DEFAULT_PROVIDERS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
 import { fetchModels, streamChatCompletion, LLMServiceError, generateTextCompletion, StreamChunk } from './services/llmService';
 import { logger } from './services/logger';
-import SettingsPanel from './components/SettingsPanel';
+import SettingsPanel, { type SettingsSection } from './components/SettingsPanel';
 import ModelSelector from './components/ModelSelector';
 import ChatView from './components/ChatView';
 import ThemeSwitcher from './components/ThemeSwitcher';
@@ -24,6 +24,7 @@ import { ToastProvider, ToastContainer } from './components/ToastProvider';
 import { useToast } from './hooks/useToast';
 import TitleBar from './components/TitleBar';
 import { useTooltipTrigger } from './hooks/useTooltipTrigger';
+import { allowsTypingContext, ensureShortcutSettings, eventToShortcut, getDefaultShortcutSettings, getEffectiveShortcut, getGlobalShortcutRegistrations, SHORTCUT_DEFINITION_MAP, SHORTCUT_DEFINITIONS } from './shortcuts';
 
 type View = 'chat' | 'projects' | 'api' | 'settings' | 'info';
 
@@ -118,8 +119,10 @@ const AppContent: React.FC = () => {
   const [appVersion, setAppVersion] = useState('');
   const [pendingToolCalls, setPendingToolCalls] = useState<ToolCall[] | null>(null);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
+  const [targetSettingsSection, setTargetSettingsSection] = useState<SettingsSection | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(205); // 20% reduction from the previous 256px default
+  const chatInputFocusHandlerRef = useRef<(() => void) | null>(null);
 
   const toggleLogsTooltip = useTooltipTrigger('Toggle the application logs panel for debugging');
   const isResizingRef = useRef(false);
@@ -134,6 +137,82 @@ const AppContent: React.FC = () => {
   const providers = config?.providers || [];
   const selectedProviderId = config?.selectedProviderId;
   const activeProvider = providers.find(p => p.id === selectedProviderId) || null;
+  const shortcutSettings = useMemo<ShortcutSettings>(() => ensureShortcutSettings(config?.shortcuts), [config?.shortcuts]);
+  const appShortcutMap = useMemo(() => {
+    const map = new Map<string, ShortcutActionId>();
+    SHORTCUT_DEFINITIONS.forEach(def => {
+      const key = getEffectiveShortcut(shortcutSettings, def.id, 'app');
+      if (key) {
+        map.set(key, def.id);
+      }
+    });
+    return map;
+  }, [shortcutSettings]);
+  const globalRegistrations = useMemo(() => getGlobalShortcutRegistrations(shortcutSettings), [shortcutSettings]);
+  const globalRegistrationSignatureRef = useRef('');
+
+  const registerChatInputFocusHandler = useCallback((handler: (() => void) | null) => {
+    chatInputFocusHandlerRef.current = handler;
+  }, []);
+
+  const openSettings = useCallback((section?: SettingsSection | null) => {
+    setTargetSettingsSection(section ?? null);
+    setView('settings');
+  }, []);
+
+  const handleThemeToggle = useCallback(() => {
+    setConfig(currentConfig => {
+      if (!currentConfig) return null;
+      const newTheme = currentConfig.theme === 'light' ? 'dark' : 'light';
+      logger.info(`Theme toggled to ${newTheme}.`);
+      return { ...currentConfig, theme: newTheme };
+    });
+  }, []);
+
+  const handleNewChat = useCallback(() => {
+    setConfig(c => (c ? { ...c, activeSessionId: undefined } : null));
+    setView('chat');
+  }, []);
+
+  const performShortcutAction = useCallback((actionId: ShortcutActionId) => {
+    switch (actionId) {
+      case 'toggleCommandPalette':
+        setPaletteAnchorRect(null);
+        setIsCommandPaletteOpen(prev => !prev);
+        break;
+      case 'openSettings':
+        openSettings();
+        break;
+      case 'startNewChat':
+        handleNewChat();
+        setTimeout(() => chatInputFocusHandlerRef.current?.(), 150);
+        break;
+      case 'focusChatInput':
+        setView('chat');
+        setTimeout(() => chatInputFocusHandlerRef.current?.(), 50);
+        break;
+      case 'toggleLogsPanel':
+        setIsLogPanelVisible(prev => !prev);
+        break;
+      case 'toggleTheme':
+        handleThemeToggle();
+        break;
+      case 'showChatView':
+        setView('chat');
+        break;
+      case 'showProjectsView':
+        setView('projects');
+        break;
+      case 'showApiView':
+        setView('api');
+        break;
+      case 'showInfoView':
+        setView('info');
+        break;
+      default:
+        break;
+    }
+  }, [handleThemeToggle, handleNewChat, openSettings]);
 
   // Effect for one-time app initialization and loading settings
   useEffect(() => {
@@ -162,8 +241,9 @@ const AppContent: React.FC = () => {
         sessions: [],
         predefinedPrompts: [],
         systemPrompts: [],
+        shortcuts: getDefaultShortcutSettings(),
       };
-      
+
       let loadedConfig: Config = defaultConfig;
 
       if (window.electronAPI) {
@@ -263,6 +343,8 @@ const AppContent: React.FC = () => {
           }
       }
 
+      loadedConfig.shortcuts = ensureShortcutSettings(loadedConfig.shortcuts);
+
       setConfig(loadedConfig);
       logger.setConfig({ logToFile: loadedConfig.logToFile });
     };
@@ -324,6 +406,71 @@ const AppContent: React.FC = () => {
       logger.debug(`Application density set to: ${density}`);
   }, [config?.themeOverrides?.density]);
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+      const shortcut = eventToShortcut(event);
+      if (!shortcut) return;
+      const actionId = appShortcutMap.get(shortcut);
+      if (!actionId) return;
+      const target = event.target as HTMLElement;
+      const isEditable = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+      if (isEditable && !allowsTypingContext(actionId)) {
+        return;
+      }
+      event.preventDefault();
+      performShortcutAction(actionId);
+    };
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [appShortcutMap, performShortcutAction]);
+
+  useEffect(() => {
+    if (!isElectron || !window.electronAPI) return;
+    const handler = (actionId: ShortcutActionId) => {
+      performShortcutAction(actionId);
+    };
+    window.electronAPI.onShortcutTriggered(handler);
+    return () => {
+      window.electronAPI?.removeShortcutTriggeredListener();
+    };
+  }, [isElectron, performShortcutAction]);
+
+  useEffect(() => {
+    if (!isElectron || !window.electronAPI) return;
+    const signature = JSON.stringify(globalRegistrations);
+    if (signature === globalRegistrationSignatureRef.current) {
+      return;
+    }
+    globalRegistrationSignatureRef.current = signature;
+    let cancelled = false;
+    window.electronAPI
+      .registerGlobalShortcuts(globalRegistrations)
+      .then(results => {
+        if (cancelled || !results) return;
+        results.forEach(result => {
+          if (!result.success) {
+            const label = SHORTCUT_DEFINITION_MAP[result.actionId]?.label || result.actionId;
+            const accelerator = result.accelerator || 'shortcut';
+            const errorDetail = result.error ? ` ${result.error}` : '';
+            addToast({
+              type: 'error',
+              message: `Failed to register ${accelerator} for ${label}.${errorDetail}`,
+              duration: 5000,
+            });
+          }
+        });
+      })
+      .catch(error => {
+        if (!cancelled) {
+          addToast({ type: 'error', message: `Global shortcut registration failed: ${error instanceof Error ? error.message : String(error)}` });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isElectron, globalRegistrations, addToast]);
+
   // Effect to persist config changes.
   useEffect(() => {
     if (!config) return;
@@ -335,24 +482,6 @@ const AppContent: React.FC = () => {
     logger.debug('Configuration persisted.');
   }, [config]);
 
-   // Effect for command palette shortcut
-    useEffect(() => {
-        const handleKeyDown = (event: KeyboardEvent) => {
-            const target = event.target as HTMLElement;
-            // Don't open palette if user is already typing in an input/textarea
-            if ((event.metaKey || event.ctrlKey) && event.key === 'k' && target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') {
-                event.preventDefault();
-                // We cannot get the rect here, so this shortcut will open the modal centered.
-                // This is a reasonable fallback. A more complex solution could try to find the ref.
-                // For now, we'll let the titlebar click be the primary way to get an anchored palette.
-                setPaletteAnchorRect(null); // This will cause it to be un-anchored
-                setIsCommandPaletteOpen(isOpen => !isOpen);
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
-    
     // Effect for system stats monitoring
     useEffect(() => {
         if (isElectron && window.electronAPI) {
@@ -419,30 +548,35 @@ const AppContent: React.FC = () => {
     }, [isElectron]);
 
 
-  const handleConfigChange = useCallback((newConfig: Config) => {
+  const handleConfigChange = useCallback((incomingConfig: Config) => {
     logger.info('Configuration change requested.');
 
+    const normalizedConfig: Config = {
+      ...incomingConfig,
+      shortcuts: ensureShortcutSettings(incomingConfig.shortcuts),
+    };
+
     setConfig(currentConfig => {
-      if (!currentConfig) return newConfig;
+      if (!currentConfig) return normalizedConfig;
 
       const oldProvider = currentConfig.providers?.find(p => p.id === currentConfig.selectedProviderId);
-      const newProvider = newConfig.providers?.find(p => p.id === newConfig.selectedProviderId);
+      const newProvider = normalizedConfig.providers?.find(p => p.id === normalizedConfig.selectedProviderId);
 
-      const needsModelReload = !oldProvider || !newProvider || 
+      const needsModelReload = !oldProvider || !newProvider ||
         newProvider.id !== oldProvider.id ||
         newProvider.baseUrl !== oldProvider.baseUrl ||
-        (newProvider.apiKeyName && newConfig.apiKeys?.[newProvider.apiKeyName] !== currentConfig.apiKeys?.[newProvider.apiKeyName]);
+        (newProvider.apiKeyName && normalizedConfig.apiKeys?.[newProvider.apiKeyName] !== currentConfig.apiKeys?.[newProvider.apiKeyName]);
 
       if (needsModelReload) {
         logger.info('Provider, Base URL, or API Key changed. Reloading models.');
         setView('chat');
-        return { ...newConfig, activeSessionId: undefined };
+        return { ...normalizedConfig, activeSessionId: undefined };
       }
-      
-      return { ...currentConfig, ...newConfig };
+
+      return { ...currentConfig, ...normalizedConfig };
     });
 
-    logger.setConfig({ logToFile: newConfig.logToFile });
+    logger.setConfig({ logToFile: normalizedConfig.logToFile });
   }, []);
   
   const handleProviderChange = useCallback((providerId: string) => {
@@ -458,15 +592,6 @@ const AppContent: React.FC = () => {
         };
     });
   }, []);
-
-  const handleThemeToggle = () => {
-      setConfig(currentConfig => {
-        if (!currentConfig) return null;
-        const newTheme = currentConfig.theme === 'light' ? 'dark' : 'light';
-        logger.info(`Theme toggled to ${newTheme}.`);
-        return { ...currentConfig, theme: newTheme };
-      });
-  };
 
   const loadModels = useCallback(async () => {
     if (!activeProvider || !config) {
@@ -497,11 +622,6 @@ const AppContent: React.FC = () => {
   
   const handleSelectSession = (sessionId: string) => {
     setConfig(c => c ? ({ ...c, activeSessionId: sessionId }) : null);
-    setView('chat');
-  };
-
-  const handleNewChat = () => {
-    setConfig(c => c ? ({ ...c, activeSessionId: undefined }) : null);
     setView('chat');
   };
 
@@ -1052,7 +1172,7 @@ const AppContent: React.FC = () => {
   };
   
   const handleGoToSettings = () => {
-    setView('settings');
+    openSettings();
   };
 
   const handleResizeMouseMove = useCallback((e: MouseEvent) => {
@@ -1089,11 +1209,21 @@ const AppContent: React.FC = () => {
     };
   }, [handleResizeMouseMove, handleResizeMouseUp]);
 
+  useEffect(() => {
+    if (view !== 'settings' && targetSettingsSection !== null) {
+      setTargetSettingsSection(null);
+    }
+  }, [view, targetSettingsSection]);
+
   const handleOpenFileFromPalette = (file: { path: string; name: string }) => {
     setView('projects');
     setEditingFile(file);
     // Note: This won't auto-expand the project tree, but it opens the file, which is the main goal.
   };
+
+  const handleOpenKeyboardShortcuts = useCallback(() => {
+    openSettings('shortcuts');
+  }, [openSettings]);
 
   const openCommandPalette = (rect: DOMRect) => {
     setPaletteAnchorRect(rect);
@@ -1112,11 +1242,12 @@ const AppContent: React.FC = () => {
 
     switch(view) {
         case 'settings':
-            return <SettingsPanel 
-                config={config} 
-                onConfigChange={handleConfigChange} 
+            return <SettingsPanel
+                config={config}
+                onConfigChange={handleConfigChange}
                 isElectron={isElectron}
                 theme={config.theme || 'dark'}
+                initialSection={targetSettingsSection}
               />;
         case 'info':
             return <InfoView theme={config.theme || 'dark'} onOpenAbout={() => setIsAboutModalOpen(true)} />;
@@ -1166,6 +1297,7 @@ const AppContent: React.FC = () => {
                         onSetSessionGenerationConfig={handleSetSessionGenerationConfig}
                         onSetSessionAgentToolsEnabled={handleSetSessionAgentToolsEnabled}
                         onRunCodeSnippet={handleRunCodeSnippet}
+                        onRegisterInputFocusHandler={registerChatInputFocusHandler}
                     />
                 );
              }
@@ -1216,7 +1348,7 @@ const AppContent: React.FC = () => {
   return (
     <IconProvider iconSet={config?.themeOverrides?.iconSet || 'default'}>
         <div style={containerStyle} className="flex flex-col font-sans bg-[--bg-primary] h-screen overflow-hidden text-[--text-primary]">
-          {config && <CommandPalette 
+          {config && <CommandPalette
             isOpen={isCommandPaletteOpen}
             onClose={closeCommandPalette}
             sessions={config.sessions || []}
@@ -1225,6 +1357,7 @@ const AppContent: React.FC = () => {
             onSelectSession={handleSelectSession}
             onOpenFile={handleOpenFileFromPalette}
             anchorRect={paletteAnchorRect}
+            onShowKeyboardShortcuts={handleOpenKeyboardShortcuts}
           />}
           <AboutModal 
             isOpen={isAboutModalOpen} 
@@ -1265,7 +1398,7 @@ const AppContent: React.FC = () => {
                   <Icon name="server" className="w-5 h-5" />
                   <span>API Client</span>
                 </NavButton>
-                <NavButton active={view === 'settings'} onClick={() => setView('settings')} title="Configure application settings" ariaLabel="Settings View" view="settings">
+                <NavButton active={view === 'settings'} onClick={() => openSettings()} title="Configure application settings" ariaLabel="Settings View" view="settings">
                   <Icon name="settings" className="w-5 h-5" />
                   <span>Settings</span>
                 </NavButton>
