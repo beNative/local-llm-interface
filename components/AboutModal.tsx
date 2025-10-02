@@ -34,12 +34,13 @@ const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, version }) => 
             <h2 className="text-2xl font-bold text-[--text-primary]">Local LLM Interface</h2>
             <p className="text-sm text-[--text-muted] font-mono mt-1">Version {version}</p>
 
-            <div className="text-sm text-[--text-secondary] my-6 space-y-1">
-                <p>Design and concept by Tim Sinaeve</p>
-                <p>Implementation by Gemini 2.5 Pro</p>
+            <div className="text-sm text-[--text-secondary] my-6 space-y-2">
+                <p className="text-base font-semibold text-[--text-primary]">Tim Sinaeve</p>
+                <p>Design and concept: Tim Sinaeve</p>
+                <p>Implementation: Gemini 2.5 Pro &amp; gpt-5-codex</p>
             </div>
-            
-            <p className="text-xs text-[--text-muted]">© 2025 Tim Sinaeve</p>
+
+            <p className="text-xs text-[--text-muted]">© 2025 Tim Sinaeve. All rights reserved.</p>
         </div>
 
         <div className="mt-8 flex justify-center">
