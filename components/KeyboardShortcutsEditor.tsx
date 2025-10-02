@@ -30,15 +30,23 @@ const ShortcutButton: React.FC<{
   conflict?: boolean;
   disabled?: boolean;
 }> = ({ label, value, onClick, onClear, isCapturing, conflict, disabled }) => {
+  const stateClasses = disabled
+    ? 'bg-[--bg-tertiary] text-[--text-muted] border-transparent cursor-not-allowed'
+    : isCapturing
+    ? 'border-[--border-focus] ring-1 ring-[--border-focus] bg-[--bg-tertiary] text-[--text-primary]'
+    : conflict
+    ? 'border-red-500/70 bg-red-500/10 text-red-200 hover:border-red-400'
+    : 'border-[--border-secondary] bg-[--bg-secondary] hover:border-[--border-focus] text-[--text-primary]';
+
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wide text-[--text-muted]">{label}</span>
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between text-[--text-muted]">
+        <span className="text-xs font-medium">{label}</span>
         <button
           type="button"
           onClick={onClear}
           disabled={disabled}
-          className={`text-xs font-medium transition-colors ${
+          className={`text-[10px] font-semibold uppercase tracking-wide transition-colors ${
             disabled ? 'text-[--text-muted] cursor-not-allowed' : 'text-[--accent-settings] hover:text-[--text-primary]'
           }`}
         >
@@ -49,15 +57,7 @@ const ShortcutButton: React.FC<{
         type="button"
         onClick={disabled ? undefined : onClick}
         disabled={disabled}
-        className={`w-full px-4 py-2 rounded-lg border transition-all text-sm font-medium text-left ${
-          disabled
-            ? 'bg-[--bg-tertiary] text-[--text-muted] border-transparent cursor-not-allowed'
-            : isCapturing
-            ? 'border-[--border-focus] ring-2 ring-[--border-focus] bg-[--bg-tertiary] text-[--text-primary]'
-            : conflict
-            ? 'border-red-500/70 bg-red-500/10 text-red-200 hover:border-red-400'
-            : 'border-[--border-secondary] bg-[--bg-tertiary] hover:border-[--border-focus] text-[--text-primary]'
-        }`}
+        className={`h-10 w-full rounded-md border px-3 text-sm font-medium text-left transition-all ${stateClasses}`}
       >
         {isCapturing ? 'Press new shortcut…' : formatShortcut(value)}
       </button>
@@ -73,13 +73,13 @@ const ShortcutHeader: React.FC<{
   <button
     type="button"
     onClick={onToggle}
-    className="w-full flex items-center justify-between px-4 py-3 text-left bg-[--bg-secondary] border-b border-[--border-primary] rounded-t-[--border-radius]"
+    className="flex w-full items-center justify-between rounded-t-[--border-radius] border-b border-[--border-primary] bg-[--bg-secondary] px-3 py-2.5 text-left"
   >
-    <div className="flex items-center gap-3 text-[--text-secondary] font-semibold">
-      <Icon name={isExpanded ? 'chevronUp' : 'chevronDown'} className="w-4 h-4" />
+    <div className="flex items-center gap-2 text-sm font-semibold text-[--text-secondary]">
+      <Icon name={isExpanded ? 'chevronUp' : 'chevronDown'} className="h-4 w-4" />
       <span>{category}</span>
     </div>
-    <span className="text-xs font-medium text-[--text-muted]">{isExpanded ? 'Hide' : 'Show'} actions</span>
+    <span className="text-[11px] font-medium uppercase tracking-wide text-[--text-muted]">{isExpanded ? 'Hide' : 'Show'}</span>
   </button>
 );
 
@@ -227,7 +227,7 @@ const KeyboardShortcutsEditor: React.FC<KeyboardShortcutsEditorProps> = ({ short
     };
   }, [capturing, updateShortcuts]);
 
-  const renderActionRow = (actionId: ShortcutActionId) => {
+  const renderActionRow = (actionId: ShortcutActionId, options?: { isFirst?: boolean; isLast?: boolean }) => {
     const definition = SHORTCUT_DEFINITION_MAP[actionId];
     const entry = shortcuts[actionId];
     const appConflict = appConflicts.get(actionId);
@@ -238,37 +238,39 @@ const KeyboardShortcutsEditor: React.FC<KeyboardShortcutsEditorProps> = ({ short
     return (
       <div
         key={actionId}
-        className={`rounded-[--border-radius] border p-4 bg-[--bg-primary] transition-colors ${
-          cardHasConflict ? 'border-red-500/60 shadow-[0_0_0_1px_rgba(239,68,68,0.4)]' : 'border-[--border-secondary]'
-        }`}
+        className={`px-3 py-4 transition-colors md:px-4 ${
+          cardHasConflict
+            ? 'bg-red-500/5 ring-1 ring-inset ring-red-400/70'
+            : 'bg-[--bg-primary] hover:bg-[--bg-secondary]'
+        } ${options?.isFirst ? 'rounded-t-[--border-radius]' : ''} ${options?.isLast ? 'rounded-b-[--border-radius]' : ''}`}
       >
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <h4 className="text-lg font-semibold text-[--text-primary]">{definition.label}</h4>
+        <div className="grid gap-3 md:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)] md:items-center">
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="text-base font-semibold text-[--text-primary]">{definition.label}</h4>
               {definition.supportsGlobal && (
-                <span className="px-2 py-0.5 text-xs rounded-full bg-[--accent-settings]/10 text-[--accent-settings] border border-[--accent-settings]/30">
-                  Global available
+                <span className="rounded-md border border-[--border-secondary] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[--text-muted]">
+                  Global
                 </span>
               )}
             </div>
-            <p className="text-sm text-[--text-muted] max-w-2xl">{definition.description}</p>
+            <p className="text-xs text-[--text-muted] md:max-w-xl">{definition.description}</p>
             <div className="space-y-1">
               {appConflict && <ConflictMessage scopeLabel="In-app" conflicts={appConflict.with} />}
               {globalConflict && <ConflictMessage scopeLabel="Global" conflicts={globalConflict.with} />}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2">
             <button
               type="button"
               onClick={() => handleResetAction(actionId)}
-              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-[--border-secondary] text-[--text-muted] hover:text-[--text-primary] hover:border-[--border-focus]"
+              className="h-9 rounded-md border border-[--border-secondary] px-3 text-xs font-semibold text-[--text-muted] transition-colors hover:border-[--border-focus] hover:text-[--text-primary]"
             >
               Reset to default
             </button>
           </div>
         </div>
-        <div className={`mt-4 grid gap-4 ${definition.supportsGlobal ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
+        <div className={`mt-3 grid gap-3 md:mt-4 ${definition.supportsGlobal ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
           <ShortcutButton
             label="In-App"
             value={entry.app ?? null}
@@ -278,10 +280,10 @@ const KeyboardShortcutsEditor: React.FC<KeyboardShortcutsEditorProps> = ({ short
             conflict={Boolean(appConflict)}
           />
           {definition.supportsGlobal && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium uppercase tracking-wide text-[--text-muted]">Global</span>
-                <label className="flex items-center gap-2 text-xs font-medium text-[--text-muted]">
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-center justify-between text-[--text-muted]">
+                <span className="text-xs font-medium">Global</span>
+                <label className="flex items-center gap-2 text-[11px] font-medium">
                   <input
                     type="checkbox"
                     className="w-4 h-4 rounded border-[--border-secondary] text-[--accent-settings]"
@@ -301,7 +303,7 @@ const KeyboardShortcutsEditor: React.FC<KeyboardShortcutsEditorProps> = ({ short
                 disabled={!globalEnabled}
               />
               {!isElectron && (
-                <p className="text-xs text-[--text-muted]">Global shortcuts require the desktop app to take effect.</p>
+                <p className="text-[11px] text-[--text-muted]">Global shortcuts require the desktop app to take effect.</p>
               )}
             </div>
           )}
@@ -312,33 +314,33 @@ const KeyboardShortcutsEditor: React.FC<KeyboardShortcutsEditorProps> = ({ short
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-[--text-primary]">Keyboard Shortcuts</h2>
-          <p className="text-sm text-[--text-muted]">
+          <h2 className="text-xl font-semibold text-[--text-primary]">Keyboard Shortcuts</h2>
+          <p className="text-xs text-[--text-muted]">
             Customize the keyboard shortcuts used throughout the application. Conflicts are highlighted automatically.
           </p>
         </div>
         <button
           type="button"
           onClick={onRestoreDefaults}
-          className="self-start md:self-auto px-4 py-2 text-sm font-semibold rounded-lg bg-[--accent-settings] text-white hover:opacity-90"
+          className="self-start rounded-md bg-[--accent-settings] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[--accent-settings]/90 md:self-auto"
         >
           Restore defaults
         </button>
       </div>
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <input
           type="search"
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           placeholder="Search by action, shortcut, or category…"
-          className="w-full md:max-w-sm px-4 py-2 rounded-lg border border-[--border-secondary] bg-[--bg-secondary] text-[--text-primary] focus:outline-none focus:ring-2 focus:ring-[--border-focus]"
+          className="w-full rounded-md border border-[--border-secondary] bg-[--bg-secondary] px-3 py-2 text-sm text-[--text-primary] shadow-sm focus:outline-none focus:ring-2 focus:ring-[--border-focus] md:max-w-sm"
         />
         {captureError && <p className="text-xs text-red-400 font-medium">{captureError}</p>}
       </div>
       {groupedDefinitions.length === 0 ? (
-        <div className="rounded-[--border-radius] border border-[--border-secondary] bg-[--bg-secondary] p-6 text-center text-[--text-muted]">
+        <div className="rounded-[--border-radius] border border-[--border-secondary] bg-[--bg-secondary] p-5 text-center text-sm text-[--text-muted]">
           No shortcuts match your search.
         </div>
       ) : (
@@ -347,15 +349,20 @@ const KeyboardShortcutsEditor: React.FC<KeyboardShortcutsEditorProps> = ({ short
             const label = SHORTCUT_CATEGORY_LABELS[category as keyof typeof SHORTCUT_CATEGORY_LABELS] || category;
             const isExpanded = expandedCategories[category] ?? true;
             return (
-              <div key={category} className="border border-[--border-primary] rounded-[--border-radius] overflow-hidden bg-[--bg-primary] shadow-sm">
+              <div key={category} className="overflow-hidden rounded-[--border-radius] border border-[--border-primary] bg-[--bg-primary] shadow-sm">
                 <ShortcutHeader
                   category={label}
                   isExpanded={isExpanded}
                   onToggle={() => handleToggleCategory(category)}
                 />
                 {isExpanded && (
-                  <div className="p-4 space-y-4">
-                    {definitions.map(def => renderActionRow(def.id))}
+                  <div className="divide-y divide-[--border-secondary]">
+                    {definitions.map((def, index) =>
+                      renderActionRow(def.id, {
+                        isFirst: index === 0,
+                        isLast: index === definitions.length - 1,
+                      }),
+                    )}
                   </div>
                 )}
               </div>
