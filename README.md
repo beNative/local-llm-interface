@@ -64,3 +64,23 @@ The output will be in the `release/` directory. The installer will place all nec
 - Place an SVG file (preferably named `icon.svg`) anywhere within the `assets/` directory tree.
 - Running `npm run build` automatically validates the SVG and generates platform-specific icon assets (`.icns`, `.ico`, and `.png`) under `build/icons/`.
 - If no SVG is found or the file is invalid, a fallback icon is generated so packaging can still proceed.
+
+## Release Process
+
+Follow this checklist when preparing a new GitHub release:
+
+1. **Update Version & Changelog**
+   - Bump the `version` field in `package.json` to match the release number.
+   - Add an entry to `CHANGELOG.md` summarizing the key fixes or enhancements.
+2. **Refresh Documentation**
+   - Review `README.md`, the functional/technical manuals, and any docs under `docs/` for accuracy.
+   - Ensure new features or workflow changes are reflected so in-app documentation is current.
+3. **Verify the Build**
+   - Run `npm install` (if needed) and `npm run build` to ensure the project bundles without errors.
+   - Optionally execute `npm run package` to validate installer creation locally before publishing.
+4. **Publish**
+   - Use `npm run publish` to trigger `electron-builder`'s GitHub release workflow once testing is complete.
+   - Draft GitHub release notes based on the changelog entry and include any manual steps or migration notes.
+5. **Post-Release**
+   - Confirm the auto-updater detects the new version.
+   - Archive any supplementary assets (screenshots, marketing copy) alongside the GitHub release if required.
