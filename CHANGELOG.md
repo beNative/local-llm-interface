@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.19.1] - 2025-10-04
+
+### Changed
+- Refined release documentation to clarify the steps required to package and publish the desktop build.
+- Reviewed and synchronized all Markdown manuals so the in-app docs match the latest interface updates.
+
 ## [0.19.0] - 2025-10-03
 
 ### Added

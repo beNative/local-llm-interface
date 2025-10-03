@@ -120,3 +120,4 @@ The `esbuild.config.js` script handles the entire build process:
 1.  Cleans the `dist/` directory.
 2.  Copies static assets (`index.html`, Pyodide files, and documentation) to `dist/`.
 3.  Bundles and transpiles the TypeScript code for the main, preload, and renderer processes into JavaScript files in `dist/`.
+4.  When preparing a release, run `npm run build` followed by `npm run publish` to let `electron-builder` generate installers and upload them to the configured GitHub repository.
