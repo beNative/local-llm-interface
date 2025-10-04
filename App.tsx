@@ -25,8 +25,19 @@ import { useToast } from './hooks/useToast';
 import TitleBar from './components/TitleBar';
 import { useTooltipTrigger } from './hooks/useTooltipTrigger';
 import { allowsTypingContext, ensureShortcutSettings, eventToShortcut, getDefaultShortcutSettings, getEffectiveShortcut, getGlobalShortcutRegistrations, SHORTCUT_DEFINITION_MAP, SHORTCUT_DEFINITIONS } from './shortcuts';
+import { useInstrumentation } from './hooks/useInstrumentation';
+import { useAutomationRegistration } from './hooks/useAutomationRegistration';
+import type { AutomationTarget } from './services/instrumentation/types';
 
 type View = 'chat' | 'projects' | 'api' | 'settings' | 'info';
+
+const SIDEBAR_MIN_WIDTH = 200;
+const SIDEBAR_MAX_WIDTH = 600;
+const SIDEBAR_KEYBOARD_STEP = 16;
+const SIDEBAR_KEYBOARD_LARGE_STEP = 48;
+
+const clampSidebarWidth = (value: number) =>
+    Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, Math.round(value)));
 
 const NavButton: React.FC<{
   active: boolean;
@@ -38,11 +49,57 @@ const NavButton: React.FC<{
 }> = ({ active, onClick, children, ariaLabel, view, title }) => {
     const accentVar = `var(--accent-${view})`;
     const tooltipProps = useTooltipTrigger(title);
+    const nodeRef = useRef<HTMLButtonElement | null>(null);
+    const [automationTarget, setAutomationTarget] = useState<AutomationTarget | null>(null);
+
+    const setButtonRef = useCallback(
+        (node: HTMLButtonElement | null) => {
+            nodeRef.current = node;
+            if (!node) {
+                setAutomationTarget(null);
+                return;
+            }
+
+            setAutomationTarget({
+                id: `nav-${view}`,
+                description: `Navigation button for ${view} view`,
+                element: node,
+                metadata: { view, active },
+                actions: {
+                    click: ({ element }) => (element ?? node)?.click(),
+                    focus: ({ element }) => (element ?? node)?.focus(),
+                    isActive: () => active,
+                },
+            });
+        },
+        [view, active],
+    );
+
+    useEffect(() => {
+        if (!nodeRef.current) {
+            return;
+        }
+        setAutomationTarget({
+            id: `nav-${view}`,
+            description: `Navigation button for ${view} view`,
+            element: nodeRef.current,
+            metadata: { view, active },
+            actions: {
+                click: ({ element }) => (element ?? nodeRef.current)?.click(),
+                focus: ({ element }) => (element ?? nodeRef.current)?.focus(),
+                isActive: () => active,
+            },
+        });
+    }, [view, active]);
+
+    useAutomationRegistration(automationTarget);
     return (
         <button
+            ref={setButtonRef}
             onClick={onClick}
             aria-label={ariaLabel}
             {...tooltipProps}
+            data-automation-id={`nav-${view}`}
             className={`relative flex items-center gap-[var(--space-2)] px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--font-size-sm)] font-medium rounded-lg transition-colors duration-200 ${
                 active
                     ? `text-[--accent-${view}]`
@@ -60,23 +117,108 @@ const NavButton: React.FC<{
     );
 };
 
+const focusableModalSelectors =
+    'a[href], button:not([disabled]), textarea:not([disabled]), input:not([type="hidden"]):not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 const RunOutputModal: React.FC<{
     runOutput: { title: string; stdout: string; stderr: string };
     onClose: () => void;
 }> = ({ runOutput, onClose }) => {
+    const panelRef = useRef<HTMLDivElement | null>(null);
+    const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
+
+    useEffect(() => {
+        previouslyFocusedElementRef.current = document.activeElement as HTMLElement | null;
+        const firstFocusable = panelRef.current?.querySelector<HTMLElement>(focusableModalSelectors);
+        (firstFocusable ?? panelRef.current)?.focus({ preventScroll: true });
+
+        return () => {
+            const previous = previouslyFocusedElementRef.current;
+            if (previous && typeof previous.focus === 'function') {
+                previous.focus({ preventScroll: true });
+            }
+        };
+    }, []);
+
     const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
         if (e.target === e.currentTarget) {
             onClose();
         }
     };
+
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            onClose();
+            return;
+        }
+
+        if (event.key !== 'Tab') {
+            return;
+        }
+
+        if (!panelRef.current) {
+            return;
+        }
+
+        const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>(focusableModalSelectors)).filter(
+            element => !element.hasAttribute('disabled') && element.getAttribute('aria-hidden') !== 'true',
+        );
+
+        if (focusable.length === 0) {
+            event.preventDefault();
+            panelRef.current.focus({ preventScroll: true });
+            return;
+        }
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const activeElement = document.activeElement as HTMLElement | null;
+
+        if (event.shiftKey) {
+            if (!activeElement || activeElement === first || !panelRef.current.contains(activeElement)) {
+                event.preventDefault();
+                last.focus();
+            }
+            return;
+        }
+
+        if (!activeElement || activeElement === last || !panelRef.current.contains(activeElement)) {
+            event.preventDefault();
+            first.focus();
+        }
+    };
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[--bg-backdrop] backdrop-blur-sm" onClick={handleBackdropClick}>
-            <div className="bg-[--bg-secondary] rounded-lg shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[--bg-backdrop] backdrop-blur-sm"
+            onClick={handleBackdropClick}
+            role="presentation"
+        >
+            <div
+                ref={panelRef}
+                className="bg-[--bg-secondary] rounded-lg shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col focus:outline-none"
+                onClick={e => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="run-output-modal-title"
+                aria-describedby="run-output-modal-content"
+                tabIndex={-1}
+                onKeyDown={handleKeyDown}
+            >
                 <header className="p-4 border-b border-[--border-primary] flex-shrink-0 flex justify-between items-center">
-                    <h2 className="text-lg font-bold text-[--text-primary]">{runOutput.title}</h2>
-                    <button onClick={onClose} className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] leading-none text-2xl">&times;</button>
+                    <h2 id="run-output-modal-title" className="text-lg font-bold text-[--text-primary]">
+                        {runOutput.title}
+                    </h2>
+                    <button
+                        onClick={onClose}
+                        className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] leading-none text-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[--border-focus]"
+                        aria-label="Close run output"
+                    >
+                        &times;
+                    </button>
                 </header>
-                <main className="flex-1 overflow-y-auto p-4 font-mono text-xs">
+                <main id="run-output-modal-content" className="flex-1 overflow-y-auto p-4 font-mono text-xs">
                     {runOutput.stdout && (
                         <div>
                             <h3 className="text-[--text-muted] font-sans font-semibold text-sm mb-1 uppercase">Output (stdout)</h3>
@@ -92,7 +234,12 @@ const RunOutputModal: React.FC<{
                     {!runOutput.stdout && !runOutput.stderr && <p className="text-[--text-muted] font-sans">The script produced no output.</p>}
                 </main>
                 <footer className="p-3 border-t border-[--border-primary] text-right">
-                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-md hover:bg-[--bg-hover]">Close</button>
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 text-sm font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-md hover:bg-[--bg-hover] focus:outline-none focus-visible:ring-2 focus-visible:ring-[--border-focus]"
+                    >
+                        Close
+                    </button>
                 </footer>
             </div>
         </div>
@@ -128,6 +275,16 @@ const AppContent: React.FC = () => {
   const isResizingRef = useRef(false);
   const { addToast } = useToast();
   const [isMaximized, setIsMaximized] = useState(false);
+  const instrumentationApi = useInstrumentation();
+  const { log: instrumentationLog, performance: performanceMonitor, hooks: hookRegistry } = instrumentationApi;
+  const instrumentationStateRef = useRef({
+    view: 'chat' as View,
+    isLogPanelVisible: false,
+    isCommandPaletteOpen: false,
+    isResponding: false,
+    activeSessionId: undefined as string | undefined,
+    modelsLoaded: 0,
+  });
 
 
   // Derived state from config
@@ -151,6 +308,60 @@ const AppContent: React.FC = () => {
   const globalRegistrations = useMemo(() => getGlobalShortcutRegistrations(shortcutSettings), [shortcutSettings]);
   const globalRegistrationSignatureRef = useRef('');
 
+  useEffect(() => {
+    instrumentationStateRef.current = {
+      view,
+      isLogPanelVisible,
+      isCommandPaletteOpen,
+      isResponding,
+      activeSessionId,
+      modelsLoaded: models.length,
+    };
+  }, [view, isLogPanelVisible, isCommandPaletteOpen, isResponding, activeSessionId, models.length]);
+
+  useEffect(() => {
+    instrumentationLog('info', 'Primary view changed', { view });
+  }, [view, instrumentationLog]);
+
+  useEffect(() => {
+    if (!hookRegistry) {
+      return;
+    }
+
+    const viewHookId = hookRegistry.register<{ view: View }, View>({
+      id: 'app:set-view',
+      description: 'Switches the primary application view.',
+      handler: ({ args }) => {
+        const targetView = args?.view;
+        if (!['chat', 'projects', 'api', 'settings', 'info'].includes(targetView)) {
+          throw new Error(`Invalid view requested: ${String(targetView)}`);
+        }
+        setView(targetView as View);
+        return targetView as View;
+      },
+    });
+
+    const snapshotHookId = hookRegistry.register<void, typeof instrumentationStateRef.current>({
+      id: 'app:get-state',
+      description: 'Returns a snapshot of the primary UI state for diagnostics.',
+      handler: () => instrumentationStateRef.current,
+    });
+
+    const toggleLogsHookId = hookRegistry.register({
+      id: 'app:toggle-logs',
+      description: 'Toggles the log panel visibility.',
+      handler: () => {
+        setIsLogPanelVisible(prev => !prev);
+      },
+    });
+
+    return () => {
+      hookRegistry.unregister(viewHookId);
+      hookRegistry.unregister(snapshotHookId);
+      hookRegistry.unregister(toggleLogsHookId);
+    };
+  }, [hookRegistry]);
+
   const registerChatInputFocusHandler = useCallback((handler: (() => void) | null) => {
     chatInputFocusHandlerRef.current = handler;
   }, []);
@@ -170,9 +381,10 @@ const AppContent: React.FC = () => {
   }, []);
 
   const handleNewChat = useCallback(() => {
+    instrumentationLog('debug', 'Starting new chat session');
     setConfig(c => (c ? { ...c, activeSessionId: undefined } : null));
     setView('chat');
-  }, []);
+  }, [instrumentationLog]);
 
   const performShortcutAction = useCallback((actionId: ShortcutActionId) => {
     switch (actionId) {
@@ -580,9 +792,10 @@ const AppContent: React.FC = () => {
   }, []);
   
   const handleProviderChange = useCallback((providerId: string) => {
+    instrumentationLog('info', 'Provider change requested', { providerId });
     setConfig(c => {
         if (!c || c.selectedProviderId === providerId) return c;
-        
+
         logger.info(`Provider changed to ${providerId} from status bar.`);
         setView('chat');
         return {
@@ -591,7 +804,7 @@ const AppContent: React.FC = () => {
             activeSessionId: undefined,
         };
     });
-  }, []);
+  }, [instrumentationLog]);
 
   const loadModels = useCallback(async () => {
     if (!activeProvider || !config) {
@@ -601,17 +814,41 @@ const AppContent: React.FC = () => {
     }
     setIsLoadingModels(true);
     setError(null);
+    const sampleId = performanceMonitor?.startSample('load-models') ?? null;
+    const startedAt = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+    let success = false;
+    instrumentationLog('info', 'Loading models', { providerId: activeProvider.id });
     try {
       const fetchedModels = await fetchModels(activeProvider, config.apiKeys);
       setModels(fetchedModels);
+      success = true;
     } catch (err) {
       const errorMessage = err instanceof LLMServiceError ? err.message : 'An unexpected error occurred.';
+      instrumentationLog('error', 'Failed to load models', {
+        providerId: activeProvider.id,
+        error: errorMessage,
+      });
       setError(errorMessage);
       setModels([]);
     } finally {
+      const finishedAt = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+      const duration = finishedAt - startedAt;
+      if (performanceMonitor && sampleId) {
+        performanceMonitor.recordMetric(sampleId, {
+          name: 'loadModels',
+          duration,
+          entryType: 'custom',
+          timestamp: Date.now(),
+          detail: { providerId: activeProvider.id, success },
+        });
+        performanceMonitor.finishSample(sampleId, {
+          providerId: activeProvider.id,
+          success,
+        });
+      }
       setIsLoadingModels(false);
     }
-  }, [config, activeProvider]);
+  }, [config, activeProvider, performanceMonitor, instrumentationLog]);
 
   useEffect(() => {
     // Load models if config is ready and we are on a view that needs them
@@ -1177,13 +1414,49 @@ const AppContent: React.FC = () => {
 
   const handleResizeMouseMove = useCallback((e: MouseEvent) => {
     if (!isResizingRef.current) return;
-    const newWidth = e.clientX;
-    const minWidth = 200;
-    const maxWidth = 600;
-    if (newWidth >= minWidth && newWidth <= maxWidth) {
-      setSidebarWidth(newWidth);
-    }
+    const nextWidth = clampSidebarWidth(e.clientX);
+    setSidebarWidth(prev => (prev === nextWidth ? prev : nextWidth));
   }, []);
+
+  const adjustSidebarWidth = useCallback((delta: number) => {
+    if (delta === 0) {
+      return;
+    }
+    setSidebarWidth(prev => {
+      const next = clampSidebarWidth(prev + delta);
+      return next === prev ? prev : next;
+    });
+  }, []);
+
+  const handleResizeKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      const step = event.shiftKey ? SIDEBAR_KEYBOARD_LARGE_STEP : SIDEBAR_KEYBOARD_STEP;
+
+      switch (event.key) {
+        case 'ArrowLeft':
+        case 'PageDown':
+          event.preventDefault();
+          adjustSidebarWidth(-step);
+          break;
+        case 'ArrowRight':
+        case 'PageUp':
+          event.preventDefault();
+          adjustSidebarWidth(step);
+          break;
+        case 'Home':
+          event.preventDefault();
+          setSidebarWidth(prev => (prev === SIDEBAR_MIN_WIDTH ? prev : SIDEBAR_MIN_WIDTH));
+          break;
+        case 'End':
+          event.preventDefault();
+          setSidebarWidth(prev => (prev === SIDEBAR_MAX_WIDTH ? prev : SIDEBAR_MAX_WIDTH));
+          break;
+        default:
+          break;
+      }
+    },
+    [adjustSidebarWidth],
+  );
 
   const handleResizeMouseUp = useCallback(() => {
     isResizingRef.current = false;
@@ -1440,9 +1713,16 @@ const AppContent: React.FC = () => {
                 </div>
                 <div
                   onMouseDown={handleResizeMouseDown}
-                  className="w-1.5 flex-shrink-0 cursor-col-resize bg-[--bg-tertiary] hover:bg-[--border-focus] transition-colors duration-200"
+                  onKeyDown={handleResizeKeyDown}
+                  className="w-1.5 flex-shrink-0 cursor-col-resize bg-[--bg-tertiary] hover:bg-[--border-focus] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[--border-focus]"
                   aria-label="Resize sidebar"
+                  aria-orientation="vertical"
+                  aria-valuemin={SIDEBAR_MIN_WIDTH}
+                  aria-valuemax={SIDEBAR_MAX_WIDTH}
+                  aria-valuenow={sidebarWidth}
+                  aria-valuetext={`${sidebarWidth} pixels`}
                   role="separator"
+                  tabIndex={0}
                 ></div>
               </>
             )}
