@@ -20,7 +20,7 @@ const TitleBarNavButton: React.FC<{
             aria-label={title}
             {...tooltipProps}
             style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-            className={`relative flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-colors duration-200 ${
+            className={`focus-ring relative flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-colors duration-200 ${
                 active
                     ? `bg-[--accent-${view}]/10 text-[--accent-${view}]`
                     : 'text-[--text-muted] hover:bg-[--bg-hover]'

@@ -153,6 +153,15 @@
       button, a, input, select, textarea {
         transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
       }
+
+      .focus-ring {
+        outline: none;
+      }
+
+      .focus-ring:focus-visible {
+        outline: 2px solid var(--border-focus);
+        outline-offset: 2px;
+      }
     </style>
   <script type="importmap">
 {

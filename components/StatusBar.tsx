@@ -89,7 +89,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
             {/* Left Side */}
             <div className="flex items-center gap-4">
                  <div className="relative" ref={providerRef}>
-                    <button {...providerTooltip} onClick={() => setIsProviderPopoverOpen(p => !p)} className="flex items-center gap-2 p-1 rounded hover:bg-[--bg-hover]">
+                    <button {...providerTooltip} onClick={() => setIsProviderPopoverOpen(p => !p)} className="focus-ring flex items-center gap-2 p-1 rounded hover:bg-[--bg-hover]">
                         <ProviderIcon className="w-4 h-4" />
                         <span className={`w-2 h-2 rounded-full ${statusDotClass}`}></span>
                         <span className="hidden sm:inline">{activeProvider?.name || 'No Provider'}</span>
@@ -113,7 +113,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
                 </div>
                 <div className="w-px h-4 bg-[--border-primary]" />
                  <div className="relative" ref={modelRef}>
-                    <button {...modelTooltip} onClick={() => setIsModelPopoverOpen(p => !p)} className="flex items-center gap-2 p-1 rounded hover:bg-[--bg-hover]" disabled={models.length === 0}>
+                    <button {...modelTooltip} onClick={() => setIsModelPopoverOpen(p => !p)} className="focus-ring flex items-center gap-2 p-1 rounded hover:bg-[--bg-hover]" disabled={models.length === 0}>
                         <Icon name="model" className="w-4 h-4" />
                         <span className="truncate max-w-48">{activeModel || (models.length > 0 ? 'Select Model' : 'No Models')}</span>
                     </button>

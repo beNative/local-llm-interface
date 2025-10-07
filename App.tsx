@@ -100,7 +100,7 @@ const NavButton: React.FC<{
             aria-label={ariaLabel}
             {...tooltipProps}
             data-automation-id={`nav-${view}`}
-            className={`relative flex items-center gap-[var(--space-2)] px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--font-size-sm)] font-medium rounded-lg transition-colors duration-200 ${
+            className={`focus-ring relative flex items-center gap-[var(--space-2)] px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--font-size-sm)] font-medium rounded-lg transition-colors duration-200 ${
                 active
                     ? `text-[--accent-${view}]`
                     : 'text-[--text-muted] hover:bg-[--bg-hover] hover:text-[--text-primary]'
