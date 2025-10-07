@@ -3,6 +3,7 @@ import type { Config, CodeProject, ProjectType, FileSystemEntry } from '../types
 import FileTree from './FileTree';
 import { logger } from '../services/logger';
 import Icon from './Icon';
+import ModalContainer from './Modal';
 import { useTooltipTrigger } from '../hooks/useTooltipTrigger';
 
 interface EditorModalProps {
@@ -50,48 +51,61 @@ const EditorModal: React.FC<EditorModalProps> = ({ file, onClose, onAddToChat })
         }
     };
 
-    const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (e.target === e.currentTarget) {
-            onClose();
-        }
-    };
-
     return (
-         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[--bg-backdrop] backdrop-blur-sm" onClick={handleBackdropClick}>
-            <div className="bg-[--bg-secondary] rounded-lg shadow-xl w-full max-w-4xl h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
-                <header className="p-4 border-b border-[--border-primary] flex-shrink-0 flex justify-between items-center">
-                    <h2 className="text-lg font-bold text-[--text-primary] font-mono">{file.name}</h2>
-                    <p className="text-xs text-[--text-muted] font-mono hidden sm:block">{file.path}</p>
-                </header>
-                <main className="flex-1 overflow-hidden p-2">
-                    {isLoading ? (
-                        <div className="h-full flex items-center justify-center"><Icon name="spinner" className="w-8 h-8" /></div>
-                    ) : error ? (
-                        <div className="h-full flex items-center justify-center text-red-500">{error}</div>
-                    ) : (
-                        <textarea
-                            value={content}
-                            onChange={(e) => setContent(e.target.value)}
-                            className="w-full h-full p-2 font-mono text-sm bg-[--bg-primary] text-[--text-primary] rounded-md resize-none focus:outline-none"
-                            spellCheck="false"
-                        />
-                    )}
-                </main>
-                 <footer className="flex justify-end gap-3 p-4 border-t border-[--border-primary] flex-shrink-0">
-                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-lg hover:bg-[--bg-hover]">Cancel</button>
-                    <button 
-                        onClick={() => onAddToChat(file.name, content)} 
+        <ModalContainer
+            onClose={onClose}
+            title={
+                <div className="flex flex-col gap-[var(--space-1)] font-mono">
+                    <span className="text-[length:var(--font-size-lg)] font-semibold text-[--text-primary]">{file.name}</span>
+                    <span className="text-xs font-normal text-[--text-muted] hidden sm:block break-all">{file.path}</span>
+                </div>
+            }
+            size="xl"
+            panelClassName="h-[80vh]"
+            bodyClassName="flex flex-1 flex-col gap-[var(--space-3)]"
+            footer={
+                <>
+                    <button
+                        onClick={onClose}
+                        className="rounded-[--border-radius] bg-[--bg-tertiary] px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--font-size-sm)] font-medium text-[--text-secondary] hover:bg-[--bg-hover]"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={() => onAddToChat(file.name, content)}
                         disabled={isLoading}
-                        className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-green-400">
-                        <Icon name="messagePlus" className="w-5 h-5"/>
+                        className="flex items-center justify-center gap-[var(--space-2)] rounded-[--border-radius] bg-green-600 px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--font-size-sm)] font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-400"
+                    >
+                        <Icon name="messagePlus" className="h-5 w-5" />
                         Add to Chat Context
                     </button>
-                    <button onClick={handleSave} disabled={isSaving || isLoading} className="flex items-center justify-center px-4 py-2 text-sm font-medium text-[--text-on-accent] bg-[--accent-chat] rounded-lg hover:brightness-90 disabled:opacity-60">
-                        {isSaving ? <Icon name="spinner" className="w-5 h-5"/> : 'Save Changes'}
+                    <button
+                        onClick={handleSave}
+                        disabled={isSaving || isLoading}
+                        className="flex items-center justify-center gap-[var(--space-2)] rounded-[--border-radius] bg-[--accent-chat] px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--font-size-sm)] font-medium text-[--text-on-accent] hover:brightness-95 disabled:opacity-60"
+                    >
+                        {isSaving ? <Icon name="spinner" className="h-5 w-5" /> : 'Save Changes'}
                     </button>
-                </footer>
+                </>
+            }
+        >
+            <div className="flex h-full min-h-0 flex-1 flex-col">
+                {isLoading ? (
+                    <div className="flex h-full items-center justify-center">
+                        <Icon name="spinner" className="h-8 w-8" />
+                    </div>
+                ) : error ? (
+                    <div className="flex h-full items-center justify-center text-red-500">{error}</div>
+                ) : (
+                    <textarea
+                        value={content}
+                        onChange={e => setContent(e.target.value)}
+                        className="h-full w-full flex-1 resize-none rounded-[--border-radius] bg-[--bg-primary] p-[var(--space-2)] font-mono text-sm text-[--text-primary] focus:outline-none"
+                        spellCheck="false"
+                    />
+                )}
             </div>
-        </div>
+        </ModalContainer>
     );
 };
 
