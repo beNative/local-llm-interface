@@ -4,6 +4,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Config, LLMProviderConfig, Theme, ThemeOverrides, PredefinedPrompt, ColorOverrides, SystemPrompt, ToolchainStatus, Toolchain, IconSet, LLMProviderType, ShortcutSettings } from '../types';
 import Icon from './Icon';
+import ModalContainer from './Modal';
 import { DEFAULT_PROVIDERS } from '../constants';
 import { useTooltipTrigger } from '../hooks/useTooltipTrigger';
 import { useToast } from '../hooks/useToast';
@@ -55,41 +56,77 @@ const ProviderEditorModal: React.FC<{
         });
     };
 
-    const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (e.target === e.currentTarget) onClose();
-    };
-
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[--bg-backdrop] backdrop-blur-sm" onClick={handleBackdropClick}>
-            <div className="bg-[--bg-secondary] rounded-lg shadow-xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
-                <h2 className="text-xl font-bold text-[--text-primary] mb-4">{provider ? 'Edit' : 'Add'} Custom Provider</h2>
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-[--text-muted] mb-1">Provider Name</label>
-                        <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg" placeholder="e.g., My GLM Server" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-[--text-muted] mb-1">Base URL (v1 compatible)</label>
-                        <input type="text" value={baseUrl} onChange={e => setBaseUrl(e.target.value)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg" placeholder="http://localhost:8000/v1" />
-                    </div>
-                    <label className="flex items-center gap-3 cursor-pointer mt-2">
-                        <input type="checkbox" checked={requiresApiKey} onChange={e => setRequiresApiKey(e.target.checked)} className="w-4 h-4 rounded text-indigo-600 bg-[--bg-tertiary] border-[--border-secondary]" />
-                        <span className="text-sm font-medium text-[--text-muted]">Requires API Key</span>
-                    </label>
-                    {requiresApiKey && (
-                        <div>
-                            <label className="block text-sm font-medium text-[--text-muted] mb-1">API Key Field Name</label>
-                            <input type="text" value={apiKeyName} onChange={e => setApiKeyName(e.target.value)} className="w-full px-3 py-2 text-[--text-primary] bg-[--bg-tertiary] border border-[--border-secondary] rounded-lg" placeholder="e.g., MY_GLM_API_KEY" />
-                            <p className="text-xs text-[--text-muted] mt-1 px-1">This is the internal name used to store the key. The actual key is entered in the API Keys section.</p>
-                        </div>
-                    )}
+        <ModalContainer
+            onClose={onClose}
+            title={`${provider ? 'Edit' : 'Add'} Custom Provider`}
+            size="md"
+            panelClassName="max-w-lg"
+            bodyClassName="space-y-[var(--space-4)]"
+            footer={
+                <>
+                    <button
+                        onClick={onClose}
+                        className="rounded-[--border-radius] bg-[--bg-tertiary] px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--font-size-sm)] font-medium text-[--text-secondary] hover:bg-[--bg-hover]"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handleSave}
+                        className="rounded-[--border-radius] bg-green-600 px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--font-size-sm)] font-medium text-white hover:bg-green-700"
+                    >
+                        Save Provider
+                    </button>
+                </>
+            }
+        >
+            <div className="space-y-[var(--space-4)]">
+                <div className="space-y-[var(--space-2)]">
+                    <label className="block text-[length:var(--font-size-sm)] font-medium text-[--text-muted]">Provider Name</label>
+                    <input
+                        type="text"
+                        value={name}
+                        onChange={e => setName(e.target.value)}
+                        className="w-full rounded-[--border-radius] border border-[--border-secondary] bg-[--bg-tertiary] px-[var(--space-3)] py-[var(--space-2)] text-[--text-primary]"
+                        placeholder="e.g., My GLM Server"
+                    />
                 </div>
-                <div className="flex justify-end gap-3 mt-6">
-                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-lg hover:bg-[--bg-hover]">Cancel</button>
-                    <button onClick={handleSave} className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700">Save Provider</button>
+                <div className="space-y-[var(--space-2)]">
+                    <label className="block text-[length:var(--font-size-sm)] font-medium text-[--text-muted]">Base URL (v1 compatible)</label>
+                    <input
+                        type="text"
+                        value={baseUrl}
+                        onChange={e => setBaseUrl(e.target.value)}
+                        className="w-full rounded-[--border-radius] border border-[--border-secondary] bg-[--bg-tertiary] px-[var(--space-3)] py-[var(--space-2)] text-[--text-primary]"
+                        placeholder="http://localhost:8000/v1"
+                    />
                 </div>
+                <label className="mt-[var(--space-1)] flex items-center gap-[var(--space-3)] text-[length:var(--font-size-sm)] font-medium text-[--text-muted]">
+                    <input
+                        type="checkbox"
+                        checked={requiresApiKey}
+                        onChange={e => setRequiresApiKey(e.target.checked)}
+                        className="h-4 w-4 rounded border-[--border-secondary] bg-[--bg-tertiary] text-[--accent-chat]"
+                    />
+                    Requires API Key
+                </label>
+                {requiresApiKey && (
+                    <div className="space-y-[var(--space-2)]">
+                        <label className="block text-[length:var(--font-size-sm)] font-medium text-[--text-muted]">API Key Field Name</label>
+                        <input
+                            type="text"
+                            value={apiKeyName}
+                            onChange={e => setApiKeyName(e.target.value)}
+                            className="w-full rounded-[--border-radius] border border-[--border-secondary] bg-[--bg-tertiary] px-[var(--space-3)] py-[var(--space-2)] text-[--text-primary]"
+                            placeholder="e.g., MY_GLM_API_KEY"
+                        />
+                        <p className="px-[var(--space-1)] text-xs text-[--text-muted]">
+                            This is the internal name used to store the key. The actual key is entered in the API Keys section.
+                        </p>
+                    </div>
+                )}
             </div>
-        </div>
+        </ModalContainer>
     );
 };
 

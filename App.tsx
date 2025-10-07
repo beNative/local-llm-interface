@@ -14,6 +14,7 @@ import ApiView from './components/ApiView';
 import AboutModal from './components/AboutModal';
 import SessionSidebar from './components/SessionSidebar';
 import CommandPalette from './components/CommandPalette';
+import ModalContainer from './components/Modal';
 import StatusBar from './components/StatusBar';
 import Icon from './components/Icon';
 import { IconProvider } from './components/IconProvider';
@@ -117,132 +118,47 @@ const NavButton: React.FC<{
     );
 };
 
-const focusableModalSelectors =
-    'a[href], button:not([disabled]), textarea:not([disabled]), input:not([type="hidden"]):not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
 const RunOutputModal: React.FC<{
     runOutput: { title: string; stdout: string; stderr: string };
     onClose: () => void;
 }> = ({ runOutput, onClose }) => {
-    const panelRef = useRef<HTMLDivElement | null>(null);
-    const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
-
-    useEffect(() => {
-        previouslyFocusedElementRef.current = document.activeElement as HTMLElement | null;
-        const firstFocusable = panelRef.current?.querySelector<HTMLElement>(focusableModalSelectors);
-        (firstFocusable ?? panelRef.current)?.focus({ preventScroll: true });
-
-        return () => {
-            const previous = previouslyFocusedElementRef.current;
-            if (previous && typeof previous.focus === 'function') {
-                previous.focus({ preventScroll: true });
-            }
-        };
-    }, []);
-
-    const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (e.target === e.currentTarget) {
-            onClose();
-        }
-    };
-
-    const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-        if (event.key === 'Escape') {
-            event.preventDefault();
-            onClose();
-            return;
-        }
-
-        if (event.key !== 'Tab') {
-            return;
-        }
-
-        if (!panelRef.current) {
-            return;
-        }
-
-        const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>(focusableModalSelectors)).filter(
-            element => !element.hasAttribute('disabled') && element.getAttribute('aria-hidden') !== 'true',
-        );
-
-        if (focusable.length === 0) {
-            event.preventDefault();
-            panelRef.current.focus({ preventScroll: true });
-            return;
-        }
-
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        const activeElement = document.activeElement as HTMLElement | null;
-
-        if (event.shiftKey) {
-            if (!activeElement || activeElement === first || !panelRef.current.contains(activeElement)) {
-                event.preventDefault();
-                last.focus();
-            }
-            return;
-        }
-
-        if (!activeElement || activeElement === last || !panelRef.current.contains(activeElement)) {
-            event.preventDefault();
-            first.focus();
-        }
-    };
-
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-[--bg-backdrop] backdrop-blur-sm"
-            onClick={handleBackdropClick}
-            role="presentation"
+        <ModalContainer
+            onClose={onClose}
+            title={runOutput.title}
+            titleId="run-output-modal-title"
+            descriptionId="run-output-modal-content"
+            size="lg"
+            bodyClassName="font-mono text-xs space-y-[var(--space-4)]"
+            footer={
+                <button
+                    onClick={onClose}
+                    className="px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--font-size-sm)] font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-[--border-radius] hover:bg-[--bg-hover] focus:outline-none focus-visible:ring-2 focus-visible:ring-[--border-focus]"
+                >
+                    Close
+                </button>
+            }
         >
-            <div
-                ref={panelRef}
-                className="bg-[--bg-secondary] rounded-lg shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col focus:outline-none"
-                onClick={e => e.stopPropagation()}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="run-output-modal-title"
-                aria-describedby="run-output-modal-content"
-                tabIndex={-1}
-                onKeyDown={handleKeyDown}
-            >
-                <header className="p-4 border-b border-[--border-primary] flex-shrink-0 flex justify-between items-center">
-                    <h2 id="run-output-modal-title" className="text-lg font-bold text-[--text-primary]">
-                        {runOutput.title}
-                    </h2>
-                    <button
-                        onClick={onClose}
-                        className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] leading-none text-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[--border-focus]"
-                        aria-label="Close run output"
-                    >
-                        &times;
-                    </button>
-                </header>
-                <main id="run-output-modal-content" className="flex-1 overflow-y-auto p-4 font-mono text-xs">
-                    {runOutput.stdout && (
-                        <div>
-                            <h3 className="text-[--text-muted] font-sans font-semibold text-sm mb-1 uppercase">Output (stdout)</h3>
-                            <pre className="whitespace-pre-wrap text-[--text-secondary] bg-[--bg-tertiary] p-3 rounded-lg">{runOutput.stdout}</pre>
-                        </div>
-                    )}
-                    {runOutput.stderr && (
-                        <div className="mt-4">
-                            <h3 className="text-red-500 font-sans font-semibold text-sm mb-1 uppercase">Error (stderr)</h3>
-                            <pre className="whitespace-pre-wrap text-red-500 bg-red-900/20 p-3 rounded-lg">{runOutput.stderr}</pre>
-                        </div>
-                    )}
-                    {!runOutput.stdout && !runOutput.stderr && <p className="text-[--text-muted] font-sans">The script produced no output.</p>}
-                </main>
-                <footer className="p-3 border-t border-[--border-primary] text-right">
-                    <button
-                        onClick={onClose}
-                        className="px-4 py-2 text-sm font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-md hover:bg-[--bg-hover] focus:outline-none focus-visible:ring-2 focus-visible:ring-[--border-focus]"
-                    >
-                        Close
-                    </button>
-                </footer>
-            </div>
-        </div>
+            {runOutput.stdout && (
+                <section className="space-y-[var(--space-2)] font-sans text-[length:var(--font-size-sm)]">
+                    <h3 className="text-[--text-muted] font-semibold uppercase">Output (stdout)</h3>
+                    <pre className="whitespace-pre-wrap rounded-[--border-radius] bg-[--bg-tertiary] p-[var(--space-3)] font-mono text-[--text-secondary]">
+                        {runOutput.stdout}
+                    </pre>
+                </section>
+            )}
+            {runOutput.stderr && (
+                <section className="space-y-[var(--space-2)] font-sans text-[length:var(--font-size-sm)]">
+                    <h3 className="font-semibold uppercase text-red-500">Error (stderr)</h3>
+                    <pre className="whitespace-pre-wrap rounded-[--border-radius] bg-red-900/20 p-[var(--space-3)] font-mono text-red-500">
+                        {runOutput.stderr}
+                    </pre>
+                </section>
+            )}
+            {!runOutput.stdout && !runOutput.stderr && (
+                <p className="font-sans text-[--text-muted]">The script produced no output.</p>
+            )}
+        </ModalContainer>
     );
 };
 
