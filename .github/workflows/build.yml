@@ -1,0 +1,93 @@
+name: Build Packages
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  package:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS x64
+            os: macos-latest
+            build-script: package:mac:x64
+            electron-cache: ~/Library/Caches/electron
+            electron-builder-cache: ~/Library/Caches/electron-builder
+            npm-arch: x64
+          - name: Windows x64
+            os: windows-latest
+            build-script: package:win:x64
+            electron-cache: 'C:\\Users\\runneradmin\\AppData\\Local\\electron\\Cache'
+            electron-builder-cache: 'C:\\Users\\runneradmin\\AppData\\Local\\electron-builder\\Cache'
+            npm-arch: x64
+          - name: Windows ia32
+            os: windows-latest
+            build-script: package:win:ia32
+            electron-cache: 'C:\\Users\\runneradmin\\AppData\\Local\\electron\\Cache'
+            electron-builder-cache: 'C:\\Users\\runneradmin\\AppData\\Local\\electron-builder\\Cache'
+            npm-arch: ia32
+          - name: Linux x64
+            os: ubuntu-latest
+            build-script: package:linux:x64
+            electron-cache: ~/.cache/electron
+            electron-builder-cache: ~/.cache/electron-builder
+            npm-arch: x64
+          - name: Linux armv7l
+            os: ubuntu-latest
+            build-script: package:linux:armv7l
+            electron-cache: ~/.cache/electron
+            electron-builder-cache: ~/.cache/electron-builder
+            npm-arch: arm
+          - name: Linux arm64
+            os: ubuntu-latest
+            build-script: package:linux:arm64
+            electron-cache: ~/.cache/electron
+            electron-builder-cache: ~/.cache/electron-builder
+            npm-arch: arm64
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      ELECTRON_CACHE: ${{ matrix.electron-cache }}
+      ELECTRON_BUILDER_CACHE: ${{ matrix.electron-builder-cache }}
+      npm_config_arch: ${{ matrix.npm-arch }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Cache Electron downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ matrix.electron-cache }}
+            ${{ matrix.electron-builder-cache }}
+          key: ${{ runner.os }}-electron-${{ hashFiles('package.json') }}
+          restore-keys: ${{ runner.os }}-electron-
+
+      - name: Install dependencies
+        run: npm install --no-fund --no-audit
+
+      - name: Package for ${{ matrix.name }}
+        run: npm run ${{ matrix.build-script }}
+
+      - name: Upload packaged artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}-artifacts
+          path: release/
+          if-no-files-found: warn
