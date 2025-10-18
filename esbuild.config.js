@@ -81,13 +81,30 @@ async function generateNativeIcon(format, pngInputs, outputPath) {
   if (!(fs.existsSync(appBuilderPath))) {
     throw new Error(`app-builder binary not found at ${appBuilderPath}`);
   }
+
+  const tempOutputPath = `${outputPath}.tmp`;
+  await fs.remove(tempOutputPath);
+
   const args = ['icon'];
   for (const input of pngInputs) {
     args.push('--input', input);
   }
-  args.push('--format', format, '--out', outputPath);
+  args.push('--format', format, '--out', tempOutputPath);
 
   await execFileAsync(appBuilderPath, args);
+
+  const stat = await fs.stat(tempOutputPath);
+  if (stat.isDirectory()) {
+    const entries = await fs.readdir(tempOutputPath);
+    const nativeFile = entries.find((entry) => entry.toLowerCase().endsWith(`.${format}`));
+    if (!nativeFile) {
+      throw new Error(`app-builder did not generate a .${format} file in ${tempOutputPath}`);
+    }
+    await fs.move(path.join(tempOutputPath, nativeFile), outputPath, { overwrite: true });
+    await fs.remove(tempOutputPath);
+  } else {
+    await fs.move(tempOutputPath, outputPath, { overwrite: true });
+  }
 }
 
 async function writePlatformIcons(svgContent, originDescription) {

@@ -18,9 +18,9 @@
     "package:mac:x64": "npm run build && electron-builder --mac --x64",
     "package:win:x64": "npm run build && electron-builder --win --x64",
     "package:win:ia32": "npm run build && electron-builder --win --ia32",
-    "package:linux:x64": "npm run build && electron-builder --linux --x64",
-    "package:linux:armv7l": "npm run build && electron-builder --linux --armv7l",
-    "package:linux:arm64": "npm run build && electron-builder --linux --arm64"
+    "package:linux:x64": "npm run build && electron-builder --linux AppImage --x64 --publish never",
+    "package:linux:armv7l": "npm run build && electron-builder --linux AppImage --armv7l --publish never",
+    "package:linux:arm64": "npm run build && electron-builder --linux AppImage --arm64 --publish never"
   },
   "dependencies": {
     "@google/genai": "^0.15.0",
@@ -73,7 +73,18 @@
       "icon": "build/icons/icon.ico"
     },
     "linux": {
-      "icon": "build/icons/icon.png"
+      "icon": "build/icons/icon.png",
+      "category": "Utility",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "armv7l",
+            "arm64"
+          ]
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
