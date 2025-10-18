@@ -201,6 +201,7 @@ const AppContent: React.FC = () => {
     activeSessionId: undefined as string | undefined,
     modelsLoaded: 0,
   });
+  const lastLoadedModelsSignatureRef = useRef<string | null>(null);
 
 
   // Derived state from config
@@ -722,26 +723,21 @@ const AppContent: React.FC = () => {
     });
   }, [instrumentationLog]);
 
-  const loadModels = useCallback(async () => {
-    if (!activeProvider || !config) {
-        setError("Provider configuration not loaded. Please select a provider in Settings.");
-        setModels([]);
-        return;
-    }
+  const loadModels = useCallback(async (provider: LLMProviderConfig, apiKeys: Config['apiKeys']): Promise<boolean> => {
     setIsLoadingModels(true);
     setError(null);
     const sampleId = performanceMonitor?.startSample('load-models') ?? null;
     const startedAt = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
     let success = false;
-    instrumentationLog('info', 'Loading models', { providerId: activeProvider.id });
+    instrumentationLog('info', 'Loading models', { providerId: provider.id });
     try {
-      const fetchedModels = await fetchModels(activeProvider, config.apiKeys);
+      const fetchedModels = await fetchModels(provider, apiKeys);
       setModels(fetchedModels);
       success = true;
     } catch (err) {
       const errorMessage = err instanceof LLMServiceError ? err.message : 'An unexpected error occurred.';
       instrumentationLog('error', 'Failed to load models', {
-        providerId: activeProvider.id,
+        providerId: provider.id,
         error: errorMessage,
       });
       setError(errorMessage);
@@ -755,23 +751,75 @@ const AppContent: React.FC = () => {
           duration,
           entryType: 'custom',
           timestamp: Date.now(),
-          detail: { providerId: activeProvider.id, success },
+          detail: { providerId: provider.id, success },
         });
         performanceMonitor.finishSample(sampleId, {
-          providerId: activeProvider.id,
+          providerId: provider.id,
           success,
         });
       }
       setIsLoadingModels(false);
     }
-  }, [config, activeProvider, performanceMonitor, instrumentationLog]);
+    return success;
+  }, [performanceMonitor, instrumentationLog]);
+
+  const hasConfig = config !== null;
+  const apiKeys = config?.apiKeys;
+  const activeProviderApiKey = activeProvider?.apiKeyName ? apiKeys?.[activeProvider.apiKeyName] ?? '' : '';
+  const activeProviderSignature = useMemo(() => {
+    if (!activeProvider) return 'none';
+    return [
+      activeProvider.id,
+      activeProvider.baseUrl,
+      activeProvider.type,
+      activeProvider.apiKeyName || '',
+      activeProviderApiKey,
+    ].join('|');
+  }, [
+    activeProvider?.id,
+    activeProvider?.baseUrl,
+    activeProvider?.type,
+    activeProvider?.apiKeyName,
+    activeProviderApiKey,
+  ]);
 
   useEffect(() => {
-    // Load models if config is ready and we are on a view that needs them
-    if (config && (view === 'chat' || view === 'api')) {
-      loadModels();
+    const viewRequiresModels = view === 'chat' || view === 'api';
+
+    if (!hasConfig) {
+      lastLoadedModelsSignatureRef.current = null;
+      return;
     }
-  }, [view, config, loadModels]);
+
+    if (!viewRequiresModels) {
+      return;
+    }
+
+    if (!activeProvider) {
+      setError("Provider configuration not loaded. Please select a provider in Settings.");
+      setModels([]);
+      lastLoadedModelsSignatureRef.current = null;
+      return;
+    }
+
+    if (lastLoadedModelsSignatureRef.current === activeProviderSignature) {
+      return;
+    }
+
+    const run = async () => {
+      const wasSuccessful = await loadModels(activeProvider, apiKeys);
+      lastLoadedModelsSignatureRef.current = wasSuccessful ? activeProviderSignature : null;
+    };
+
+    void run();
+  }, [
+    view,
+    hasConfig,
+    activeProvider,
+    activeProviderSignature,
+    loadModels,
+    apiKeys,
+  ]);
   
   const handleSelectSession = (sessionId: string) => {
     setConfig(c => c ? ({ ...c, activeSessionId: sessionId }) : null);
