@@ -183,7 +183,10 @@ const MemoizedChatMessage = React.memo<{
             <>
               {msg.metadata?.ragContext && <ContextSources files={msg.metadata.ragContext.files} />}
               {msg.content && (
-                  <div className="prose prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2 prose-pre:bg-transparent prose-pre:p-0">
+                  <div
+                      className="prose prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2 prose-pre:bg-transparent prose-pre:p-0"
+                      style={{ fontSize: 'var(--chat-font-size)' }}
+                  >
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={markdownComponents}
