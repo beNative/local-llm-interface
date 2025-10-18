@@ -75,6 +75,7 @@ Follow this checklist when preparing a new GitHub release:
 2. **Refresh Documentation**
    - Review `README.md`, the functional/technical manuals, and any docs under `docs/` for accuracy.
    - Ensure new features or workflow changes are reflected so in-app documentation is current.
+   - Double-check version references across all Markdown files to match the release number and latest UI terminology.
 3. **Verify the Build**
    - Run `npm install` (if needed) and `npm run build` to ensure the project bundles without errors.
    - Optionally execute `npm run package` to validate installer creation locally before publishing.

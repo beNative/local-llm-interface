@@ -1,6 +1,6 @@
 {
   "name": "local-llm-interface",
-  "version": "0.19.1",
+  "version": "0.19.2",
   "description": "An interface to chat with locally installed LLMs serviced through Ollama or LMStudio. This Electron app allows configuration of the service endpoint and provides an overview of available models.",
   "main": "dist/main.js",
   "author": "",

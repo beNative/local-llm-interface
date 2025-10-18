@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.19.2] - 2025-10-05
+
+### Fixed
+- Corrected several documentation references so the packaged manuals accurately describe the latest interface updates.
+- Clarified the release checklist to emphasize validating Markdown content prior to publishing.
+
 ## [0.19.1] - 2025-10-04
 
 ### Changed
