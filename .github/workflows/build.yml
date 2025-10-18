@@ -20,43 +20,43 @@ jobs:
             build-script: package:mac:x64
             electron-cache: ~/Library/Caches/electron
             electron-builder-cache: ~/Library/Caches/electron-builder
-            npm-arch: x64
+            npm-target-arch: x64
           - name: Windows x64
             os: windows-latest
             build-script: package:win:x64
             electron-cache: 'C:\\Users\\runneradmin\\AppData\\Local\\electron\\Cache'
             electron-builder-cache: 'C:\\Users\\runneradmin\\AppData\\Local\\electron-builder\\Cache'
-            npm-arch: x64
+            npm-target-arch: x64
           - name: Windows ia32
             os: windows-latest
             build-script: package:win:ia32
             electron-cache: 'C:\\Users\\runneradmin\\AppData\\Local\\electron\\Cache'
             electron-builder-cache: 'C:\\Users\\runneradmin\\AppData\\Local\\electron-builder\\Cache'
-            npm-arch: ia32
+            npm-target-arch: ia32
           - name: Linux x64
             os: ubuntu-latest
             build-script: package:linux:x64
             electron-cache: ~/.cache/electron
             electron-builder-cache: ~/.cache/electron-builder
-            npm-arch: x64
+            npm-target-arch: x64
           - name: Linux armv7l
             os: ubuntu-latest
             build-script: package:linux:armv7l
             electron-cache: ~/.cache/electron
             electron-builder-cache: ~/.cache/electron-builder
-            npm-arch: arm
+            npm-target-arch: arm
           - name: Linux arm64
             os: ubuntu-latest
             build-script: package:linux:arm64
             electron-cache: ~/.cache/electron
             electron-builder-cache: ~/.cache/electron-builder
-            npm-arch: arm64
+            npm-target-arch: arm64
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       ELECTRON_CACHE: ${{ matrix.electron-cache }}
       ELECTRON_BUILDER_CACHE: ${{ matrix.electron-builder-cache }}
-      npm_config_arch: ${{ matrix.npm-arch }}
+      npm_config_target_arch: ${{ matrix.npm-target-arch }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
