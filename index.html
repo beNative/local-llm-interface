@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <style>
       html {
-        font-size: 80%; /* Reduce overall rem-based sizing by 20% to align with Windows scaling */
+        font-size: 80%; /* Preserve layout density while text sizes use absolute values */
       }
 
       :root {
@@ -48,11 +48,15 @@
         --assistant-message-bg-color: var(--bg-tertiary);
         --assistant-message-text-color: var(--text-primary);
         --chat-font-family: sans-serif;
-        --chat-font-size: calc(16px * 0.8); /* Keep chat text aligned with the reduced global scale */
+        /* Typography Scale */
+        --font-size-xs: 12px;
+        --font-size-sm: 13.5px;
+        --font-size-base: 15px;
+        --font-size-lg: 17px;
+        --font-size-xl: 20px;
+        --font-size-2xl: 24px;
 
-        /* Density & Scale Variables */
-        --font-size-sm: 0.875rem;
-        --font-size-base: 1rem;
+        --chat-font-size: var(--font-size-base);
         --space-1: 0.25rem;  /* 4px */
         --space-2: 0.5rem;   /* 8px */
         --space-3: 0.75rem;  /* 12px */
@@ -60,8 +64,12 @@
         --space-6: 1.5rem;   /* 24px */
       }
       html[data-density="compact"] {
-          --font-size-sm: 0.8125rem;
-          --font-size-base: 0.9375rem;
+          --font-size-xs: 11px;
+          --font-size-sm: 12.5px;
+          --font-size-base: 14px;
+          --font-size-lg: 16px;
+          --font-size-xl: 18px;
+          --font-size-2xl: 22px;
           --space-1: 0.125rem;
           --space-2: 0.25rem;
           --space-3: 0.5rem;
@@ -69,8 +77,12 @@
           --space-6: 1rem;
       }
       html[data-density="comfortable"] {
-          --font-size-sm: 0.9375rem;
-          --font-size-base: 1.0625rem;
+          --font-size-xs: 12.75px;
+          --font-size-sm: 14.5px;
+          --font-size-base: 16px;
+          --font-size-lg: 18px;
+          --font-size-xl: 21px;
+          --font-size-2xl: 25px;
           --space-1: 0.375rem;
           --space-2: 0.75rem;
           --space-3: 1rem;
@@ -133,6 +145,36 @@
         font-size: var(--font-size-base);
         -webkit-font-smoothing: subpixel-antialiased;
         transition: background-color 0.3s ease, color 0.3s ease;
+      }
+      body, button, input, select, textarea {
+        font-family: 'Segoe UI Variable Text', 'Segoe UI', 'Segoe UI Symbol', system-ui, sans-serif;
+      }
+      button, input, select, textarea {
+        font-size: inherit;
+      }
+      .text-xs {
+        font-size: var(--font-size-xs) !important;
+        line-height: 1.4;
+      }
+      .text-sm {
+        font-size: var(--font-size-sm) !important;
+        line-height: 1.45;
+      }
+      .text-base {
+        font-size: var(--font-size-base) !important;
+        line-height: 1.5;
+      }
+      .text-lg {
+        font-size: var(--font-size-lg) !important;
+        line-height: 1.5;
+      }
+      .text-xl {
+        font-size: var(--font-size-xl) !important;
+        line-height: 1.5;
+      }
+      .text-2xl {
+        font-size: var(--font-size-2xl) !important;
+        line-height: 1.4;
       }
       /* Custom Scrollbars */
       ::-webkit-scrollbar {
