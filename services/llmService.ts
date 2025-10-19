@@ -4,6 +4,41 @@ import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import type { Model, ChatMessage, ChatMessageMetadata, ChatMessageUsage, GenerationConfig, ModelDetails, Config, LLMProviderConfig, ChatMessageContentPart, Tool, ToolCall, ToolResponseMessage } from '../types';
 import { logger } from './logger';
 
+const MODELS_CACHE_TTL_MS = 30_000;
+
+type ProviderCacheKey = string;
+
+interface CachedModelsEntry {
+    models: Model[];
+    expiresAt: number;
+}
+
+interface CachedOllamaDetailsEntry {
+    details: ModelDetails;
+    modifiedAt?: string;
+}
+
+const modelsCache = new Map<ProviderCacheKey, CachedModelsEntry>();
+const inflightModelRequests = new Map<ProviderCacheKey, Promise<Model[]>>();
+const ollamaDetailsCache = new Map<string, CachedOllamaDetailsEntry>();
+
+const hashString = (value: string): string => {
+    let hash = 0;
+    for (let i = 0; i < value.length; i += 1) {
+        hash = (hash << 5) - hash + value.charCodeAt(i);
+        hash |= 0; // Convert to 32bit integer
+    }
+    return hash.toString(16);
+};
+
+const buildProviderCacheKey = (provider: LLMProviderConfig, apiKeys: Config['apiKeys']): ProviderCacheKey => {
+    const apiKey = provider.apiKeyName ? apiKeys?.[provider.apiKeyName] ?? '' : '';
+    const apiKeyHash = apiKey ? hashString(apiKey) : '';
+    return [provider.id, provider.type, provider.baseUrl, provider.apiKeyName ?? '', apiKeyHash].join('|');
+};
+
+const buildOllamaDetailsCacheKey = (baseUrl: string, modelName: string) => `${baseUrl}::${modelName}`;
+
 // Helper function to convert messages to Gemini's format, merging consecutive messages.
 const toGeminiContents = (messages: ChatMessage[]): ({ role: 'user' | 'model'; parts: any[] })[] => {
     const mergedContents: ({ role: 'user' | 'model'; parts: any[] })[] = [];
@@ -163,82 +198,142 @@ export const fetchModels = async (provider: LLMProviderConfig, apiKeys: Config['
       ];
   }
 
+  const cacheKey = buildProviderCacheKey(provider, apiKeys);
+  const now = Date.now();
+
+  const cachedModels = modelsCache.get(cacheKey);
+  if (cachedModels && cachedModels.expiresAt <= now) {
+      modelsCache.delete(cacheKey);
+  }
+
+  if (cachedModels && cachedModels.expiresAt > now) {
+      logger.debug(`Returning cached model list for provider ${provider.id}.`);
+      return cachedModels.models;
+  }
+
+  const inflightRequest = inflightModelRequests.get(cacheKey);
+  if (inflightRequest) {
+      logger.debug(`Joining in-flight model request for provider ${provider.id}.`);
+      return inflightRequest;
+  }
+
+  const requestPromise = (async (): Promise<Model[]> => {
+    try {
+      // Special handling for LM Studio to get richer metadata
+      if (provider.id === 'lmstudio') {
+          const models = await fetchLmStudioModels(provider);
+          modelsCache.set(cacheKey, { models, expiresAt: Date.now() + MODELS_CACHE_TTL_MS });
+          return models;
+      }
+
+      const headers: Record<string, string> = {};
+      if (provider.apiKeyName) {
+          const apiKey = getApiKey(provider, apiKeys);
+          if (!apiKey) {
+              throw new LLMServiceError(`API key for ${provider.name} is not configured in Settings.`);
+          }
+          headers['Authorization'] = `Bearer ${apiKey}`;
+      }
+
+      logger.info(`Fetching models from ${provider.baseUrl}/models`);
+      const response = await fetch(`${provider.baseUrl}/models`, { headers });
+      if (!response.ok) {
+        const errorText = await response.text();
+        const errorMsg = `Failed to fetch models: ${response.status} ${response.statusText}. ${errorText}`;
+        logger.error(errorMsg);
+        throw new LLMServiceError(errorMsg);
+      }
+      const data = await response.json();
+      logger.debug(`Received model data: ${JSON.stringify(data)}`);
+
+      let baseModels: Model[] = [];
+      if (data.models) {
+          logger.info(`Found ${data.models.length} models (Ollama format).`);
+          baseModels = data.models.map((m: any) => ({
+               ...m,
+               id: m.name,
+               created: m.modified_at ? Math.floor(new Date(m.modified_at).getTime() / 1000) : 0,
+               owned_by: 'ollama',
+               object: 'model',
+          }));
+      } else if (data.data) {
+          logger.info(`Found ${data.data.length} models (${provider.name} format).`);
+          baseModels = data.data.map((m: any) => ({
+            ...m,
+            name: m.id,
+          }));
+      } else {
+          logger.warn('Models endpoint returned unknown format, no models found.');
+          modelsCache.set(cacheKey, { models: [], expiresAt: Date.now() + MODELS_CACHE_TTL_MS });
+          return [];
+      }
+
+      // If the provider is Ollama, automatically fetch detailed information for each model.
+      if (provider.id === 'ollama' && baseModels.length > 0) {
+          const detailPreparation = baseModels.map(model => {
+              const cacheEntryKey = buildOllamaDetailsCacheKey(provider.baseUrl, model.name);
+              const cachedDetail = ollamaDetailsCache.get(cacheEntryKey);
+              const modifiedAt: string | undefined = (model as any)?.modified_at;
+              const useCache = Boolean(cachedDetail && cachedDetail.modifiedAt === modifiedAt);
+              return { model, cacheEntryKey, cachedDetail, modifiedAt, useCache };
+          });
+
+          const modelsNeedingDetailFetch = detailPreparation.filter(entry => !entry.useCache).length;
+          if (modelsNeedingDetailFetch > 0) {
+              logger.info(`Fetching details for ${modelsNeedingDetailFetch} Ollama models...`);
+          } else {
+              logger.debug('All Ollama model details satisfied from cache.');
+          }
+
+          const modelsWithDetails = await Promise.all(
+              detailPreparation.map(async ({ model, cacheEntryKey, cachedDetail, modifiedAt, useCache }) => {
+                  if (useCache && cachedDetail) {
+                      logger.debug(`Using cached details for Ollama model ${model.name}.`);
+                      const mergedDetails = { ...(model.details || {}), ...cachedDetail.details };
+                      return { ...model, details: mergedDetails };
+                  }
+
+                  try {
+                      const details = await fetchOllamaModelDetails(provider.baseUrl, model.name);
+                      ollamaDetailsCache.set(cacheEntryKey, { details, modifiedAt });
+                      const mergedDetails = { ...(model.details || {}), ...details };
+                      return { ...model, details: mergedDetails };
+                  } catch (e) {
+                      logger.warn(`Could not fetch details for Ollama model ${model.name}: ${e instanceof Error ? e.message : String(e)}`);
+                      return model; // Return model without extended details on error
+                  }
+              })
+          );
+
+          if (modelsNeedingDetailFetch > 0) {
+              logger.info('Finished fetching Ollama model details.');
+          }
+
+          modelsCache.set(cacheKey, { models: modelsWithDetails, expiresAt: Date.now() + MODELS_CACHE_TTL_MS });
+          return modelsWithDetails;
+      }
+
+      modelsCache.set(cacheKey, { models: baseModels, expiresAt: Date.now() + MODELS_CACHE_TTL_MS });
+      return baseModels;
+
+    } catch (error) {
+      if (error instanceof LLMServiceError) throw error;
+      logger.error(error instanceof Error ? error : String(error));
+      let message = 'Could not connect to the specified server. Make sure the service is running, the Base URL is correct, and your API key is valid.';
+      if (typeof window !== 'undefined' && !window.electronAPI) {
+          message += ' When running in a browser, this could also be a Cross-Origin (CORS) issue. Using the desktop app is recommended.';
+      }
+      throw new LLMServiceError(message);
+    }
+  })();
+
+  inflightModelRequests.set(cacheKey, requestPromise);
+
   try {
-    // Special handling for LM Studio to get richer metadata
-    if (provider.id === 'lmstudio') {
-        return await fetchLmStudioModels(provider);
-    }
-    
-    const headers: Record<string, string> = {};
-    if (provider.apiKeyName) {
-        const apiKey = getApiKey(provider, apiKeys);
-        if (!apiKey) {
-            throw new LLMServiceError(`API key for ${provider.name} is not configured in Settings.`);
-        }
-        headers['Authorization'] = `Bearer ${apiKey}`;
-    }
-
-    logger.info(`Fetching models from ${provider.baseUrl}/models`);
-    const response = await fetch(`${provider.baseUrl}/models`, { headers });
-    if (!response.ok) {
-      const errorText = await response.text();
-      const errorMsg = `Failed to fetch models: ${response.status} ${response.statusText}. ${errorText}`;
-      logger.error(errorMsg);
-      throw new LLMServiceError(errorMsg);
-    }
-    const data = await response.json();
-    logger.debug(`Received model data: ${JSON.stringify(data)}`);
-    
-    let baseModels: Model[] = [];
-    if (data.models) {
-        logger.info(`Found ${data.models.length} models (Ollama format).`);
-        baseModels = data.models.map((m: any) => ({
-             ...m,
-             id: m.name,
-             created: m.modified_at ? Math.floor(new Date(m.modified_at).getTime() / 1000) : 0,
-             owned_by: 'ollama',
-             object: 'model',
-        }));
-    } else if (data.data) {
-        logger.info(`Found ${data.data.length} models (${provider.name} format).`);
-        baseModels = data.data.map((m: any) => ({
-          ...m,
-          name: m.id,
-        }));
-    } else {
-        logger.warn('Models endpoint returned unknown format, no models found.');
-        return [];
-    }
-
-    // If the provider is Ollama, automatically fetch detailed information for each model.
-    if (provider.id === 'ollama' && baseModels.length > 0) {
-        logger.info(`Fetching details for ${baseModels.length} Ollama models...`);
-        const modelsWithDetails = await Promise.all(
-            baseModels.map(async (model) => {
-                try {
-                    const details = await fetchOllamaModelDetails(provider.baseUrl, model.name);
-                    const mergedDetails = { ...(model.details || {}), ...details };
-                    return { ...model, details: mergedDetails };
-                } catch (e) {
-                    logger.warn(`Could not fetch details for Ollama model ${model.name}: ${e instanceof Error ? e.message : String(e)}`);
-                    return model; // Return model without extended details on error
-                }
-            })
-        );
-        logger.info('Finished fetching Ollama model details.');
-        return modelsWithDetails;
-    }
-
-    return baseModels;
-
-  } catch (error) {
-    if (error instanceof LLMServiceError) throw error;
-    logger.error(error instanceof Error ? error : String(error));
-    let message = 'Could not connect to the specified server. Make sure the service is running, the Base URL is correct, and your API key is valid.';
-    if (typeof window !== 'undefined' && !window.electronAPI) {
-        message += ' When running in a browser, this could also be a Cross-Origin (CORS) issue. Using the desktop app is recommended.';
-    }
-    throw new LLMServiceError(message);
+      const models = await requestPromise;
+      return models;
+  } finally {
+      inflightModelRequests.delete(cacheKey);
   }
 };
 
