@@ -202,6 +202,7 @@ const AppContent: React.FC = () => {
     modelsLoaded: 0,
   });
   const lastLoadedModelsSignatureRef = useRef<string | null>(null);
+  const lastPersistedConfigSignatureRef = useRef<string | null>(null);
 
 
   // Derived state from config
@@ -603,10 +604,15 @@ const AppContent: React.FC = () => {
   // Effect to persist config changes.
   useEffect(() => {
     if (!config) return;
+    const signature = JSON.stringify(config);
+    if (signature === lastPersistedConfigSignatureRef.current) {
+      return;
+    }
+    lastPersistedConfigSignatureRef.current = signature;
     if (window.electronAPI) {
       window.electronAPI.saveSettings(config);
     } else {
-      localStorage.setItem('llm_config', JSON.stringify(config));
+      localStorage.setItem('llm_config', signature);
     }
     logger.debug('Configuration persisted.');
   }, [config]);
