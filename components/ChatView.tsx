@@ -205,7 +205,10 @@ const MemoizedChatMessage = React.memo<{
             </>
           )
         ) : ( 
-          <div className="space-y-2">
+          <div
+            className="space-y-2"
+            style={{ fontSize: 'var(--chat-font-size)' }}
+          >
             {Array.isArray(msg.content) ? (
               msg.content.map((part, i) => {
                 if (part.type === 'image_url') {
