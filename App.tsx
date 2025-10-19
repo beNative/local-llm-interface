@@ -203,6 +203,9 @@ const AppContent: React.FC = () => {
   });
   const lastLoadedModelsSignatureRef = useRef<string | null>(null);
   const lastPersistedConfigSignatureRef = useRef<string | null>(null);
+  const persistConfigTimeoutRef = useRef<number | null>(null);
+  const pendingConfigRef = useRef<Config | null>(null);
+  const pendingConfigSignatureRef = useRef<string | null>(null);
 
 
   // Derived state from config
@@ -603,19 +606,74 @@ const AppContent: React.FC = () => {
 
   // Effect to persist config changes.
   useEffect(() => {
-    if (!config) return;
+    if (!config) {
+      if (persistConfigTimeoutRef.current !== null) {
+        window.clearTimeout(persistConfigTimeoutRef.current);
+        persistConfigTimeoutRef.current = null;
+      }
+      pendingConfigRef.current = null;
+      pendingConfigSignatureRef.current = null;
+      return;
+    }
+
     const signature = JSON.stringify(config);
     if (signature === lastPersistedConfigSignatureRef.current) {
       return;
     }
-    lastPersistedConfigSignatureRef.current = signature;
-    if (window.electronAPI) {
-      window.electronAPI.saveSettings(config);
-    } else {
-      localStorage.setItem('llm_config', signature);
+
+    pendingConfigRef.current = config;
+    pendingConfigSignatureRef.current = signature;
+
+    if (persistConfigTimeoutRef.current !== null) {
+      window.clearTimeout(persistConfigTimeoutRef.current);
     }
-    logger.debug('Configuration persisted.');
+
+    persistConfigTimeoutRef.current = window.setTimeout(() => {
+      if (!pendingConfigRef.current || !pendingConfigSignatureRef.current) {
+        return;
+      }
+
+      if (window.electronAPI) {
+        window.electronAPI.saveSettings(pendingConfigRef.current);
+      } else {
+        localStorage.setItem('llm_config', pendingConfigSignatureRef.current);
+      }
+
+      lastPersistedConfigSignatureRef.current = pendingConfigSignatureRef.current;
+
+      persistConfigTimeoutRef.current = null;
+    }, 400);
+
+    return () => {
+      if (persistConfigTimeoutRef.current !== null) {
+        window.clearTimeout(persistConfigTimeoutRef.current);
+        persistConfigTimeoutRef.current = null;
+      }
+    };
   }, [config]);
+
+  useEffect(() => {
+    return () => {
+      if (persistConfigTimeoutRef.current !== null) {
+        window.clearTimeout(persistConfigTimeoutRef.current);
+        persistConfigTimeoutRef.current = null;
+      }
+
+      if (
+        pendingConfigRef.current &&
+        pendingConfigSignatureRef.current &&
+        pendingConfigSignatureRef.current !== lastPersistedConfigSignatureRef.current
+      ) {
+        if (window.electronAPI) {
+          window.electronAPI.saveSettings(pendingConfigRef.current);
+        } else {
+          localStorage.setItem('llm_config', pendingConfigSignatureRef.current);
+        }
+
+        lastPersistedConfigSignatureRef.current = pendingConfigSignatureRef.current;
+      }
+    };
+  }, []);
 
     // Effect for system stats monitoring
     useEffect(() => {
