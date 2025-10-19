@@ -103,7 +103,7 @@ The "API Client" is a new view designed for testing and interacting with HTTP AP
 The "Info" tab is your central hub for all application documentation and metadata.
 
 - **Documentation Viewer**: Read the `README`, `Functional Manual` (this document), `Technical Manual`, and `Changelog` directly within the app. This is useful for offline access and quick reference.
-- **Release Notes**: The changelog view now highlights the most recent version (e.g., 0.19.2) so you can quickly review what changed before updating.
+- **Release Notes**: The changelog view now highlights the most recent version (e.g., 0.19.3) so you can quickly review what changed before updating. Capture the same talking points while auditing documentation so the GitHub release draft mirrors the in-app notes.
 - **About Dialog**: At the bottom of the page, click the **"About This App"** link to open a dialog. This dialog displays the application's version, credits for design and implementation, and copyright information.
 
 ## 7. Model Selection
