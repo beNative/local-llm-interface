@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.19.3] - 2025-10-06
+
+### Changed
+- Synchronized the release checklist and supporting manuals to call out preparing GitHub release notes alongside the Markdown
+  documentation audit.
+
+### Fixed
+- Refreshed documentation references so in-app manuals and examples reflect version 0.19.3 for the upcoming release.
+
 ## [0.19.2] - 2025-10-05
 
 ### Fixed
