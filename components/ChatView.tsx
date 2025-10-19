@@ -775,7 +775,9 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
           <div ref={messagesEndRef} />
       </main>
       <footer className="p-[var(--space-4)] bg-[--bg-primary] border-t border-[--border-primary] flex-shrink-0">
-          <div className="relative">
+          <div
+              className="relative flex items-center gap-2 bg-[--bg-secondary] border border-[--border-primary] rounded-full px-[var(--space-4)] py-[var(--space-2)] focus-within:border-[--accent-chat] focus-within:ring-2 focus-within:ring-[--border-focus]"
+          >
               {attachedImage && (
                   <div className="absolute bottom-full left-0 mb-2 p-2 bg-[--bg-secondary] border border-[--border-primary] rounded-lg">
                       <img src={attachedImage} alt="Attachment preview" className="h-20 w-20 object-cover rounded" />
@@ -784,26 +786,16 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
                       </button>
                   </div>
               )}
-              <textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  placeholder="Type your message or drop an image..."
-                  className="w-full pl-24 pr-28 py-[var(--space-3)] text-[length:var(--font-size-base)] bg-[--bg-secondary] rounded-full focus:outline-none focus:ring-2 focus:ring-[--border-focus] resize-none overflow-y-hidden"
-                  rows={1}
-                  disabled={isResponding}
-              />
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              <div className="flex items-center gap-1">
                   <input type="file" ref={fileInputRef} onChange={e => handleImageChange(e.target.files ? e.target.files[0] : null)} accept="image/*" className="hidden" />
                   <button {...attachImgTooltip} onClick={() => fileInputRef.current?.click()} className="p-[var(--space-2)] text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-full">
                       <PaperclipIcon className="w-5 h-5" />
                   </button>
                   <div className="relative">
-                      <button 
+                      <button
                           ref={promptsButtonRef}
-                          {...predefinedPromptsTooltip} 
-                          onClick={() => setIsPromptsOpen(p => !p)} 
+                          {...predefinedPromptsTooltip}
+                          onClick={() => setIsPromptsOpen(p => !p)}
                           className="p-[var(--space-2)] text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-full"
                       >
                           <BookmarkIcon className="w-5 h-5" />
@@ -826,7 +818,17 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
                       )}
                   </div>
               </div>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  placeholder="Type your message or drop an image..."
+                  className="flex-1 bg-transparent text-[length:var(--font-size-base)] focus:outline-none resize-none overflow-y-hidden"
+                  rows={1}
+                  disabled={isResponding}
+              />
+              <div className="flex items-center">
                   {isResponding ? (
                       <button {...stopGenTooltip} onClick={onStopGeneration} className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600">
                           <StopIcon className="w-5 h-5" />
