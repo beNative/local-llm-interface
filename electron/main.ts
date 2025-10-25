@@ -709,6 +709,14 @@ electron.app.whenReady().then(() => {
             mainWindowInstance?.webContents.send('update-not-available', { version: electron.app.getVersion() });
             return;
         }
+        const settings = readSettings() as any;
+        if (settings && settings.allowPrerelease) {
+            autoUpdater.allowPrerelease = true;
+            console.log('Allowing pre-releases for auto-updater.');
+        } else {
+            autoUpdater.allowPrerelease = false;
+            console.log('Not allowing pre-releases for auto-updater.');
+        }
         hasSentDownloadingMessage = false;
         return autoUpdater.checkForUpdates();
     });
@@ -1169,8 +1177,14 @@ end.
         autoUpdater.allowPrerelease = false;
         console.log('Not allowing pre-releases for auto-updater.');
       }
-      hasSentDownloadingMessage = false;
-      autoUpdater.checkForUpdates();
+
+      const autoCheckEnabled = settings?.autoCheckForUpdates !== false;
+      if (autoCheckEnabled) {
+        hasSentDownloadingMessage = false;
+        autoUpdater.checkForUpdates();
+      } else {
+        console.log('Automatic update checks are disabled in settings.');
+      }
     }
 
     // Re-create a window on macOS when the dock icon is clicked and there are no other windows open.

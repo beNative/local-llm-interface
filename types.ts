@@ -63,6 +63,7 @@ export interface Config {
   themeOverrides?: ThemeOverrides;
   logToFile?: boolean;
   allowPrerelease?: boolean;
+  autoCheckForUpdates?: boolean;
   pythonProjectsPath?: string;
   nodejsProjectsPath?: string;
   webAppsPath?: string;
