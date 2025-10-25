@@ -155,12 +155,23 @@ const MemoizedChatMessage = React.memo<{
   markdownComponents: ReturnType<typeof useMemo>;
   theme: Theme;
   isResponding: boolean;
-}>(({ msg, markdownComponents, theme, isResponding }) => {
+  streamingDraft: string | null;
+}>(({ msg, markdownComponents, theme, isResponding, streamingDraft }) => {
   if (msg.role === 'tool') {
     // Tool responses are handled within the ToolCallDisplay of the preceding assistant message
     return null;
   }
-  
+
+  const isStreamingPlaceholder =
+      msg.role === 'assistant' &&
+      typeof msg.content === 'string' &&
+      msg.content.length === 0 &&
+      isResponding &&
+      !('tool_calls' in msg && msg.tool_calls);
+
+  const effectiveContent =
+      isStreamingPlaceholder && streamingDraft !== null ? streamingDraft : msg.content;
+
   return (
     <div className={`flex items-start gap-4 ${msg.role === 'user' ? 'justify-end' : ''}`}>
       {msg.role === 'assistant' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center"><ModelIcon className="w-5 h-5 text-[--accent-chat]" /></div>}
@@ -177,12 +188,12 @@ const MemoizedChatMessage = React.memo<{
         }`}
       >
         {msg.role === 'assistant' ? (
-          (msg.content === '' && isResponding && !('tool_calls' in msg && msg.tool_calls)) ? (
+          (isStreamingPlaceholder && !effectiveContent) ? (
             <SpinnerIcon className="w-5 h-5 text-gray-400"/>
           ) : (
             <>
               {msg.metadata?.ragContext && <ContextSources files={msg.metadata.ragContext.files} />}
-              {msg.content && (
+              {effectiveContent && (
                   <div
                       className="prose prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2 prose-pre:bg-transparent prose-pre:p-0"
                       style={{ fontSize: 'var(--chat-font-size)' }}
@@ -191,12 +202,12 @@ const MemoizedChatMessage = React.memo<{
                       remarkPlugins={[remarkGfm]}
                       components={markdownComponents}
                     >
-                      {msg.content as string}
+                      {effectiveContent as string}
                     </ReactMarkdown>
                   </div>
               )}
               {('tool_calls' in msg && msg.tool_calls) && (
-                <ToolCallDisplay 
+                <ToolCallDisplay
                     message={msg as AssistantToolCallMessage} 
                     theme={theme}
                 />
@@ -235,6 +246,7 @@ interface ChatViewProps {
   provider: LLMProviderConfig | null;
   onSendMessage: (content: string | ChatMessageContentPart[], options?: { useRAG: boolean }) => void;
   isResponding: boolean;
+  streamingDraft: string | null;
   retrievalStatus: 'idle' | 'retrieving';
   onStopGeneration: () => void;
   onRenameSession: (newName: string) => void;
@@ -271,7 +283,7 @@ const PersonaSelectorItem: React.FC<{
   );
 };
 
-export default function ChatView({ session, provider, onSendMessage, isResponding, retrievalStatus, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onSetSessionGenerationConfig, onSetSessionAgentToolsEnabled, onRunCodeSnippet, onRegisterInputFocusHandler }: ChatViewProps) {
+export default function ChatView({ session, provider, onSendMessage, isResponding, streamingDraft, retrievalStatus, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onSetSessionGenerationConfig, onSetSessionAgentToolsEnabled, onRunCodeSnippet, onRegisterInputFocusHandler }: ChatViewProps) {
   const [input, setInput] = useState('');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -756,6 +768,7 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
                       markdownComponents={markdownComponents}
                       theme={theme}
                       isResponding={isLastMessage && isResponding}
+                      streamingDraft={isLastMessage ? streamingDraft : null}
                   />
               );
           })}

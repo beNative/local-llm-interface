@@ -910,54 +910,26 @@ const AppContent: React.FC = () => {
     });
   }, []);
 
-  const appendToLastMessageImmediate = useCallback((sessionId: string, contentChunk: string) => {
-    setConfig(c => {
-        if (!c) return c;
-        const newSessions = (c.sessions || []).map(session => {
-            if (session.id !== sessionId || session.messages.length === 0) {
-                return session;
-            }
+  const [streamingDrafts, setStreamingDrafts] = useState<Record<string, string>>({});
 
-            const lastMsgIndex = session.messages.length - 1;
-            const lastMsg = session.messages[lastMsgIndex];
-            
-            if (lastMsg.role === 'tool') {
-                return session;
-            }
+  const streamingDraftBufferRef = useRef<Record<string, { pending: string; timeoutId: ReturnType<typeof setTimeout> | null }>>({});
 
-            const newMessages = [...session.messages];
-            const msgToUpdate = { ...newMessages[lastMsgIndex] };
-
-            if (typeof msgToUpdate.content === 'string' || !msgToUpdate.content) {
-                msgToUpdate.content = (msgToUpdate.content || '') + contentChunk;
-            } else if (Array.isArray(msgToUpdate.content)) {
-                let appended = false;
-                for (let i = msgToUpdate.content.length - 1; i >= 0; i--) {
-                    const part = msgToUpdate.content[i];
-                    if (part.type === 'text') {
-                        part.text += contentChunk;
-                        appended = true;
-                        break;
-                    }
-                }
-                if (!appended) {
-                    msgToUpdate.content.push({ type: 'text', text: contentChunk });
-                }
-            }
-            
-            newMessages[lastMsgIndex] = msgToUpdate as ChatMessage;
-
-            return { ...session, messages: newMessages };
-        });
-
-        return { ...c, sessions: newSessions };
-    });
+  const commitStreamingDraft = useCallback((sessionId: string, chunk: string) => {
+      if (!chunk) {
+          return;
+      }
+      setStreamingDrafts(prev => {
+          const existing = prev[sessionId] || '';
+          const combined = existing + chunk;
+          if (combined === existing) {
+              return prev;
+          }
+          return { ...prev, [sessionId]: combined };
+      });
   }, []);
 
-  const streamAppendBufferRef = useRef<Record<string, { pending: string; timeoutId: ReturnType<typeof setTimeout> | null }>>({});
-
-  const flushStreamAppendBuffer = useCallback((sessionId: string) => {
-      const buffer = streamAppendBufferRef.current[sessionId];
+  const flushStreamingDraftBuffer = useCallback((sessionId: string) => {
+      const buffer = streamingDraftBufferRef.current[sessionId];
       if (!buffer) return;
 
       if (buffer.timeoutId !== null) {
@@ -966,20 +938,21 @@ const AppContent: React.FC = () => {
       }
 
       if (buffer.pending) {
-          appendToLastMessageImmediate(sessionId, buffer.pending);
+          const pending = buffer.pending;
           buffer.pending = '';
+          commitStreamingDraft(sessionId, pending);
       }
 
-      delete streamAppendBufferRef.current[sessionId];
-  }, [appendToLastMessageImmediate]);
+      delete streamingDraftBufferRef.current[sessionId];
+  }, [commitStreamingDraft]);
 
-  const appendToLastMessage = useCallback((sessionId: string, contentChunk: string) => {
+  const appendStreamingDraft = useCallback((sessionId: string, contentChunk: string) => {
       if (!contentChunk) return;
 
-      let buffer = streamAppendBufferRef.current[sessionId];
+      let buffer = streamingDraftBufferRef.current[sessionId];
       if (!buffer) {
           buffer = { pending: '', timeoutId: null };
-          streamAppendBufferRef.current[sessionId] = buffer;
+          streamingDraftBufferRef.current[sessionId] = buffer;
       }
 
       buffer.pending += contentChunk;
@@ -990,11 +963,34 @@ const AppContent: React.FC = () => {
               const pending = buffer.pending;
               buffer.pending = '';
               if (pending) {
-                  appendToLastMessageImmediate(sessionId, pending);
+                  commitStreamingDraft(sessionId, pending);
               }
-          }, 16);
+
+              if (!streamingDraftBufferRef.current[sessionId]?.pending) {
+                  delete streamingDraftBufferRef.current[sessionId];
+              }
+          }, 24);
       }
-  }, [appendToLastMessageImmediate]);
+  }, [commitStreamingDraft]);
+
+  const clearStreamingDraft = useCallback((sessionId: string) => {
+      const buffer = streamingDraftBufferRef.current[sessionId];
+      if (buffer) {
+          if (buffer.timeoutId !== null) {
+              clearTimeout(buffer.timeoutId);
+          }
+          delete streamingDraftBufferRef.current[sessionId];
+      }
+
+      setStreamingDrafts(prev => {
+          if (!(sessionId in prev)) {
+              return prev;
+          }
+          const next = { ...prev };
+          delete next[sessionId];
+          return next;
+      });
+  }, []);
 
   const updateSessionMessages = useCallback((sessionId: string, messages: ChatMessage[]) => {
       setConfig(c => {
@@ -1124,6 +1120,9 @@ const AppContent: React.FC = () => {
       setIsResponding(false);
       setRetrievalStatus('idle');
       setPendingToolCalls(null);
+      if (config?.activeSessionId) {
+          clearStreamingDraft(config.activeSessionId);
+      }
       logger.info('User requested to stop generation.');
     }
   };
@@ -1235,7 +1234,7 @@ const AppContent: React.FC = () => {
           return;
       }
 
-      flushStreamAppendBuffer(sessionId);
+      clearStreamingDraft(sessionId);
 
       const controller = new AbortController();
       abortControllerRef.current = controller;
@@ -1282,19 +1281,20 @@ const AppContent: React.FC = () => {
           (chunk) => { // onChunk
               if (chunk.type === 'content') {
                   accumulatedContent += chunk.text;
-                  appendToLastMessage(sessionId, chunk.text);
+                  appendStreamingDraft(sessionId, chunk.text);
               } else if (chunk.type === 'tool_calls') {
                   accumulatedToolCalls.push(...chunk.tool_calls);
               }
           },
           (err) => { // onError
-             flushStreamAppendBuffer(sessionId);
+             clearStreamingDraft(sessionId);
              const errorMsg: StandardChatMessage = { role: 'assistant', content: `Sorry, an error occurred: ${err.message}` };
              updateSessionMessages(sessionId, [...messages, errorMsg]);
              setIsResponding(false);
           },
           (metadata) => { // onDone
-              flushStreamAppendBuffer(sessionId);
+              flushStreamingDraftBuffer(sessionId);
+              clearStreamingDraft(sessionId);
               const finalMessages = [...session.messages.slice(0, -1)]; // Remove placeholder
               let lastMsg: ChatMessage;
 
@@ -1320,7 +1320,7 @@ const AppContent: React.FC = () => {
           session.generationConfig
       );
 
-  }, [config, appendToLastMessage, updateSessionMessages, isElectron, flushStreamAppendBuffer]);
+  }, [config, updateSessionMessages, isElectron, appendStreamingDraft, clearStreamingDraft, flushStreamingDraftBuffer]);
 
 
   const handleToolApproval = async (approvedCalls: ToolCall[]) => {
@@ -1628,6 +1628,7 @@ const AppContent: React.FC = () => {
                         provider={providerForSession}
                         onSendMessage={handleSendMessage}
                         isResponding={isResponding || retrievalStatus === 'retrieving'}
+                        streamingDraft={streamingDrafts[activeSession.id] ?? null}
                         retrievalStatus={retrievalStatus}
                         onStopGeneration={handleStopGeneration}
                         onRenameSession={(newName) => handleRenameSession(activeSession.id, newName)}
