@@ -910,7 +910,7 @@ const AppContent: React.FC = () => {
     });
   }, []);
 
-  const appendToLastMessage = useCallback((sessionId: string, contentChunk: string) => {
+  const appendToLastMessageImmediate = useCallback((sessionId: string, contentChunk: string) => {
     setConfig(c => {
         if (!c) return c;
         const newSessions = (c.sessions || []).map(session => {
@@ -953,6 +953,48 @@ const AppContent: React.FC = () => {
         return { ...c, sessions: newSessions };
     });
   }, []);
+
+  const streamAppendBufferRef = useRef<Record<string, { pending: string; timeoutId: ReturnType<typeof setTimeout> | null }>>({});
+
+  const flushStreamAppendBuffer = useCallback((sessionId: string) => {
+      const buffer = streamAppendBufferRef.current[sessionId];
+      if (!buffer) return;
+
+      if (buffer.timeoutId !== null) {
+          clearTimeout(buffer.timeoutId);
+          buffer.timeoutId = null;
+      }
+
+      if (buffer.pending) {
+          appendToLastMessageImmediate(sessionId, buffer.pending);
+          buffer.pending = '';
+      }
+
+      delete streamAppendBufferRef.current[sessionId];
+  }, [appendToLastMessageImmediate]);
+
+  const appendToLastMessage = useCallback((sessionId: string, contentChunk: string) => {
+      if (!contentChunk) return;
+
+      let buffer = streamAppendBufferRef.current[sessionId];
+      if (!buffer) {
+          buffer = { pending: '', timeoutId: null };
+          streamAppendBufferRef.current[sessionId] = buffer;
+      }
+
+      buffer.pending += contentChunk;
+
+      if (buffer.timeoutId === null) {
+          buffer.timeoutId = setTimeout(() => {
+              buffer.timeoutId = null;
+              const pending = buffer.pending;
+              buffer.pending = '';
+              if (pending) {
+                  appendToLastMessageImmediate(sessionId, pending);
+              }
+          }, 16);
+      }
+  }, [appendToLastMessageImmediate]);
 
   const updateSessionMessages = useCallback((sessionId: string, messages: ChatMessage[]) => {
       setConfig(c => {
@@ -1192,7 +1234,9 @@ const AppContent: React.FC = () => {
           logger.error("Cannot process turn: Session or provider not found.");
           return;
       }
-      
+
+      flushStreamAppendBuffer(sessionId);
+
       const controller = new AbortController();
       abortControllerRef.current = controller;
       setIsResponding(true);
@@ -1244,11 +1288,13 @@ const AppContent: React.FC = () => {
               }
           },
           (err) => { // onError
+             flushStreamAppendBuffer(sessionId);
              const errorMsg: StandardChatMessage = { role: 'assistant', content: `Sorry, an error occurred: ${err.message}` };
              updateSessionMessages(sessionId, [...messages, errorMsg]);
              setIsResponding(false);
           },
           (metadata) => { // onDone
+              flushStreamAppendBuffer(sessionId);
               const finalMessages = [...session.messages.slice(0, -1)]; // Remove placeholder
               let lastMsg: ChatMessage;
 
@@ -1274,7 +1320,7 @@ const AppContent: React.FC = () => {
           session.generationConfig
       );
 
-  }, [config, appendToLastMessage, updateSessionMessages, isElectron]);
+  }, [config, appendToLastMessage, updateSessionMessages, isElectron, flushStreamAppendBuffer]);
 
 
   const handleToolApproval = async (approvedCalls: ToolCall[]) => {
