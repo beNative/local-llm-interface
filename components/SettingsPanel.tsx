@@ -746,7 +746,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                         </div>
                          <div className="pt-6 border-t border-[--border-primary]">
                             <h3 className="text-xl font-semibold text-[--text-secondary] mb-4">Updates</h3>
-                             <div className="flex items-center gap-4">
+                             <div className="flex flex-wrap items-center gap-4">
                                 <button
                                     onClick={handleCheckForUpdates}
                                     disabled={isCheckingForUpdates}
@@ -764,8 +764,18 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                                     />
                                     <span className="text-sm font-medium text-[--text-muted]">Receive pre-release versions</span>
                                 </label>
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={localConfig.autoCheckForUpdates !== false}
+                                        onChange={(e) => handleSimpleConfigChange('autoCheckForUpdates', e.target.checked)}
+                                        className="w-4 h-4 rounded text-indigo-600 bg-[--bg-tertiary] border-[--border-secondary] focus:ring-indigo-500"
+                                    />
+                                    <span className="text-sm font-medium text-[--text-muted]">Check for updates automatically</span>
+                                </label>
                             </div>
                             <p className="text-xs text-[--text-muted] mt-2 px-1">Get early access to new features. Pre-releases may be unstable.</p>
+                            <p className="text-xs text-[--text-muted] mt-1 px-1">Disable automatic checks if you prefer to look for updates manually.</p>
                         </div>
                     </div>
                   )}

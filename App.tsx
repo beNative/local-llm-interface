@@ -364,6 +364,7 @@ const AppContent: React.FC = () => {
         },
         logToFile: false,
         allowPrerelease: false,
+        autoCheckForUpdates: true,
         pythonProjectsPath: '',
         nodejsProjectsPath: '',
         webAppsPath: '',
