@@ -50,6 +50,7 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
   const logContainerRef = useRef<HTMLDivElement>(null);
   const isResizing = useRef(false);
   const lastSelectedIdRef = useRef<string | null>(null);
+  const selectionAnchorIdRef = useRef<string | null>(null);
   const isDraggingSelection = useRef(false);
   const dragAnchorId = useRef<string | null>(null);
   const isSelectingText = useRef(false);
@@ -172,6 +173,7 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
   const clearSelection = useCallback(() => {
     setSelectedLogIds(new Set());
     lastSelectedIdRef.current = null;
+    selectionAnchorIdRef.current = null;
     dragAnchorId.current = null;
     isDraggingSelection.current = false;
   }, []);
@@ -179,6 +181,7 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
   useEffect(() => {
     if (selectedLogIds.size === 0) {
       lastSelectedIdRef.current = null;
+      selectionAnchorIdRef.current = null;
     }
   }, [selectedLogIds]);
 
@@ -199,6 +202,7 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
       }
       if (next.size === 0) {
         lastSelectedIdRef.current = null;
+        selectionAnchorIdRef.current = null;
         dragAnchorId.current = null;
       }
       return next;
@@ -222,6 +226,7 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
       });
       lastSelectedIdRef.current = targetId;
       dragAnchorId.current = anchorId;
+      selectionAnchorIdRef.current = anchorId;
     },
     [filteredLogs],
   );
@@ -233,11 +238,13 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
         next.delete(id);
         if (next.size === 0) {
           lastSelectedIdRef.current = null;
+          selectionAnchorIdRef.current = null;
           dragAnchorId.current = null;
         }
       } else {
         next.add(id);
         lastSelectedIdRef.current = id;
+        selectionAnchorIdRef.current = id;
         dragAnchorId.current = id;
       }
       return next;
@@ -247,7 +254,12 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
   const selectSingle = useCallback((id: string) => {
     setSelectedLogIds(new Set([id]));
     lastSelectedIdRef.current = id;
+    selectionAnchorIdRef.current = id;
     dragAnchorId.current = id;
+  }, []);
+
+  const getShiftAnchorId = useCallback(() => {
+    return selectionAnchorIdRef.current ?? lastSelectedIdRef.current;
   }, []);
 
   const handleLogClick = useCallback(
@@ -264,9 +276,10 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
         }
       }
 
-      if (event.shiftKey && lastSelectedIdRef.current) {
+      const anchorId = event.shiftKey ? getShiftAnchorId() : null;
+      if (event.shiftKey && anchorId) {
         event.preventDefault();
-        updateSelectionRange(lastSelectedIdRef.current, id);
+        updateSelectionRange(anchorId, id);
         return;
       }
 
@@ -278,7 +291,7 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
 
       selectSingle(id);
     },
-    [selectSingle, toggleSingleSelection, updateSelectionRange],
+    [getShiftAnchorId, selectSingle, toggleSingleSelection, updateSelectionRange],
   );
 
   const handleLogMouseDown = useCallback((event: React.MouseEvent, id: string) => {
@@ -293,9 +306,10 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
 
     isSelectingText.current = false;
 
-    if (event.shiftKey && lastSelectedIdRef.current) {
+    const anchorId = event.shiftKey ? getShiftAnchorId() : null;
+    if (event.shiftKey && anchorId) {
       event.preventDefault();
-      updateSelectionRange(lastSelectedIdRef.current, id);
+      updateSelectionRange(anchorId, id);
       return;
     }
 
@@ -308,7 +322,7 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
     isDraggingSelection.current = true;
     dragAnchorId.current = id;
     selectSingle(id);
-  }, [selectSingle, updateSelectionRange]);
+  }, [getShiftAnchorId, selectSingle, updateSelectionRange]);
 
   const handleLogMouseEnter = useCallback(
     (id: string) => {
@@ -328,6 +342,7 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
     setSelectedLogIds(new Set(allIds));
     if (allIds.length > 0) {
       lastSelectedIdRef.current = allIds[allIds.length - 1];
+      selectionAnchorIdRef.current = allIds[0];
       dragAnchorId.current = allIds[0];
     }
   }, [filteredLogs]);
@@ -348,8 +363,9 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
 
       if (event.key === ' ' || event.key === 'Enter') {
         event.preventDefault();
-        if (event.shiftKey && lastSelectedIdRef.current) {
-          updateSelectionRange(lastSelectedIdRef.current, id);
+        const anchorId = event.shiftKey ? getShiftAnchorId() : null;
+        if (event.shiftKey && anchorId) {
+          updateSelectionRange(anchorId, id);
         } else if (event.metaKey || event.ctrlKey) {
           toggleSingleSelection(id);
         } else {
@@ -357,7 +373,7 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
         }
       }
     },
-    [clearSelection, selectAll, selectSingle, toggleSingleSelection, updateSelectionRange],
+    [clearSelection, getShiftAnchorId, selectAll, selectSingle, toggleSingleSelection, updateSelectionRange],
   );
 
   useEffect(() => {
