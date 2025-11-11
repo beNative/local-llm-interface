@@ -1,0 +1,8 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='1100' height='252' style='background:#0f172a;'>
+<style>@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400&display=swap');text{font-family:"Roboto Mono", monospace;font-size:20px;fill:#e2e8f0;white-space:pre;}</style>
+<text x='40' y='36'>npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.</text>
+<text x='40' y='72'>&gt; local-llm-interface@0.19.3 build</text>
+<text x='40' y='108'>&gt; node esbuild.config.js</text>
+<text x='40' y='144'>[icon] Generated platform icons from assets/icon.svg.</text>
+<text x='40' y='180'>Build successful!</text>
+</svg>
