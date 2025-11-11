@@ -46,6 +46,7 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
     preserveLineBreaks: true,
     separator: 'newline' as SeparatorOption,
   });
+  const [focusedLogId, setFocusedLogId] = useState<string | null>(null);
 
   const logContainerRef = useRef<HTMLDivElement>(null);
   const isResizing = useRef(false);
@@ -53,7 +54,9 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
   const selectionAnchorIdRef = useRef<string | null>(null);
   const isDraggingSelection = useRef(false);
   const dragAnchorId = useRef<string | null>(null);
-  const isSelectingText = useRef(false);
+  const pendingTextSelection = useRef(false);
+  const optionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const hasUserInteractedRef = useRef(false);
 
   const copyTooltip = useTooltipTrigger(
     isCopied
@@ -91,6 +94,37 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
   }, [filteredLogs]);
+
+  useEffect(() => {
+    if (filteredLogs.length === 0) {
+      if (focusedLogId !== null) {
+        setFocusedLogId(null);
+      }
+      return;
+    }
+
+    if (focusedLogId && !filteredLogs.some(entry => entry.id === focusedLogId)) {
+      const fallbackId = filteredLogs[filteredLogs.length - 1]?.id ?? null;
+      setFocusedLogId(fallbackId);
+    }
+  }, [filteredLogs, focusedLogId]);
+
+  useEffect(() => {
+    if (!focusedLogId) return;
+    const option = optionRefs.current[focusedLogId];
+    if (!option) return;
+
+    const activeElement = document.activeElement;
+    const container = logContainerRef.current;
+    const isActiveInside = Boolean(activeElement && container && container.contains(activeElement));
+    if (!hasUserInteractedRef.current && !isActiveInside) {
+      return;
+    }
+
+    if (option !== activeElement) {
+      option.focus({ preventScroll: true });
+    }
+  }, [focusedLogId]);
 
   const handleResize = useCallback((e: MouseEvent) => {
     if (!isResizing.current) return;
@@ -227,6 +261,7 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
       lastSelectedIdRef.current = targetId;
       dragAnchorId.current = anchorId;
       selectionAnchorIdRef.current = anchorId;
+      setFocusedLogId(targetId);
     },
     [filteredLogs],
   );
@@ -249,6 +284,7 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
       }
       return next;
     });
+    setFocusedLogId(id);
   }, []);
 
   const selectSingle = useCallback((id: string) => {
@@ -256,6 +292,7 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
     lastSelectedIdRef.current = id;
     selectionAnchorIdRef.current = id;
     dragAnchorId.current = id;
+    setFocusedLogId(id);
   }, []);
 
   const getShiftAnchorId = useCallback(() => {
@@ -264,16 +301,17 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
 
   const handleLogClick = useCallback(
     (event: React.MouseEvent, id: string) => {
-      if (isSelectingText.current) {
-        isSelectingText.current = false;
-        return;
-      }
+      hasUserInteractedRef.current = true;
+      const selection = typeof window !== 'undefined' ? window.getSelection?.() : null;
+      const hasSelectedText = Boolean(selection && selection.toString().trim().length > 0);
 
-      if (!event.shiftKey && !event.metaKey && !event.ctrlKey) {
-        const selection = typeof window !== 'undefined' ? window.getSelection?.() : null;
-        if (selection && selection.toString().trim().length > 0) {
+      if (pendingTextSelection.current) {
+        pendingTextSelection.current = false;
+        if (hasSelectedText) {
           return;
         }
+      } else if (!event.shiftKey && !event.metaKey && !event.ctrlKey && hasSelectedText) {
+        return;
       }
 
       const anchorId = event.shiftKey ? getShiftAnchorId() : null;
@@ -296,15 +334,16 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
 
   const handleLogMouseDown = useCallback((event: React.MouseEvent, id: string) => {
     if (event.button !== 0) return;
+    hasUserInteractedRef.current = true;
     const target = event.target as HTMLElement;
     const isMessageTarget = Boolean(target.closest('[data-log-message="true"]'));
 
     if (!event.shiftKey && !event.ctrlKey && !event.metaKey && isMessageTarget) {
-      isSelectingText.current = true;
+      pendingTextSelection.current = true;
       return;
     }
 
-    isSelectingText.current = false;
+    pendingTextSelection.current = false;
 
     const anchorId = event.shiftKey ? getShiftAnchorId() : null;
     if (event.shiftKey && anchorId) {
@@ -344,21 +383,104 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
       lastSelectedIdRef.current = allIds[allIds.length - 1];
       selectionAnchorIdRef.current = allIds[0];
       dragAnchorId.current = allIds[0];
+      setFocusedLogId(allIds[allIds.length - 1]);
     }
   }, [filteredLogs]);
 
   const handleLogKeyDown = useCallback(
     (event: React.KeyboardEvent, id: string) => {
+      hasUserInteractedRef.current = true;
       if (event.key === 'Escape') {
         event.preventDefault();
         clearSelection();
         return;
       }
 
-      if (event.key.toLowerCase() === 'a' && (event.metaKey || event.ctrlKey)) {
+      const isCtrlLike = event.metaKey || event.ctrlKey;
+      if (event.key.toLowerCase() === 'a' && isCtrlLike) {
         event.preventDefault();
         selectAll();
         return;
+      }
+
+      const currentIndex = filteredLogs.findIndex(entry => entry.id === id);
+      if (currentIndex === -1) {
+        return;
+      }
+      const lastIndex = filteredLogs.length - 1;
+
+      const moveFocus = (nextIndex: number, { extend = false, preserve = false } = {}) => {
+        if (filteredLogs.length === 0) return;
+        const clampedIndex = Math.max(0, Math.min(nextIndex, lastIndex));
+        if (clampedIndex === currentIndex) {
+          return;
+        }
+
+        const nextId = filteredLogs[clampedIndex]?.id;
+        if (!nextId) return;
+
+        if (extend) {
+          const anchorId = getShiftAnchorId() ?? id;
+          updateSelectionRange(anchorId, nextId);
+          return;
+        }
+
+        if (preserve) {
+          setFocusedLogId(nextId);
+          lastSelectedIdRef.current = nextId;
+          selectionAnchorIdRef.current = nextId;
+          dragAnchorId.current = nextId;
+          return;
+        }
+
+        selectSingle(nextId);
+      };
+
+      switch (event.key) {
+        case 'ArrowDown':
+          event.preventDefault();
+          moveFocus(currentIndex + 1, {
+            extend: event.shiftKey,
+            preserve: !event.shiftKey && isCtrlLike,
+          });
+          return;
+        case 'ArrowUp':
+          event.preventDefault();
+          moveFocus(currentIndex - 1, {
+            extend: event.shiftKey,
+            preserve: !event.shiftKey && isCtrlLike,
+          });
+          return;
+        case 'Home':
+          event.preventDefault();
+          moveFocus(0, {
+            extend: event.shiftKey,
+            preserve: !event.shiftKey && isCtrlLike,
+          });
+          return;
+        case 'End':
+          event.preventDefault();
+          moveFocus(lastIndex, {
+            extend: event.shiftKey,
+            preserve: !event.shiftKey && isCtrlLike,
+          });
+          return;
+        case 'PageDown':
+          event.preventDefault();
+          moveFocus(currentIndex + 10, {
+            extend: event.shiftKey,
+            preserve: !event.shiftKey && isCtrlLike,
+          });
+          return;
+        case 'PageUp':
+          event.preventDefault();
+          moveFocus(currentIndex - 10, {
+            extend: event.shiftKey,
+            preserve: !event.shiftKey && isCtrlLike,
+          });
+          return;
+        default:
+          break;
       }
 
       if (event.key === ' ' || event.key === 'Enter') {
@@ -366,14 +488,22 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
         const anchorId = event.shiftKey ? getShiftAnchorId() : null;
         if (event.shiftKey && anchorId) {
           updateSelectionRange(anchorId, id);
-        } else if (event.metaKey || event.ctrlKey) {
+        } else if (isCtrlLike) {
           toggleSingleSelection(id);
         } else {
           selectSingle(id);
         }
       }
     },
-    [clearSelection, getShiftAnchorId, selectAll, selectSingle, toggleSingleSelection, updateSelectionRange],
+    [
+      clearSelection,
+      filteredLogs,
+      getShiftAnchorId,
+      selectAll,
+      selectSingle,
+      toggleSingleSelection,
+      updateSelectionRange,
+    ],
   );
 
   useEffect(() => {
@@ -387,6 +517,9 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
       return acc;
     }, {} as Record<LogLevel, number>);
   }, [allLogs]);
+
+  const fallbackOptionId = filteredLogs.length > 0 ? filteredLogs[filteredLogs.length - 1].id : null;
+  const activeOptionId = focusedLogId ?? fallbackOptionId;
 
   return (
     <div 
@@ -545,6 +678,12 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
         role="listbox"
         aria-label="Application log entries"
         aria-multiselectable="true"
+        onMouseDown={event => {
+          hasUserInteractedRef.current = true;
+          if (event.target === event.currentTarget && !event.shiftKey && !event.metaKey && !event.ctrlKey) {
+            clearSelection();
+          }
+        }}
         onMouseLeave={() => {
           if (isDraggingSelection.current) {
             stopDraggingSelection();
@@ -557,13 +696,24 @@ const LoggingPanel: React.FC<LoggingPanelProps> = ({ onClose }) => {
           return (
             <div
               key={id}
+              ref={el => {
+                if (el) {
+                  optionRefs.current[id] = el;
+                } else {
+                  delete optionRefs.current[id];
+                }
+              }}
               role="option"
               aria-selected={isSelected}
-              tabIndex={0}
+              tabIndex={activeOptionId === id ? 0 : -1}
               onClick={event => handleLogClick(event, id)}
               onMouseDown={event => handleLogMouseDown(event, id)}
               onMouseEnter={() => handleLogMouseEnter(id)}
               onKeyDown={event => handleLogKeyDown(event, id)}
+              onFocus={() => {
+                hasUserInteractedRef.current = true;
+                setFocusedLogId(id);
+              }}
               className={`flex items-start gap-3 py-1 px-2 rounded border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[--border-focus] ${
                 isSelected
                   ? 'bg-sky-100 dark:bg-sky-900/40 border-sky-400'
