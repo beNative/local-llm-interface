@@ -102,16 +102,16 @@ const ToolCallApprovalModal: React.FC<ToolCallApprovalModalProps> = ({ toolCalls
                                 <div className="flex items-center justify-center gap-[var(--space-2)] sm:flex-col sm:items-center sm:justify-start">
                                     {dangerous ? (
                                         <div className="flex flex-col items-center gap-[var(--space-1)]">
-                                            <label className="relative inline-flex cursor-pointer items-center">
+                                            <label className="inline-flex cursor-pointer items-center gap-[var(--space-2)] rounded-[--border-radius] border border-[--border-secondary] bg-[--bg-primary] px-[var(--space-3)] py-[var(--space-2)]">
                                                 <input
                                                     type="checkbox"
                                                     checked={isApproved}
                                                     onChange={() => handleToggle(call.id)}
-                                                    className="peer sr-only"
+                                                    className="h-4 w-4 rounded-sm border border-[--border-secondary] text-green-600 focus:ring-2 focus:ring-green-500"
                                                 />
-                                                <div className="relative h-6 w-11 rounded-full bg-[--bg-tertiary] transition-colors peer-checked:bg-green-600">
-                                                    <span className="absolute left-[2px] top-[2px] h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-full" />
-                                                </div>
+                                                <span className={`text-xs font-semibold ${isApproved ? 'text-green-600' : 'text-[--text-muted]'}`}>
+                                                    {isApproved ? 'Approved' : 'Approve'}
+                                                </span>
                                             </label>
                                             <span className={`text-xs font-semibold ${isApproved ? 'text-green-600' : 'text-[--text-muted]'}`}>
                                                 {isApproved ? 'Approved' : 'Pending'}

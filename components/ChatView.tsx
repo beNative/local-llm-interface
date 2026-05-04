@@ -223,11 +223,7 @@ const MemoizedChatMessage = React.memo<{
           color: msg.role === 'user' ? 'var(--user-message-text-color)' : 'var(--assistant-message-text-color)',
           backgroundImage: msg.role === 'user' ? 'var(--user-message-bg-image)' : 'none',
         }}
-        className={`p-4 rounded-2xl shadow-sm max-w-full overflow-hidden ${
-          msg.role === 'user'
-            ? 'rounded-br-lg'
-            : 'rounded-bl-lg'
-        }`}
+        className="p-4 rounded-none shadow-sm max-w-full overflow-hidden"
       >
         {msg.role === 'assistant' ? (
           (isStreamingPlaceholder && !effectiveContent) ? (
@@ -265,7 +261,7 @@ const MemoizedChatMessage = React.memo<{
             {Array.isArray(msg.content) ? (
               msg.content.map((part, i) => {
                 if (part.type === 'image_url') {
-                  return <img key={i} src={part.image_url.url} className="max-w-xs rounded-lg" alt="User upload" />;
+                  return <img key={i} src={part.image_url.url} className="max-w-xs rounded-none" alt="User upload" />;
                 }
                 if (part.type === 'text') {
                   return <p key={i} className="whitespace-pre-wrap">{part.text}</p>;
@@ -883,19 +879,19 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
       />
       <footer className="p-[var(--space-4)] bg-[--bg-primary] border-t border-[--border-primary] flex-shrink-0">
           <div
-              className="relative flex items-center gap-2 bg-[--bg-secondary] border border-[--border-primary] rounded-full px-[var(--space-4)] py-[var(--space-2)] focus-within:border-[--accent-chat] focus-within:ring-2 focus-within:ring-[--border-focus]"
+              className="relative flex items-center gap-2 bg-[--bg-secondary] border border-[--border-primary] rounded-none px-[var(--space-4)] py-[var(--space-2)] focus-within:border-[--accent-chat] focus-within:ring-2 focus-within:ring-[--border-focus]"
           >
               {attachedImage && (
                   <div className="absolute bottom-full left-0 mb-2 p-2 bg-[--bg-secondary] border border-[--border-primary] rounded-lg">
                       <img src={attachedImage} alt="Attachment preview" className="h-20 w-20 object-cover rounded" />
-                      <button {...removeImgTooltip} onClick={() => setAttachedImage(null)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5">
+                      <button {...removeImgTooltip} onClick={() => setAttachedImage(null)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-none p-0.5">
                           <XIcon className="w-3 h-3" />
                       </button>
                   </div>
               )}
               <div className="flex items-center gap-1">
                   <input type="file" ref={fileInputRef} onChange={e => handleImageChange(e.target.files ? e.target.files[0] : null)} accept="image/*" className="hidden" />
-                  <button {...attachImgTooltip} onClick={() => fileInputRef.current?.click()} className="p-[var(--space-2)] text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-full">
+                  <button {...attachImgTooltip} onClick={() => fileInputRef.current?.click()} className="p-[var(--space-2)] text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-none">
                       <PaperclipIcon className="w-5 h-5" />
                   </button>
                   <div className="relative">
@@ -903,7 +899,7 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
                           ref={promptsButtonRef}
                           {...predefinedPromptsTooltip}
                           onClick={() => setIsPromptsOpen(p => !p)}
-                          className="p-[var(--space-2)] text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-full"
+                          className="p-[var(--space-2)] text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-none"
                       >
                           <BookmarkIcon className="w-5 h-5" />
                       </button>
@@ -937,11 +933,11 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
               />
               <div className="flex items-center">
                   {isResponding ? (
-                      <button {...stopGenTooltip} onClick={onStopGeneration} className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600">
+                      <button {...stopGenTooltip} onClick={onStopGeneration} className="p-2 bg-red-500 text-white rounded-none hover:bg-red-600">
                           <StopIcon className="w-5 h-5" />
                       </button>
                   ) : (
-                      <button {...sendMsgTooltip} onClick={handleSend} disabled={!input.trim() && !attachedImage} className="p-2 bg-[--accent-chat] text-[--user-message-text-color] rounded-full disabled:opacity-50 disabled:cursor-not-allowed">
+                      <button {...sendMsgTooltip} onClick={handleSend} disabled={!input.trim() && !attachedImage} className="p-2 bg-[--accent-chat] text-[--user-message-text-color] rounded-none disabled:opacity-50 disabled:cursor-not-allowed">
                           <SendIcon className="w-5 h-5" />
                       </button>
                   )}
