@@ -9,6 +9,7 @@ import { readdir, stat, readFile, writeFile, mkdir, copyFile } from 'fs/promises
 import * as os from 'os';
 import { spawn, exec } from 'child_process';
 import * as crypto from 'crypto';
+import { pathToFileURL } from 'url';
 import { request as httpRequest } from 'http';
 import { request as httpsRequest } from 'https';
 import type { IncomingHttpHeaders } from 'http';
@@ -146,6 +147,11 @@ const execCommand = (cmd: string, args: string[] = []): Promise<string> => {
             }
         });
     });
+};
+
+const openPathInBrowser = async (targetPath: string) => {
+    const fileUrl = pathToFileURL(targetPath).toString();
+    await electron.shell.openExternal(fileUrl);
 };
 
 async function detectPythonInterpreters(): Promise<Toolchain[]> {
@@ -547,17 +553,19 @@ electron.app.whenReady().then(() => {
     });
     
     electron.ipcMain.handle('html:run', async (_, code: string): Promise<{ stdout: string; stderr: string }> => {
-        const tempDir = os.tmpdir();
-        const tempFileName = `html_snippet_${crypto.randomBytes(6).toString('hex')}.html`;
-        const tempFilePath = path.join(tempDir, tempFileName);
-
         try {
-            fs.writeFileSync(tempFilePath, code, 'utf-8');
-            await electron.shell.openPath(tempFilePath);
-            // We don't delete the temp file so the browser has time to load it.
-            // The OS will clean up the temp directory eventually.
+            const snippetDir = path.join(os.homedir(), 'Downloads', 'local-llm-interface-snippets');
+            fs.mkdirSync(snippetDir, { recursive: true });
+
+            const snippetFileName = `html_snippet_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.html`;
+            const snippetFilePath = path.join(snippetDir, snippetFileName);
+            fs.writeFileSync(snippetFilePath, code, 'utf-8');
+
+            const snippetUrl = pathToFileURL(snippetFilePath).toString();
+            await electron.shell.openExternal(snippetUrl);
+
             return {
-                stdout: `Successfully opened HTML snippet in default browser. Path: ${tempFilePath}`,
+                stdout: `Successfully opened HTML snippet in default browser. Path: ${snippetFilePath}`,
                 stderr: '',
             };
         } catch (error) {
@@ -871,7 +879,7 @@ end.
     electron.ipcMain.handle('project:open-webapp', async (_, projectPath: string) => {
         const indexPath = path.join(projectPath, 'index.html');
         if (isPathInAllowedBase(projectPath) && fs.existsSync(indexPath)) {
-            electron.shell.openPath(indexPath);
+            await openPathInBrowser(indexPath);
         } else {
             throw new Error(`index.html not found in project or path is not allowed: ${projectPath}`);
         }
@@ -907,7 +915,7 @@ end.
         if (project.type === 'webapp') {
             const indexPath = path.join(project.path, 'index.html');
             if (fs.existsSync(indexPath)) {
-                electron.shell.openPath(indexPath);
+                await openPathInBrowser(indexPath);
                 return { stdout: `Successfully opened ${indexPath} in the default browser.`, stderr: '' };
             }
             return { stdout: '', stderr: `Could not find index.html in ${project.path}` };
@@ -980,7 +988,7 @@ end.
             const indexPath = path.join(project.path, 'index.html');
             if (fs.existsSync(indexPath)) {
                 console.log(`No script entry point found for nodejs project ${project.name}, but found index.html. Opening in browser.`);
-                electron.shell.openPath(indexPath);
+                await openPathInBrowser(indexPath);
                 return { stdout: `No script found. Opened ${indexPath} in the default browser.`, stderr: '' };
             }
 

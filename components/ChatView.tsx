@@ -103,6 +103,7 @@ interface CodeBlockProps {
 const CodeBlock: React.FC<CodeBlockProps> = ({ language, code, theme, onRunCode }) => {
     const [isCopied, setIsCopied] = React.useState(false);
     const syntaxTheme = theme === 'dark' ? atomDark : coy;
+    const isHtml = language === 'html';
 
     const handleCopy = () => {
         navigator.clipboard.writeText(code);
@@ -111,6 +112,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ language, code, theme, onRunCode 
     };
 
     const handleRun = () => {
+        logger.info(`Code block action clicked: ${language} (${code.length} chars).`);
         onRunCode(language, code);
     };
 
@@ -123,16 +125,48 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ language, code, theme, onRunCode 
 
     return (
         <div className="my-2 bg-[--code-bg] rounded-lg border border-[--border-primary] text-sm overflow-hidden not-prose">
-            <div className="flex justify-between items-center px-4 py-1.5 bg-[--bg-tertiary] border-b border-[--border-primary]">
+            <div className="flex justify-between items-center gap-3 px-4 py-1.5 bg-[--bg-tertiary] border-b border-[--border-primary]">
                 <span className="font-mono text-xs text-[--text-muted]">{language}</span>
                 <div className="flex items-center gap-2">
                     {canRun && (
-                        <button {...runTooltip} onClick={handleRun} className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] transition-colors">
+                        <button
+                            type="button"
+                            {...runTooltip}
+                            onMouseDown={isHtml ? (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                logger.info(`Code block run button pressed: ${language} (${code.length} chars).`);
+                                handleRun();
+                            } : undefined}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (!isHtml) {
+                                    logger.info(`Code block run button pressed: ${language} (${code.length} chars).`);
+                                    handleRun();
+                                }
+                            }}
+                            className={
+                                isHtml
+                                    ? 'inline-flex items-center gap-1 px-4 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 text-amber-600 dark:text-amber-300 border border-amber-500/40 hover:border-amber-400/60 shadow-sm cursor-pointer transition-colors'
+                                    : 'flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] transition-colors'
+                            }
+                        >
                             <RunIconComponent className="w-4 h-4" />
                             <span>{runText}</span>
                         </button>
                     )}
-                    <button {...copyTooltip} onClick={handleCopy} className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] transition-colors">
+                    <button
+                        type="button"
+                        {...copyTooltip}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            logger.info(`Code block copy button pressed: ${language} (${code.length} chars).`);
+                            handleCopy();
+                        }}
+                        className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] transition-colors"
+                    >
                         {isCopied ? <CheckIcon className="w-4 h-4 text-green-500"/> : <ClipboardIcon className="w-4 h-4" />}
                         <span>{isCopied ? 'Copied' : 'Copy'}</span>
                     </button>
@@ -152,11 +186,12 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ language, code, theme, onRunCode 
 
 const MemoizedChatMessage = React.memo<{
   msg: ChatMessage;
-  markdownComponents: ReturnType<typeof useMemo>;
+ markdownComponents: ReturnType<typeof useMemo>;
   theme: Theme;
   isResponding: boolean;
   streamingDraft: string | null;
-}>(({ msg, markdownComponents, theme, isResponding, streamingDraft }) => {
+  onRunCodeSnippet: (language: string, code: string) => void;
+}>(({ msg, markdownComponents, theme, isResponding, streamingDraft, onRunCodeSnippet }) => {
   if (msg.role === 'tool') {
     // Tool responses are handled within the ToolCallDisplay of the preceding assistant message
     return null;
@@ -194,17 +229,17 @@ const MemoizedChatMessage = React.memo<{
             <>
               {msg.metadata?.ragContext && <ContextSources files={msg.metadata.ragContext.files} />}
               {effectiveContent && (
-                  <div
-                      className="prose prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2 prose-pre:bg-transparent prose-pre:p-0"
-                      style={{ fontSize: 'var(--chat-font-size)' }}
+                <div
+                    className="prose prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2 prose-pre:bg-transparent prose-pre:p-0"
+                    style={{ fontSize: 'var(--chat-font-size)' }}
+                >
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
                   >
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={markdownComponents}
-                    >
-                      {effectiveContent as string}
-                    </ReactMarkdown>
-                  </div>
+                    {effectiveContent as string}
+                  </ReactMarkdown>
+                </div>
               )}
               {('tool_calls' in msg && msg.tool_calls) && (
                 <ToolCallDisplay
@@ -769,6 +804,7 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
                       theme={theme}
                       isResponding={isLastMessage && isResponding}
                       streamingDraft={isLastMessage ? streamingDraft : null}
+                      onRunCodeSnippet={onRunCodeSnippet}
                   />
               );
           })}

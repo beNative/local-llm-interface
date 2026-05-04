@@ -481,6 +481,7 @@ const AppContent: React.FC = () => {
 
       setConfig(loadedConfig);
       logger.setConfig({ logToFile: loadedConfig.logToFile });
+      logger.info(`Runtime mode after config load: ${window.electronAPI ? 'Electron bridge available' : 'Browser fallback / no Electron bridge'}.`);
     };
     loadInitialConfig();
   }, []);
@@ -1450,6 +1451,7 @@ const AppContent: React.FC = () => {
   };
 
   const handleRunCodeSnippet = async (language: string, code: string) => {
+    logger.info(`Run code snippet requested: ${language}. Electron bridge available: ${isElectron}.`);
     if (!isElectron) {
         if (language === 'python') {
             logger.info('Running Python code snippet in browser using Pyodide.');
@@ -1463,15 +1465,25 @@ const AppContent: React.FC = () => {
     }
 
     logger.info(`Running ${language} code snippet natively.`);
-    setRunOutput({ title: `Running ${language}...`, stdout: 'Executing...', stderr: '' });
     let result: { stdout: string; stderr: string };
     try {
         if (language === 'python') {
+            setRunOutput({ title: `Running ${language}...`, stdout: 'Executing...', stderr: '' });
             result = await window.electronAPI!.runPython(code);
         } else if (language === 'javascript') {
+            setRunOutput({ title: `Running ${language}...`, stdout: 'Executing...', stderr: '' });
             result = await window.electronAPI!.runNodejs(code);
         } else if (language === 'html') {
+            setRunOutput(null);
             result = await window.electronAPI!.runHtml(code);
+            if (result.stderr) {
+                const msg = `Failed to open HTML snippet: ${result.stderr}`;
+                logger.error(msg);
+                addToast({ type: 'error', message: msg, duration: 5000 });
+            } else {
+                logger.info('Opened HTML snippet in the default browser.');
+            }
+            return;
         } else {
             throw new Error(`Running snippets for language "${language}" is not supported.`);
         }
