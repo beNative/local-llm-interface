@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo, useLayoutEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -48,13 +48,17 @@ const ContextSources: React.FC<{ files: string[] }> = ({ files }) => {
             {isExpanded && (
                 <div className="p-2 border-t border-[--assistant-message-text-color]/10 font-mono">
                     {fileNames.map((name, index) => {
-                        const tooltipProps = useTooltipTrigger(files[index]);
-                        return <div key={index} {...tooltipProps} className="truncate">{name}</div>
+                        return <ContextSourceFile key={index} path={files[index]} name={name ?? files[index]} />;
                     })}
                 </div>
             )}
         </div>
     );
+};
+
+const ContextSourceFile: React.FC<{ path: string; name: string }> = ({ path, name }) => {
+    const tooltipProps = useTooltipTrigger(path);
+    return <div {...tooltipProps} className="truncate">{name}</div>;
 };
 
 const PredefinedPromptButton: React.FC<{ prompt: PredefinedPrompt; onSelect: (content: string) => void; }> = ({ prompt, onSelect }) => {
@@ -208,7 +212,10 @@ const MemoizedChatMessage = React.memo<{
       isStreamingPlaceholder && streamingDraft !== null ? streamingDraft : msg.content;
 
   return (
-    <div className={`flex items-start gap-4 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+    <div
+      className={`flex items-start gap-4 ${msg.role === 'user' ? 'justify-end' : ''}`}
+      style={{ contentVisibility: 'auto', containIntrinsicSize: '1px 220px' } as React.CSSProperties}
+    >
       {msg.role === 'assistant' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center"><ModelIcon className="w-5 h-5 text-[--accent-chat]" /></div>}
       <div
         style={{
@@ -273,6 +280,89 @@ const MemoizedChatMessage = React.memo<{
       </div>
        {msg.role === 'user' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center font-bold text-[--text-primary]">U</div>}
     </div>
+    );
+});
+
+interface ChatTranscriptProps {
+  messages: ChatMessage[];
+  theme: Theme;
+  isResponding: boolean;
+  streamingDraft: string | null;
+  retrievalStatus: 'idle' | 'retrieving';
+  markdownComponents: ReturnType<typeof useMemo>;
+  onRunCodeSnippet: (language: string, code: string) => void;
+}
+
+const ChatTranscript = React.memo<ChatTranscriptProps>(({
+  messages,
+  theme,
+  isResponding,
+  streamingDraft,
+  retrievalStatus,
+  markdownComponents,
+  onRunCodeSnippet,
+}) => {
+  const chatScrollRef = useRef<HTMLElement | null>(null);
+  const isNearBottomRef = useRef(true);
+
+  const updateNearBottomState = useCallback(() => {
+    const container = chatScrollRef.current;
+    if (!container) return;
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    isNearBottomRef.current = distanceFromBottom < 120;
+  }, []);
+
+  useEffect(() => {
+    const container = chatScrollRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      updateNearBottomState();
+    };
+
+    updateNearBottomState();
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+    };
+  }, [updateNearBottomState]);
+
+  useLayoutEffect(() => {
+    const container = chatScrollRef.current;
+    if (!container || !isNearBottomRef.current) return;
+    container.scrollTop = container.scrollHeight;
+  }, [messages.length, streamingDraft, retrievalStatus]);
+
+  return (
+    <main ref={chatScrollRef} className="flex-1 overflow-y-auto p-[var(--space-4)] space-y-[var(--space-6)]">
+      {messages.filter(m => m.role !== 'system').map((msg, index, arr) => {
+          const isLastMessage = index === arr.length - 1;
+          return (
+              <MemoizedChatMessage
+                  key={`${msg.role}-${index}`}
+                  msg={msg}
+                  markdownComponents={markdownComponents}
+                  theme={theme}
+                  isResponding={isLastMessage && isResponding}
+                  streamingDraft={isLastMessage ? streamingDraft : null}
+                  onRunCodeSnippet={onRunCodeSnippet}
+              />
+          );
+      })}
+      {retrievalStatus === 'retrieving' && (
+          <div className="flex items-start gap-4">
+              <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center">
+                  <BrainCircuitIcon className="w-5 h-5 text-[--accent-chat] animate-pulse" />
+              </div>
+              <div className="p-4 rounded-2xl rounded-bl-lg shadow-sm w-full bg-[--assistant-message-bg-color] border border-[--border-primary]">
+                  <h4 className="font-semibold text-sm text-[--assistant-message-text-color]/80 flex items-center gap-2">
+                      <SpinnerIcon className="w-4 h-4" />
+                      Analyzing project to find relevant context...
+                  </h4>
+              </div>
+          </div>
+      )}
+    </main>
   );
 });
 
@@ -328,7 +418,6 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
   const [isParamsOpen, setIsParamsOpen] = useState(false);
   const [isPromptsOpen, setIsPromptsOpen] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const modelSelectorRef = useRef<HTMLDivElement>(null);
@@ -443,14 +532,6 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
         document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
   
   useEffect(() => {
     if (predefinedInput) {
@@ -597,8 +678,6 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
       );
     }
   }), [theme, onRunCodeSnippet]);
-
-  const filteredMessages = useMemo(() => messages.filter(m => m.role !== 'system'), [messages]);
 
   return (
     <div 
@@ -793,36 +872,15 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
             </div>
         )}
       </header>
-      <main className="flex-1 overflow-y-auto p-[var(--space-4)] space-y-[var(--space-6)]">
-          {filteredMessages.map((msg, index) => {
-              const isLastMessage = index === filteredMessages.length - 1;
-              return (
-                  <MemoizedChatMessage
-                      key={`${msg.role}-${index}`}
-                      msg={msg}
-                      markdownComponents={markdownComponents}
-                      theme={theme}
-                      isResponding={isLastMessage && isResponding}
-                      streamingDraft={isLastMessage ? streamingDraft : null}
-                      onRunCodeSnippet={onRunCodeSnippet}
-                  />
-              );
-          })}
-          {retrievalStatus === 'retrieving' && (
-              <div className="flex items-start gap-4">
-                  <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center">
-                      <BrainCircuitIcon className="w-5 h-5 text-[--accent-chat] animate-pulse" />
-                  </div>
-                  <div className="p-4 rounded-2xl rounded-bl-lg shadow-sm w-full bg-[--assistant-message-bg-color] border border-[--border-primary]">
-                      <h4 className="font-semibold text-sm text-[--assistant-message-text-color]/80 flex items-center gap-2">
-                          <SpinnerIcon className="w-4 h-4" />
-                          Analyzing project to find relevant context...
-                      </h4>
-                  </div>
-              </div>
-          )}
-          <div ref={messagesEndRef} />
-      </main>
+      <ChatTranscript
+        messages={messages}
+        theme={theme}
+        isResponding={isResponding}
+        streamingDraft={streamingDraft}
+        retrievalStatus={retrievalStatus}
+        markdownComponents={markdownComponents}
+        onRunCodeSnippet={onRunCodeSnippet}
+      />
       <footer className="p-[var(--space-4)] bg-[--bg-primary] border-t border-[--border-primary] flex-shrink-0">
           <div
               className="relative flex items-center gap-2 bg-[--bg-secondary] border border-[--border-primary] rounded-full px-[var(--space-4)] py-[var(--space-2)] focus-within:border-[--accent-chat] focus-within:ring-2 focus-within:ring-[--border-focus]"

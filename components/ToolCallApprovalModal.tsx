@@ -55,11 +55,14 @@ const ToolCallApprovalModal: React.FC<ToolCallApprovalModalProps> = ({ toolCalls
                     </button>
                     <button
                         onClick={handleFinalize}
-                        className={`rounded-[--border-radius] px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--font-size-sm)] font-medium text-white ${
-                            allApproved ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
+                        disabled={!allApproved}
+                        className={`rounded-[--border-radius] px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--font-size-sm)] font-medium text-white transition-colors ${
+                            allApproved
+                                ? 'bg-green-600 hover:bg-green-700'
+                                : 'bg-blue-600/60 cursor-not-allowed'
                         }`}
                     >
-                        {allApproved ? 'Approve & Continue' : 'Run Approved'}
+                        {allApproved ? 'Approve & Continue' : 'Approve All Pending Actions'}
                     </button>
                 </>
             }
@@ -67,6 +70,11 @@ const ToolCallApprovalModal: React.FC<ToolCallApprovalModalProps> = ({ toolCalls
             <p className="text-[length:var(--font-size-sm)] text-[--text-muted]">
                 The AI wants to perform the following actions. Please review and approve each one. Unapproved actions will not run.
             </p>
+            {!allApproved && (
+                <p className="text-[length:var(--font-size-sm)] text-amber-600 dark:text-amber-300">
+                    The continue button stays disabled until every dangerous action is marked Approved.
+                </p>
+            )}
             <div className="space-y-[var(--space-3)]">
                 {toolCalls.map(call => {
                     const dangerous = isDangerous(call.function.name);

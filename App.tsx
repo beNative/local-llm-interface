@@ -1450,7 +1450,7 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const handleRunCodeSnippet = async (language: string, code: string) => {
+  const handleRunCodeSnippet = useCallback(async (language: string, code: string) => {
     logger.info(`Run code snippet requested: ${language}. Electron bridge available: ${isElectron}.`);
     if (!isElectron) {
         if (language === 'python') {
@@ -1493,7 +1493,7 @@ const AppContent: React.FC = () => {
         logger.error(msg);
         setRunOutput({ title: `Error running ${language} snippet`, stdout: '', stderr: msg });
     }
-  };
+  }, [isElectron, addToast]);
   
   const handleGoToSettings = () => {
     openSettings();
