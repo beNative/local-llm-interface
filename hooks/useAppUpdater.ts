@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useToast } from './useToast';
 
 /**
@@ -7,18 +7,33 @@ import { useToast } from './useToast';
  * completion, and errors.
  */
 export function useAppUpdater(isElectron: boolean): void {
-    const { addToast } = useToast();
+    const { addToast, updateToast } = useToast();
+    const progressToastIdRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (!isElectron || !window.electronAPI) return;
 
         const handleUpdateAvailable = (info: any) => {
-            addToast({ type: 'info', message: `New version ${info.version} found.` });
+            addToast({ type: 'info', message: `New version ${info.version} found. Downloading...` });
         };
-        const handleUpdateDownloading = () => {
-            addToast({ type: 'info', message: `Downloading update...`, duration: 10000 });
+        const handleDownloadProgress = (progress: { percent: number; bytesPerSecond: number; transferred: number; total: number }) => {
+            const speedMB = (progress.bytesPerSecond / 1048576).toFixed(1);
+            const message = `Downloading update... ${progress.percent}% (${speedMB} MB/s)`;
+
+            if (progressToastIdRef.current) {
+                updateToast(progressToastIdRef.current, { message });
+            } else {
+                const id = `update-progress-${Date.now()}`;
+                progressToastIdRef.current = id;
+                addToast({ id, type: 'info', message, duration: 120000 });
+            }
         };
         const handleUpdateDownloaded = (info: any) => {
+            // Remove the progress toast
+            if (progressToastIdRef.current) {
+                updateToast(progressToastIdRef.current, { message: 'Download complete!', duration: 1 });
+                progressToastIdRef.current = null;
+            }
             addToast({
                 type: 'success',
                 message: `Update ${info.version} is ready to install.`,
@@ -29,6 +44,9 @@ export function useAppUpdater(isElectron: boolean): void {
             });
         };
         const handleUpdateError = (error: Error) => {
+            if (progressToastIdRef.current) {
+                progressToastIdRef.current = null;
+            }
             addToast({ type: 'error', message: `Update failed: ${error.message}` });
         };
         const handleUpdateNotAvailable = () => {
@@ -36,17 +54,17 @@ export function useAppUpdater(isElectron: boolean): void {
         };
 
         window.electronAPI.onUpdateAvailable(handleUpdateAvailable);
-        window.electronAPI.onUpdateDownloading(handleUpdateDownloading);
+        window.electronAPI.onUpdateDownloadProgress(handleDownloadProgress);
         window.electronAPI.onUpdateDownloaded(handleUpdateDownloaded);
         window.electronAPI.onUpdateError(handleUpdateError);
         window.electronAPI.onUpdateNotAvailable(handleUpdateNotAvailable);
 
         return () => {
             window.electronAPI!.removeUpdateAvailableListener();
-            window.electronAPI!.removeUpdateDownloadingListener();
+            window.electronAPI!.removeUpdateDownloadProgressListener();
             window.electronAPI!.removeUpdateDownloadedListener();
             window.electronAPI!.removeUpdateErrorListener();
             window.electronAPI!.removeUpdateNotAvailableListener();
         };
-    }, [isElectron, addToast]);
+    }, [isElectron, addToast, updateToast]);
 }

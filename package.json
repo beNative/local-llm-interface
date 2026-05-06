@@ -19,9 +19,9 @@
     "package:mac:x64": "npm run build && electron-builder --mac --x64",
     "package:win:x64": "npm run build && electron-builder --win --x64",
     "package:win:ia32": "npm run build && electron-builder --win --ia32",
-    "package:linux:x64": "npm run build && electron-builder --linux AppImage --x64 --publish never",
-    "package:linux:armv7l": "npm run build && electron-builder --linux AppImage --armv7l --publish never",
-    "package:linux:arm64": "npm run build && electron-builder --linux AppImage --arm64 --publish never"
+    "package:linux:x64": "npm run build && electron-builder --linux AppImage --x64",
+    "package:linux:armv7l": "npm run build && electron-builder --linux AppImage --armv7l",
+    "package:linux:arm64": "npm run build && electron-builder --linux AppImage --arm64"
   },
   "dependencies": {
     "@google/genai": "^0.15.0",

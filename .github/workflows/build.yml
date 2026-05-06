@@ -75,7 +75,7 @@ jobs:
           path: |
             ${{ matrix.electron-cache }}
             ${{ matrix.electron-builder-cache }}
-          key: ${{ runner.os }}-electron-${{ hashFiles('package.json') }}
+          key: ${{ runner.os }}-electron-${{ hashFiles('package-lock.json') }}
           restore-keys: ${{ runner.os }}-electron-
 
       - name: Install dependencies

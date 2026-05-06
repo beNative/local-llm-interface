@@ -28,7 +28,15 @@ const appDataPath = electron.app.getPath('userData');
 const settingsPath = path.join(appDataPath, 'settings.json');
 
 let mainWindowInstance: electron.BrowserWindow | null = null;
-let hasSentDownloadingMessage = false;
+/**
+ * Configures the autoUpdater with the current user settings.
+ * Centralises the pre-release toggle so it's set consistently.
+ */
+const configureAutoUpdater = () => {
+    const settings = readSettings() as any;
+    autoUpdater.allowPrerelease = !!(settings?.allowPrerelease);
+    console.log(`Auto-updater configured: allowPrerelease=${autoUpdater.allowPrerelease}`);
+};
 const registeredGlobalShortcuts = new Map<string, ShortcutActionId>();
 
 
@@ -858,19 +866,10 @@ electron.app.whenReady().then(() => {
     electron.ipcMain.handle('updates:check', () => {
         if (!electron.app.isPackaged) {
             console.log('Update check skipped: App is not packaged.');
-            // Send a "not available" event to give user feedback
             mainWindowInstance?.webContents.send('update-not-available', { version: electron.app.getVersion() });
             return;
         }
-        const settings = readSettings() as any;
-        if (settings && settings.allowPrerelease) {
-            autoUpdater.allowPrerelease = true;
-            console.log('Allowing pre-releases for auto-updater.');
-        } else {
-            autoUpdater.allowPrerelease = false;
-            console.log('Not allowing pre-releases for auto-updater.');
-        }
-        hasSentDownloadingMessage = false;
+        configureAutoUpdater();
         return autoUpdater.checkForUpdates();
     });
     
@@ -1322,18 +1321,10 @@ end.
 
     // Check for app updates when the app is packaged.
     if (electron.app.isPackaged) {
+      configureAutoUpdater();
       const settings = readSettings() as any;
-      if (settings && settings.allowPrerelease) {
-        autoUpdater.allowPrerelease = true;
-        console.log('Allowing pre-releases for auto-updater.');
-      } else {
-        autoUpdater.allowPrerelease = false;
-        console.log('Not allowing pre-releases for auto-updater.');
-      }
-
       const autoCheckEnabled = settings?.autoCheckForUpdates !== false;
       if (autoCheckEnabled) {
-        hasSentDownloadingMessage = false;
         autoUpdater.checkForUpdates();
       } else {
         console.log('Automatic update checks are disabled in settings.');
@@ -1362,10 +1353,12 @@ autoUpdater.on('error', (err) => {
 });
 
 autoUpdater.on('download-progress', (progressObj) => {
-    if (!hasSentDownloadingMessage) {
-        mainWindowInstance?.webContents.send('update-downloading');
-        hasSentDownloadingMessage = true;
-    }
+    mainWindowInstance?.webContents.send('update-download-progress', {
+        percent: Math.round(progressObj.percent),
+        bytesPerSecond: progressObj.bytesPerSecond,
+        transferred: progressObj.transferred,
+        total: progressObj.total,
+    });
     console.log(`Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}% (${progressObj.transferred}/${progressObj.total})`);
 });
 

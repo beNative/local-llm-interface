@@ -10,7 +10,7 @@ interface ToastAction {
 }
 
 interface Toast {
-  id: number;
+  id: number | string;
   message: ReactNode;
   type: ToastType;
   duration?: number;
@@ -18,9 +18,10 @@ interface Toast {
 }
 
 interface ToastContextType {
-  addToast: (toast: Omit<Toast, 'id'>) => void;
+  addToast: (toast: Omit<Toast, 'id'> & { id?: string | number }) => void;
+  updateToast: (id: string | number, updates: Partial<Omit<Toast, 'id'>>) => void;
   toasts: Toast[];
-  removeToast: (id: number) => void;
+  removeToast: (id: number | string) => void;
 }
 
 export const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -105,17 +106,27 @@ export const ToastContainer: React.FC = () => {
 export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const addToast = useCallback((toast: Omit<Toast, 'id'>) => {
-    const id = Date.now();
-    setToasts(prevToasts => [...prevToasts, { ...toast, id }]);
+  const addToast = useCallback((toast: Omit<Toast, 'id'> & { id?: string | number }) => {
+    const id = toast.id ?? Date.now();
+    setToasts(prevToasts => {
+      // If a toast with this id already exists, update it instead of adding a duplicate
+      if (prevToasts.some(t => t.id === id)) {
+        return prevToasts.map(t => t.id === id ? { ...t, ...toast, id } : t);
+      }
+      return [...prevToasts, { ...toast, id }];
+    });
   }, []);
 
-  const removeToast = useCallback((id: number) => {
+  const updateToast = useCallback((id: string | number, updates: Partial<Omit<Toast, 'id'>>) => {
+    setToasts(prevToasts => prevToasts.map(t => t.id === id ? { ...t, ...updates } : t));
+  }, []);
+
+  const removeToast = useCallback((id: number | string) => {
     setToasts(prevToasts => prevToasts.filter(t => t.id !== id));
   }, []);
 
   return (
-    <ToastContext.Provider value={{ addToast, toasts, removeToast }}>
+    <ToastContext.Provider value={{ addToast, updateToast, toasts, removeToast }}>
       {children}
     </ToastContext.Provider>
   );

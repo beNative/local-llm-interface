@@ -18,6 +18,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
       notes: ${{ steps.changelog.outputs.notes }}
     steps:
       - name: Checkout repository
@@ -43,11 +44,17 @@ jobs:
             echo "::error::Changelog entry for version ${PACKAGE_VERSION} not found."
             exit 1
           fi
-          echo "Version validation succeeded."
+          # Detect pre-release versions (e.g., 0.22.0-rc.1, 0.22.0-beta.1)
+          IS_PRERELEASE="false"
+          if [[ "${PACKAGE_VERSION}" == *"-"* ]]; then
+            IS_PRERELEASE="true"
+          fi
+          echo "Version validation succeeded. Pre-release: ${IS_PRERELEASE}"
           echo "::endgroup::"
           {
             echo "version=${PACKAGE_VERSION}"
             echo "tag=${TAG_NAME}"
+            echo "is_prerelease=${IS_PRERELEASE}"
           } >> "${GITHUB_OUTPUT}"
 
       - name: Extract changelog entry
@@ -89,53 +96,47 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: prepare
     permissions:
-      contents: read
+      contents: write
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: macOS x64
             os: macos-latest
-            build-script: package:mac:x64
+            build-args: --mac --x64
             electron-cache: ~/Library/Caches/electron
             electron-builder-cache: ~/Library/Caches/electron-builder
             npm-target-arch: x64
-            artifact-suffix: macos-x64
           - name: Windows x64
             os: windows-latest
-            build-script: package:win:x64
+            build-args: --win --x64
             electron-cache: 'C:\\Users\\runneradmin\\AppData\\Local\\electron\\Cache'
             electron-builder-cache: 'C:\\Users\\runneradmin\\AppData\\Local\\electron-builder\\Cache'
             npm-target-arch: x64
-            artifact-suffix: windows-x64
           - name: Windows ia32
             os: windows-latest
-            build-script: package:win:ia32
+            build-args: --win --ia32
             electron-cache: 'C:\\Users\\runneradmin\\AppData\\Local\\electron\\Cache'
             electron-builder-cache: 'C:\\Users\\runneradmin\\AppData\\Local\\electron-builder\\Cache'
             npm-target-arch: ia32
-            artifact-suffix: windows-ia32
           - name: Linux x64
             os: ubuntu-latest
-            build-script: package:linux:x64
+            build-args: --linux AppImage --x64
             electron-cache: ~/.cache/electron
             electron-builder-cache: ~/.cache/electron-builder
             npm-target-arch: x64
-            artifact-suffix: linux-x64
           - name: Linux armv7l
             os: ubuntu-latest
-            build-script: package:linux:armv7l
+            build-args: --linux AppImage --armv7l
             electron-cache: ~/.cache/electron
             electron-builder-cache: ~/.cache/electron-builder
             npm-target-arch: arm
-            artifact-suffix: linux-armv7l
           - name: Linux arm64
             os: ubuntu-latest
-            build-script: package:linux:arm64
+            build-args: --linux AppImage --arm64
             electron-cache: ~/.cache/electron
             electron-builder-cache: ~/.cache/electron-builder
             npm-target-arch: arm64
-            artifact-suffix: linux-arm64
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -166,32 +167,8 @@ jobs:
       - name: Install dependencies
         run: npm install --no-fund --no-audit
 
-      - name: Build release artifacts
-        run: npm run ${{ matrix.build-script }}
-
-      - name: Package platform bundle
-        shell: bash
-        run: |
-          set -euo pipefail
-          VERSION="${{ needs.prepare.outputs.version }}"
-          SUFFIX="${{ matrix.artifact-suffix }}"
-          echo "::group::Preparing artifact archive for ${SUFFIX}"
-          ls -R release || {
-            echo "::error::Release directory is empty for ${SUFFIX}.";
-            exit 1;
-          }
-          mkdir -p dist
-          ARCHIVE="dist/local-llm-interface-${VERSION}-${SUFFIX}.tar.gz"
-          tar -czf "${ARCHIVE}" -C release .
-          echo "Created archive ${ARCHIVE}"
-          echo "::endgroup::"
-
-      - name: Upload packaged artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: local-llm-interface-${{ matrix.artifact-suffix }}
-          path: dist/local-llm-interface-*.tar.gz
-          if-no-files-found: error
+      - name: Build and publish release artifacts
+        run: npm run build && npx electron-builder ${{ matrix.build-args }} --publish always
 
   publish:
     name: Publish release
@@ -204,6 +181,7 @@ jobs:
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
       TAG: ${{ needs.prepare.outputs.tag }}
+      IS_PRERELEASE: ${{ needs.prepare.outputs.is_prerelease }}
     steps:
       - name: Download release notes
         uses: actions/download-artifact@v4
@@ -211,84 +189,14 @@ jobs:
           name: release-notes
           path: release
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: release-artifacts
-          pattern: local-llm-interface-*
-          merge-multiple: true
-
-      - name: Summarize downloaded assets
-        run: |
-          echo "::group::Downloaded files"
-          ls -R release release-artifacts
-          echo "::endgroup::"
-
-      - name: Generate download page
-        id: downloads
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p release
-          DOWNLOAD_PAGE="release/downloads.md"
-          {
-            echo "| Platform | Download |"
-            echo "| --- | --- |"
-          } > "${DOWNLOAD_PAGE}"
-          count=0
-          while IFS= read -r -d '' file; do
-            filename=$(basename "$file")
-            suffix=${filename#local-llm-interface-${VERSION}-}
-            suffix=${suffix%.tar.gz}
-            case "$suffix" in
-              macos-x64) platform="macOS x64" ;;
-              windows-x64) platform="Windows x64" ;;
-              windows-ia32) platform="Windows ia32" ;;
-              linux-x64) platform="Linux x64" ;;
-              linux-armv7l) platform="Linux armv7l" ;;
-              linux-arm64) platform="Linux arm64" ;;
-              *) platform="$suffix" ;;
-            esac
-            url="https://github.com/${{ github.repository }}/releases/download/${TAG}/${filename}"
-            echo "| ${platform} | [${filename}](${url}) |" >> "${DOWNLOAD_PAGE}"
-            ((count++))
-          done < <(find release-artifacts -type f -name 'local-llm-interface-*.tar.gz' -print0)
-          if [[ ${count} -eq 0 ]]; then
-            echo "::error::No release artifacts were discovered for publishing."
-            exit 1
-          fi
-          cat "${DOWNLOAD_PAGE}"
-
-      - name: Create release body
-        id: body
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p release
-          CHANGELOG_FILE="release/CHANGELOG.md"
-          cat <<EOF > "${CHANGELOG_FILE}"
-${{ needs.prepare.outputs.notes }}
-EOF
-          BODY_FILE="release/release-body.md"
-          {
-            echo "## Local LLM Interface ${TAG}"
-            echo
-            echo "### Changelog"
-            cat "${CHANGELOG_FILE}"
-            echo
-            echo "### Downloads"
-            cat release/downloads.md
-          } > "${BODY_FILE}"
-          echo "body-path=${BODY_FILE}" >> "${GITHUB_OUTPUT}"
-
-      - name: Publish GitHub release
+      - name: Update GitHub release body
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
           name: Local LLM Interface ${{ env.TAG }}
-          body_path: ${{ steps.body.outputs.body-path }}
-          files: |
-            release-artifacts/local-llm-interface-*.tar.gz
-            release/downloads.md
+          body_path: release/release-notes.md
+          prerelease: ${{ env.IS_PRERELEASE == 'true' }}
+          # Don't upload files here — electron-builder already attached them
+          # in the build step via --publish always
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

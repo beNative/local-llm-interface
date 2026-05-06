@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.22.0] - 2026-05-06
+
+### Added
+- **Keyboard Navigation**: Session sidebar now supports full keyboard navigation (Arrow Up/Down to select, Delete to remove, Home/End to jump).
+- **Global Error Boundary**: Application-wide crash recovery UI that intercepts rendering errors and offers reload/copy-log actions.
+- **Stable Message IDs**: Every chat message now receives a unique `crypto.randomUUID()` ID at creation, used as React keys for improved rendering performance.
+- **Log File Retention**: Automatic cleanup of log files older than 7 days on application startup.
+- **Dev Watch Mode**: Added `npm run dev` script with esbuild incremental watch mode for fast iterative development.
+- **Download Progress UI**: Auto-update download progress now shows real-time percentage and speed (MB/s) in a live-updating toast notification.
+
+### Changed
+- **Architecture Refactoring**: Extracted `useSystemStats`, `useAppUpdater`, `useWindowState` hooks and `NavButton`, `RunOutputModal` components from App.tsx (−230 lines).
+- **Auto-Update Pipeline**: Rewrote release workflow to publish native installers directly via `electron-builder --publish always`, fixing broken auto-update that previously wrapped artifacts in `.tar.gz` archives incompatible with `electron-updater`.
+- **Linux Auto-Update**: Removed `--publish never` from Linux build scripts to enable AppImage auto-updates.
+- **Toast System**: Enhanced `ToastProvider` with `updateToast` for in-place toast modifications and support for custom string IDs.
+
+### Fixed
+- **Token Estimation**: Fallback prompt token estimator now correctly extracts text from multi-part messages (images + text), fixing artificially low counts.
+- **Variable Shadow Bug**: Removed unused outer `let usage` declaration in `llmService.ts`.
+- **Duplicate Code**: Consolidated duplicate `autoUpdater.allowPrerelease` configuration into a single `configureAutoUpdater()` helper.
+- **CI Cache Key**: Fixed `build.yml` to use `package-lock.json` instead of `package.json` for Electron cache keys.
+
+### Security
+- **Process Timeout**: All spawned commands now enforce a 60-second timeout with SIGTERM/SIGKILL enforcement.
+- **Output Truncation**: stdout/stderr from tool execution capped at 100KB to prevent memory exhaustion.
+
+### Accessibility
+- **Session Sidebar**: Added `aria-label` attributes to icon-only buttons, `title` tooltips for truncated names, and ARIA `listbox`/`option` roles.
+- **Meta Description**: Added SEO meta description tag to `index.html`.
+
 ## [0.21.0] - 2026-05-06
 
 ### Added
