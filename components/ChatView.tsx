@@ -994,10 +994,15 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
                                 Agent Mode
                             </label>
                             <button
+                                role="switch"
+                                aria-checked={!!agentToolsEnabled}
+                                aria-label="Toggle Agent Mode"
                                 onClick={() => onSetSessionAgentToolsEnabled(!agentToolsEnabled)}
-                                className={`w-8 h-4 rounded-full relative transition-colors duration-200 ${agentToolsEnabled ? 'bg-green-500' : 'bg-gray-400'}`}
+                                className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[--accent-chat] ${agentToolsEnabled ? 'bg-green-500' : 'bg-[--bg-tertiary]'}`}
                             >
-                                <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform duration-200 ${agentToolsEnabled ? 'left-4.5' : 'left-0.5'}`} />
+                                <span
+                                    className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm ring-0 transition-transform duration-200 ease-in-out ${agentToolsEnabled ? 'translate-x-4' : 'translate-x-0'}`}
+                                />
                             </button>
                         </div>
                     )}
