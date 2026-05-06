@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import type { ChatSession } from '../types';
 import Icon from './Icon';
 import { useTooltipTrigger } from '../hooks/useTooltipTrigger';
@@ -16,13 +16,19 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
   const newChatTooltip = useTooltipTrigger('Start a new conversation');
   const generateNameTooltip = useTooltipTrigger('Generate name');
   const deleteSessionTooltip = useTooltipTrigger('Delete session');
+  const navRef = useRef<HTMLElement>(null);
 
   const getSessionTime = (session: ChatSession) => {
     return session.updatedAt || session.createdAt || parseInt(session.id.replace('session_', '')) || 0;
   };
 
+  /** Flat, sorted list of all sessions (newest first) used for keyboard nav ordering. */
+  const sortedSessions = useMemo(() => {
+    return [...sessions].sort((a, b) => getSessionTime(b) - getSessionTime(a));
+  }, [sessions]);
+
   const groupSessions = (sessions: ChatSession[]) => {
-    const sorted = [...sessions].sort((a, b) => getSessionTime(b) - getSessionTime(a));
+    const sorted = sortedSessions;
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const yesterday = today - 86400000;
@@ -51,6 +57,68 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
 
   const groupedSessions = groupSessions(sessions);
 
+  /**
+   * Keyboard navigation handler for the session list.
+   * - ArrowDown / ArrowUp: move focus to next/previous session
+   * - Enter / Space: select the focused session
+   * - Delete / Backspace: delete the focused session
+   */
+  const handleNavKeyDown = useCallback((e: React.KeyboardEvent<HTMLElement>) => {
+    const nav = navRef.current;
+    if (!nav) return;
+
+    const sessionButtons = Array.from(
+      nav.querySelectorAll<HTMLButtonElement>('[data-session-id]')
+    );
+    if (sessionButtons.length === 0) return;
+
+    const currentIndex = sessionButtons.findIndex(
+      btn => btn === document.activeElement || btn.parentElement?.parentElement === document.activeElement?.closest('[data-session-row]')
+    );
+
+    let handled = false;
+
+    if (e.key === 'ArrowDown') {
+      const nextIndex = currentIndex < sessionButtons.length - 1 ? currentIndex + 1 : 0;
+      sessionButtons[nextIndex].focus();
+      handled = true;
+    } else if (e.key === 'ArrowUp') {
+      const prevIndex = currentIndex > 0 ? currentIndex - 1 : sessionButtons.length - 1;
+      sessionButtons[prevIndex].focus();
+      handled = true;
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      const focused = document.activeElement as HTMLButtonElement;
+      const sessionId = focused?.getAttribute('data-session-id');
+      if (sessionId) {
+        onSelectSession(sessionId);
+        handled = true;
+      }
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      const focused = document.activeElement as HTMLButtonElement;
+      const sessionId = focused?.getAttribute('data-session-id');
+      if (sessionId) {
+        // Move focus to the next session before deleting
+        const nextIndex = currentIndex < sessionButtons.length - 1 ? currentIndex + 1 : currentIndex - 1;
+        if (nextIndex >= 0 && nextIndex < sessionButtons.length && nextIndex !== currentIndex) {
+          sessionButtons[nextIndex].focus();
+        }
+        onDeleteSession(sessionId);
+        handled = true;
+      }
+    } else if (e.key === 'Home') {
+      sessionButtons[0]?.focus();
+      handled = true;
+    } else if (e.key === 'End') {
+      sessionButtons[sessionButtons.length - 1]?.focus();
+      handled = true;
+    }
+
+    if (handled) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, [onSelectSession, onDeleteSession]);
+
   return (
     <aside className="h-full bg-[--bg-sidebar]/80 backdrop-blur-md border-r border-[--border-primary] flex flex-col">
       <div className="p-4 flex-shrink-0">
@@ -64,9 +132,16 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
         </button>
       </div>
       
-      <nav className="flex-1 overflow-y-auto px-2 pb-4 custom-scrollbar">
+      <nav
+        ref={navRef}
+        role="listbox"
+        aria-label="Chat sessions"
+        aria-activedescendant={activeSessionId ? `session-${activeSessionId}` : undefined}
+        onKeyDown={handleNavKeyDown}
+        className="flex-1 overflow-y-auto px-2 pb-4 custom-scrollbar"
+      >
         {groupedSessions.map((group) => (
-          <div key={group.title} className="mb-6 last:mb-0">
+          <div key={group.title} role="group" aria-label={group.title} className="mb-6 last:mb-0">
             <div className="px-2 py-2">
               <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-[--text-muted]">{group.title}</h3>
             </div>
@@ -74,6 +149,7 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
               {group.items.map((session) => (
                 <div
                   key={session.id}
+                  data-session-row
                   className={`group w-full text-left rounded-xl text-sm transition-all relative overflow-hidden ${
                     activeSessionId === session.id
                       ? 'bg-[--bg-hover] text-[--text-primary]'
@@ -82,8 +158,12 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
                 >
                   <div className="flex items-stretch">
                     <button
+                      id={`session-${session.id}`}
+                      role="option"
+                      aria-selected={activeSessionId === session.id}
+                      data-session-id={session.id}
                       onClick={() => onSelectSession(session.id)}
-                      className="flex flex-1 items-start gap-3 text-left truncate px-3 py-3"
+                      className="flex flex-1 items-start gap-3 text-left truncate px-3 py-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-[--accent-chat] focus-visible:ring-inset rounded-xl"
                     >
                       <div className={`mt-0.5 p-1.5 rounded-lg ${activeSessionId === session.id ? 'bg-[--accent-chat] text-white' : 'bg-[--bg-tertiary] text-[--text-muted]'}`}>
                           <Icon name="messageSquare" className="w-3.5 h-3.5 flex-shrink-0" />
@@ -99,10 +179,11 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
                       </div>
                     </button>
                     
-                    <div className="flex flex-col justify-center gap-1 pr-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex flex-col justify-center gap-1 pr-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
                       <button
                         aria-label="Generate session name"
                         {...generateNameTooltip}
+                        tabIndex={-1}
                         onClick={(e) => {
                           e.stopPropagation();
                           onGenerateSessionName(session.id);
@@ -114,6 +195,7 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
                       <button
                         aria-label="Delete session"
                         {...deleteSessionTooltip}
+                        tabIndex={-1}
                         onClick={(e) => {
                           e.stopPropagation();
                           onDeleteSession(session.id);
