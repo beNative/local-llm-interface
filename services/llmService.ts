@@ -4,6 +4,21 @@ import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import type { Model, ChatMessage, ChatMessageMetadata, ChatMessageUsage, GenerationConfig, ModelDetails, Config, LLMProviderConfig, ChatMessageContentPart, Tool, ToolCall, ToolResponseMessage } from '../types';
 import { logger } from './logger';
 
+/**
+ * Extracts all text content from a ChatMessage, handling both plain
+ * string content and multi-part content arrays (text + images).
+ */
+const getMessageText = (m: ChatMessage): string => {
+    if (typeof m.content === 'string') return m.content;
+    if (Array.isArray(m.content)) {
+        return m.content
+            .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+            .map(p => p.text)
+            .join('');
+    }
+    return '';
+};
+
 const MODELS_CACHE_TTL_MS = 30_000;
 
 type ProviderCacheKey = string;
@@ -626,7 +641,7 @@ const streamChatCompletionGemini = async (
         }
         
         if (!usage && fullText) {
-            const historyText = messages.map(m => typeof m.content === 'string' ? m.content : '').join('\n');
+            const historyText = messages.map(getMessageText).join('\n');
             const promptEst = Math.ceil(historyText.length / 3.5);
             const completionEst = Math.ceil(fullText.length / 3.5);
             usage = { 
@@ -741,7 +756,7 @@ export const streamChatCompletion = async (
           const duration = (endTime - startTime) / 1000;
           
           if (!usage && fullText) {
-              const historyText = messages.map(m => typeof m.content === 'string' ? m.content : '').join('\n');
+              const historyText = messages.map(getMessageText).join('\n');
               const promptEst = Math.ceil(historyText.length / 3.5);
               const completionEst = Math.ceil(fullText.length / 3.5);
               usage = { 
