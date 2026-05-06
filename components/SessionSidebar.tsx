@@ -140,7 +140,5 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
     </aside>
   );
 };
-  );
-};
 
 export default SessionSidebar;
