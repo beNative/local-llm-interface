@@ -81,10 +81,14 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
     if (e.key === 'ArrowDown') {
       const nextIndex = currentIndex < sessionButtons.length - 1 ? currentIndex + 1 : 0;
       sessionButtons[nextIndex].focus();
+      const sessionId = sessionButtons[nextIndex].getAttribute('data-session-id');
+      if (sessionId) onSelectSession(sessionId);
       handled = true;
     } else if (e.key === 'ArrowUp') {
       const prevIndex = currentIndex > 0 ? currentIndex - 1 : sessionButtons.length - 1;
       sessionButtons[prevIndex].focus();
+      const sessionId = sessionButtons[prevIndex].getAttribute('data-session-id');
+      if (sessionId) onSelectSession(sessionId);
       handled = true;
     } else if (e.key === 'Enter' || e.key === ' ') {
       const focused = document.activeElement as HTMLButtonElement;
