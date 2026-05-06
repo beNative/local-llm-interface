@@ -11,6 +11,15 @@ interface ToolCallApprovalModalProps {
 
 const isDangerous = (toolName: string) => ['writeFile', 'runTerminalCommand', 'executePython'].includes(toolName);
 
+/** Safely parse JSON for display purposes — returns formatted string or raw fallback */
+const safeFormatArgs = (argsStr: string): string => {
+    try {
+        return JSON.stringify(JSON.parse(argsStr), null, 2);
+    } catch {
+        return argsStr;
+    }
+};
+
 const ToolCallApprovalModal: React.FC<ToolCallApprovalModalProps> = ({ toolCalls, onFinalize, onClose }) => {
     const [callStates, setCallStates] = useState<Record<string, boolean>>(() =>
         toolCalls.reduce((acc, call) => {
@@ -55,14 +64,9 @@ const ToolCallApprovalModal: React.FC<ToolCallApprovalModalProps> = ({ toolCalls
                     </button>
                     <button
                         onClick={handleFinalize}
-                        disabled={!allApproved}
-                        className={`rounded-[--border-radius] px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--font-size-sm)] font-medium text-white transition-colors ${
-                            allApproved
-                                ? 'bg-green-600 hover:bg-green-700'
-                                : 'bg-blue-600/60 cursor-not-allowed'
-                        }`}
+                        className="rounded-[--border-radius] px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--font-size-sm)] font-medium text-white transition-colors bg-blue-600 hover:bg-blue-700"
                     >
-                        {allApproved ? 'Approve & Continue' : 'Approve All Pending Actions'}
+                        {`Continue (${Object.values(callStates).filter(Boolean).length} of ${toolCalls.length} approved)`}
                     </button>
                 </>
             }
@@ -72,7 +76,7 @@ const ToolCallApprovalModal: React.FC<ToolCallApprovalModalProps> = ({ toolCalls
             </p>
             {!allApproved && (
                 <p className="text-[length:var(--font-size-sm)] text-amber-600 dark:text-amber-300">
-                    The continue button stays disabled until every dangerous action is marked Approved.
+                    {Object.values(callStates).filter(v => !v).length} action(s) will be skipped.
                 </p>
             )}
             <div className="space-y-[var(--space-3)]">
@@ -96,7 +100,7 @@ const ToolCallApprovalModal: React.FC<ToolCallApprovalModalProps> = ({ toolCalls
                                         <span>{call.function.name}</span>
                                     </div>
                                     <pre className="whitespace-pre-wrap break-all rounded-[--border-radius] bg-[--bg-primary] p-[var(--space-3)] font-mono text-xs">
-                                        {JSON.stringify(JSON.parse(call.function.arguments), null, 2)}
+                                        {safeFormatArgs(call.function.arguments)}
                                     </pre>
                                 </div>
                                 <div className="flex items-center justify-center gap-[var(--space-2)] sm:flex-col sm:items-center sm:justify-start">

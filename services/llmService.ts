@@ -808,7 +808,9 @@ export const streamChatCompletion = async (
                       }
                   }
 
-                  if (json.choices?.[0]?.finish_reason === 'tool_calls') {
+                  const finishReason = json.choices?.[0]?.finish_reason;
+                  // Emit tool calls on 'tool_calls' (OpenAI) or 'stop' (Ollama) when chunks exist
+                  if (finishReason && Object.keys(toolCallChunks).length > 0) {
                         const final_tool_calls: ToolCall[] = Object.values(toolCallChunks).map(tc => ({
                             id: tc.id,
                             type: 'function',

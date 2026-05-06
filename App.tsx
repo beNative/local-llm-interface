@@ -38,6 +38,7 @@ import { useAppUpdater } from './hooks/useAppUpdater';
 import { useWindowState } from './hooks/useWindowState';
 import GlobalErrorBoundary from './components/GlobalErrorBoundary';
 import { generateMessageId } from './utils/messageId';
+import { getToolsForSession } from './services/toolDefinitions';
 
 const SIDEBAR_MIN_WIDTH = 200;
 const SIDEBAR_MAX_WIDTH = 600;
@@ -68,6 +69,8 @@ const AppContent: React.FC = () => {
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const [targetSettingsSection, setTargetSettingsSection] = useState<SettingsSection | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const toolIterationRef = useRef<number>(0);
+  const MAX_TOOL_ITERATIONS = 10;
   const [sidebarWidth, setSidebarWidth] = useState(205); // 20% reduction from the previous 256px default
   const chatInputFocusHandlerRef = useRef<(() => void) | null>(null);
 
@@ -1019,7 +1022,14 @@ const AppContent: React.FC = () => {
   const executeToolCall = async (toolCall: ToolCall, project: CodeProject | null): Promise<any> => {
       const { name, arguments: argsStr } = toolCall.function;
       logger.info(`Executing tool: ${name} with args: ${argsStr}`);
-      const args = JSON.parse(argsStr);
+      let args: any;
+      try {
+          args = JSON.parse(argsStr);
+      } catch (e) {
+          const parseErr = `Failed to parse arguments for tool "${name}": ${e instanceof Error ? e.message : String(e)}. Raw arguments: ${argsStr.substring(0, 200)}`;
+          logger.error(parseErr);
+          return parseErr;
+      }
 
       try {
           switch(name) {
@@ -1081,37 +1091,7 @@ const AppContent: React.FC = () => {
       setIsResponding(true);
 
       const project = config.projects?.find(p => p.id === session.projectId);
-      const tools: Tool[] = [];
-
-      if (isElectron) {
-          // Always add the code interpreter tool in the desktop app
-          tools.push({
-              type: 'function',
-              function: {
-                  name: 'executePython',
-                  description: 'Executes a Python code snippet and returns its standard output and standard error. Use this for complex calculations, data processing, or when you need to verify logic with code.',
-                  parameters: {
-                      type: 'object',
-                      properties: {
-                          code: {
-                              type: 'string',
-                              description: 'The Python code to execute.'
-                          }
-                      },
-                      required: ['code']
-                  }
-              }
-          });
-      }
-      
-      if (project && isElectron && session.agentToolsEnabled) {
-          tools.push(
-            { type: 'function', function: { name: 'listFiles', description: 'Recursively lists all files and directories within the project, returning an array of relative paths.', parameters: { type: 'object', properties: {} } } },
-            { type: 'function', function: { name: 'readFile', description: "Reads a file's content.", parameters: { type: 'object', properties: { path: { type: 'string', description: 'The relative path to the file from the project root.' } }, required: ['path'] } } },
-            { type: 'function', function: { name: 'writeFile', description: "Writes content to a file, overwriting it if it exists or creating it if it doesn't.", parameters: { type: 'object', properties: { path: { type: 'string', description: 'The relative path to the file from the project root.' }, content: { type: 'string', description: 'The new file content.' } }, required: ['path', 'content'] } } },
-            { type: 'function', function: { name: 'runTerminalCommand', description: "Executes a shell command in the project's root directory.", parameters: { type: 'object', properties: { command: { type: 'string', description: 'The command to execute.' } }, required: ['command'] } } },
-          );
-      }
+      const tools = getToolsForSession(session, project, isElectron);
 
       const finalMessages = [...messages];
       if (tools.length > 0) {
@@ -1150,7 +1130,6 @@ const AppContent: React.FC = () => {
           (metadata) => { // onDone
               flushStreamingDraftBuffer(sessionId);
               clearStreamingDraft(sessionId);
-              const finalMessages = [...session.messages.slice(0, -1)]; // Remove placeholder
               let lastMsg: ChatMessage;
 
               if (accumulatedToolCalls.length > 0) {
@@ -1183,6 +1162,18 @@ const AppContent: React.FC = () => {
       
       const currentSession = config.sessions?.find(s => s.id === activeSessionId);
       if (!currentSession) return;
+
+      // Guard against infinite tool loops
+      toolIterationRef.current += 1;
+      if (toolIterationRef.current > MAX_TOOL_ITERATIONS) {
+          logger.error(`Tool loop exceeded maximum iterations (${MAX_TOOL_ITERATIONS}). Aborting.`);
+          const errorMsg: StandardChatMessage = { id: generateMessageId(), role: 'assistant', content: `⚠️ Tool execution loop reached the maximum of ${MAX_TOOL_ITERATIONS} iterations and was stopped to prevent runaway usage. Please review the results so far and continue manually if needed.` };
+          updateSessionMessages(activeSessionId, [...currentSession.messages, errorMsg]);
+          setPendingToolCalls(null);
+          setIsResponding(false);
+          toolIterationRef.current = 0;
+          return;
+      }
 
       setPendingToolCalls(null);
       setIsResponding(true);
@@ -1235,6 +1226,7 @@ const AppContent: React.FC = () => {
 
   const handleSendMessage = useCallback(async (content: string | ChatMessageContentPart[], options?: { useRAG: boolean }) => {
     if (!config || !config.activeSessionId) return;
+    toolIterationRef.current = 0; // Reset iteration counter for new user turn
     
     const sessionId = config.activeSessionId;
     const session = config.sessions?.find(s => s.id === sessionId);
@@ -1582,7 +1574,7 @@ const AppContent: React.FC = () => {
                   <ToolCallApprovalModal
                     toolCalls={pendingToolCalls}
                     onFinalize={handleToolApproval}
-                    onClose={() => setPendingToolCalls(null)}
+                    onClose={() => { setPendingToolCalls(null); setIsResponding(false); toolIterationRef.current = 0; }}
                   />
               )}
               

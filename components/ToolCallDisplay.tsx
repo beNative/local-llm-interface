@@ -14,6 +14,15 @@ const getIconForTool = (toolName: string) => {
     return 'hammer';
 };
 
+/** Safely parse JSON for display — returns formatted string or raw fallback */
+const safeFormatArgs = (argsStr: string): string => {
+    try {
+        return JSON.stringify(JSON.parse(argsStr), null, 2);
+    } catch {
+        return argsStr;
+    }
+};
+
 const DiffViewer: React.FC<{ oldContent: string; newContent: string; fileName: string; }> = ({ oldContent, newContent, fileName }) => {
     const [isCopied, setIsCopied] = useState(false);
     const copyTooltip = useTooltipTrigger(isCopied ? 'Copied!' : 'Copy diff');
@@ -174,7 +183,7 @@ const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({ message, theme }) => 
                             </div>
                             <div className="mt-1 pl-6">
                                 <SyntaxHighlighter language="json" style={theme === 'dark' ? atomDark : coy} customStyle={{ margin: 0, padding: '0.5rem', background: 'transparent', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                                    {JSON.stringify(JSON.parse(call.function.arguments), null, 2)}
+                                    {safeFormatArgs(call.function.arguments)}
                                 </SyntaxHighlighter>
                             </div>
                              {<ToolCallResult call={call} theme={theme} />}
