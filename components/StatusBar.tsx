@@ -163,8 +163,11 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
                 <div {...vramTooltip} className="flex items-center gap-2 px-2 py-1 rounded bg-[--bg-tertiary]/40 min-w-[120px] transition-all hover:bg-[--bg-tertiary]/70 group cursor-help">
                     <Icon name="gpu" className="w-3 h-3 text-orange-500 opacity-80" />
                     <div className="flex flex-col flex-1">
-                        <div className="flex justify-between font-mono lowercase text-[9px] leading-none mb-1">
-                            <span className="text-[--text-primary] font-bold">{stats?.vram?.total ? formatBytes(stats.vram.used).split(' ')[0] : '--'}</span>
+                        <div className="flex justify-between items-baseline font-mono lowercase text-[9px] leading-none mb-1">
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-[--text-primary] font-bold">{stats?.vram?.total ? formatBytes(stats.vram.used).split(' ')[0] : '--'}</span>
+                                {stats?.vram?.isUnified && <span className="text-[7px] font-bold bg-orange-500/20 text-orange-600 dark:text-orange-300 px-1 rounded uppercase tracking-tighter">Unified</span>}
+                            </div>
                             <span className="text-[--text-muted] opacity-70">/ {stats?.vram?.total ? formatBytes(stats.vram.total) : '--'}</span>
                         </div>
                         <div className="w-full h-1 bg-black/10 dark:bg-black/20 rounded-full overflow-hidden mt-1">

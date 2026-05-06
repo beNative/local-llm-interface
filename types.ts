@@ -320,6 +320,7 @@ export interface SystemStats {
   vram?: {
     used: number;
     total: number;
+    isUnified?: boolean;
   };
 }
 

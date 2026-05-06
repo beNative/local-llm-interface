@@ -22,6 +22,7 @@ import FileCodeIcon from './icons/FileCodeIcon';
 import SlidersIcon from './icons/SlidersIcon';
 import ProviderIcon from './ProviderIcon';
 import { useTooltipTrigger } from '../hooks/useTooltipTrigger';
+import { countTokens } from '../services/tokenizerService';
 import ToolCallDisplay from './ToolCallDisplay';
 import PlayIcon from './icons/PlayIcon';
 import GlobeIcon from './icons/GlobeIcon';
@@ -471,6 +472,8 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
   const [isParamsOpen, setIsParamsOpen] = useState(false);
   const [isPromptsOpen, setIsPromptsOpen] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [preciseInputTokens, setPreciseInputTokens] = useState<number>(0);
+  const [isTokenCountVerified, setIsTokenCountVerified] = useState<boolean>(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const modelSelectorRef = useRef<HTMLDivElement>(null);
@@ -501,9 +504,9 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
     const lastMessageWithUsage = [...messages].reverse().find(m => m.metadata?.usage);
     const historyUsed = lastMessageWithUsage?.metadata?.usage?.total_tokens || 0;
     
-    // Add estimate for the current input being typed
-    const inputEstimate = Math.ceil(input.length / 3.5);
-    const used = historyUsed + inputEstimate;
+    // Use precise count if available, otherwise heuristic
+    const inputUsed = preciseInputTokens > 0 ? preciseInputTokens : Math.ceil(input.length / 3.5);
+    const used = historyUsed + inputUsed;
 
     const getFallbackContextLength = () => {
       const modelId = currentModel?.id.toLowerCase() || '';
@@ -517,8 +520,8 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
 
     const max = currentModel?.details?.context_length || getFallbackContextLength();
     const percent = Math.min(100, Math.round((used / max) * 100));
-    return { used, max, percent };
-  }, [messages, currentModel, input]);
+    return { used, max, percent, verified: isTokenCountVerified };
+  }, [messages, currentModel, input, preciseInputTokens, isTokenCountVerified]);
 
   const contextTooltip = useTooltipTrigger(`Context Usage: ${contextStats.used} / ${contextStats.max} tokens (${contextStats.percent}%)`);
   const visionTooltip = useTooltipTrigger("This model supports image analysis (Vision)");
@@ -652,6 +655,21 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
         textarea.style.height = `${scrollHeight}px`;
     }
   }, [input]);
+
+  // Update precise token count for current input
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+        if (!input.trim()) {
+            setPreciseInputTokens(0);
+            setIsTokenCountVerified(true);
+            return;
+        }
+        const result = await countTokens(input, currentModel?.id || '');
+        setPreciseInputTokens(result.count);
+        setIsTokenCountVerified(result.verified);
+    }, 300); // 300ms debounce
+    return () => clearTimeout(timer);
+  }, [input, currentModel?.id]);
 
   const handleSend = () => {
     if ((!input.trim() && !attachedImage) || isResponding) return;
@@ -988,7 +1006,7 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <div {...contextTooltip} className="flex items-center gap-2 pr-2">
+                    <div {...contextTooltip} className="flex items-center gap-2 pr-2 cursor-help group">
                         <div className="relative w-5 h-5">
                             <svg className="w-full h-full transform -rotate-90">
                                 <circle
@@ -1005,12 +1023,17 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
                                     fill="transparent"
                                     strokeDasharray={50.26}
                                     strokeDashoffset={50.26 - (50.26 * contextStats.percent) / 100}
-                                    className="text-blue-500 transition-all duration-500"
+                                    className={`${contextStats.percent > 90 ? 'text-red-500' : contextStats.percent > 70 ? 'text-yellow-500' : 'text-blue-500'} transition-all duration-500`}
                                     strokeLinecap="round"
                                 />
                             </svg>
+                            {contextStats.verified && (
+                                <div className="absolute -top-1 -right-1 bg-[--bg-primary] rounded-full p-0.5 shadow-sm">
+                                    <Icon name="check" className="w-2 h-2 text-green-500" />
+                                </div>
+                            )}
                         </div>
-                        <span className="text-[10px] font-mono text-[--text-muted] tabular-nums">{contextStats.percent}%</span>
+                        <span className="text-[10px] font-mono text-[--text-muted] tabular-nums font-bold group-hover:text-[--text-primary] transition-colors">{contextStats.percent}%</span>
                     </div>
                     {projectId && (
                         <div className="flex items-center gap-2 mr-2">

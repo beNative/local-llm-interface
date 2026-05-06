@@ -257,43 +257,108 @@ let previousCpuTimes = os.cpus().map(cpu => {
     return { total, idle: cpu.times.idle };
 });
 
-const getGpuStats = (): Promise<{ usage: number, memory: { used: number, total: number } }> => {
+const getGpuStatsNvidia = (): Promise<{ usage: number, name?: string, isUnified?: boolean, memory: { used: number, total: number } }> => {
     return new Promise((resolve) => {
-        const platform = os.platform();
-        if (platform !== 'win32' && platform !== 'linux') {
-            return resolve({ usage: -1, memory: { used: 0, total: 0 } });
-        }
-
-        const smi = spawn('nvidia-smi', ['--query-gpu=utilization.gpu,memory.used,memory.total', '--format=csv,noheader,nounits']);
+        // Query more fields: name, usage, used, total, and c2c.mode (for unified memory detection)
+        const smi = spawn('nvidia-smi', ['--query-gpu=name,utilization.gpu,memory.used,memory.total,c2c.mode', '--format=csv,noheader,nounits']);
         let stdout = '';
-        
-        smi.stdout.on('data', (data) => {
-            stdout += data.toString();
-        });
-
-        smi.on('error', () => {
-            resolve({ usage: -1, memory: { used: 0, total: 0 } });
-        });
-
+        smi.stdout.on('data', (data) => { stdout += data.toString(); });
+        smi.on('error', () => { resolve({ usage: -1, memory: { used: 0, total: 0 } }); });
         smi.on('close', (code) => {
             if (code === 0) {
-                const parts = stdout.trim().split(',').map(s => parseFloat(s.trim()));
-                if (parts.length === 3) {
-                    resolve({ 
-                        usage: isNaN(parts[0]) ? -1 : parts[0], 
+                const parts = stdout.trim().split(',').map(s => s.trim());
+                if (parts.length >= 4) {
+                    const name = parts[0];
+                    const usage = parseFloat(parts[1]);
+                    const used = parseFloat(parts[2]);
+                    const total = parseFloat(parts[3]);
+                    const c2cMode = parts[4]; // Optional field
+
+                    const isUnified = c2cMode === 'Enabled' || 
+                                     name.toLowerCase().includes('blackwell') || 
+                                     name.toLowerCase().includes('grace') || 
+                                     name.toLowerCase().includes('dgx spark');
+
+                    return resolve({ 
+                        name,
+                        isUnified,
+                        usage: isNaN(usage) ? -1 : usage, 
                         memory: { 
-                            used: isNaN(parts[1]) ? 0 : parts[1] * 1024 * 1024, // Convert MB to bytes
-                            total: isNaN(parts[2]) ? 0 : parts[2] * 1024 * 1024 // Convert MB to bytes
+                            used: isNaN(used) ? 0 : used * 1024 * 1024, 
+                            total: isNaN(total) ? 0 : total * 1024 * 1024
                         } 
                     });
-                } else {
-                    resolve({ usage: -1, memory: { used: 0, total: 0 } });
                 }
-            } else {
-                resolve({ usage: -1, memory: { used: 0, total: 0 } });
             }
+            resolve({ usage: -1, memory: { used: 0, total: 0 } });
         });
     });
+};
+
+const getGpuStatsMac = (): Promise<{ usage: number, name?: string, isUnified: boolean, memory: { used: number, total: number } }> => {
+    return new Promise((resolve) => {
+        const profiler = spawn('system_profiler', ['SPDisplaysDataType']);
+        let stdout = '';
+        profiler.stdout.on('data', (data) => { stdout += data.toString(); });
+        profiler.on('close', () => {
+            const vramMatch = stdout.match(/VRAM \(Total\):\s+(\d+)\s+GB/i) || stdout.match(/VRAM \(Dynamic, Max\):\s+(\d+)\s+GB/i);
+            const totalGB = vramMatch ? parseInt(vramMatch[1], 10) : 0;
+            const nameMatch = stdout.match(/Chipset Model:\s+(.*)/i);
+            const name = nameMatch ? nameMatch[1].trim() : 'Apple GPU';
+
+            resolve({
+                name,
+                usage: -1,
+                isUnified: true, // All Apple Silicon is unified
+                memory: {
+                    used: 0,
+                    total: totalGB * 1024 * 1024 * 1024
+                }
+            });
+        });
+        profiler.on('error', () => resolve({ usage: -1, isUnified: true, memory: { used: 0, total: 0 } }));
+    });
+};
+
+const getGpuStatsWinGeneric = (): Promise<{ usage: number, memory: { used: number, total: number } }> => {
+    return new Promise((resolve) => {
+        const wmic = spawn('wmic', ['path', 'win32_VideoController', 'get', 'AdapterRAM']);
+        let stdout = '';
+        wmic.stdout.on('data', (data) => { stdout += data.toString(); });
+        wmic.on('close', () => {
+            const lines = stdout.trim().split('\n');
+            const ram = lines.length > 1 ? parseInt(lines[1].trim(), 10) : 0;
+            resolve({
+                usage: -1,
+                memory: {
+                    used: 0,
+                    total: isNaN(ram) ? 0 : ram
+                }
+            });
+        });
+        wmic.on('error', () => resolve({ usage: -1, memory: { used: 0, total: 0 } }));
+    });
+};
+
+const getGpuStats = async (): Promise<{ usage: number, memory: { used: number, total: number } }> => {
+    const platform = os.platform();
+    
+    if (platform === 'darwin') {
+        return getGpuStatsMac();
+    }
+
+    if (platform === 'win32' || platform === 'linux') {
+        const nvidia = await getGpuStatsNvidia();
+        if (nvidia.usage !== -1 || nvidia.memory.total > 0) {
+            return nvidia;
+        }
+
+        if (platform === 'win32') {
+            return getGpuStatsWinGeneric();
+        }
+    }
+
+    return { usage: -1, memory: { used: 0, total: 0 } };
 };
 
 const createWindow = () => {
@@ -370,7 +435,7 @@ const createWindow = () => {
         total: totalSystemMem,
       },
       gpu: gpuStats.usage,
-      vram: gpuStats.memory,
+      vram: { ...gpuStats.memory, isUnified: gpuStats.isUnified },
     });
   }, 2000); // Send stats every 2 seconds
 
