@@ -156,14 +156,17 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, sessio
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 bg-transparent" onClick={handleBackdropClick}>
+        <div 
+            className="fixed inset-0 z-[100] flex justify-center pt-16 bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-200" 
+            onClick={handleBackdropClick}
+        >
             <div 
-                style={paletteStyle}
-                className="bg-[--bg-secondary] rounded-[--border-radius] shadow-2xl border border-[--border-primary]" 
+                className="w-full max-w-2xl bg-[--bg-secondary] border border-[--border-primary] shadow-2xl overflow-hidden flex flex-col h-fit animate-in zoom-in-95 duration-200" 
                 onClick={e => e.stopPropagation()}
             >
-                <div className="flex items-center gap-3 p-4 border-b border-[--border-primary]">
-                    <Icon name="search" className="w-5 h-5 text-[--text-muted]" />
+                {/* Search Header */}
+                <div className="flex items-center gap-3 p-4 bg-[--bg-sidebar] border-b border-[--border-primary]">
+                    <Icon name="search" className="w-5 h-5 text-[--accent-chat]" />
                     <input
                         ref={inputRef}
                         type="text"
@@ -171,32 +174,75 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, sessio
                         onChange={e => setSearchTerm(e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder="Search for chats, projects, files, and commands..."
-                        className="w-full bg-transparent text-[--text-primary] focus:outline-none placeholder:text-[--text-muted]"
+                        className="w-full bg-transparent text-base font-medium text-[--text-primary] focus:outline-none placeholder:text-[--text-muted]/60"
                     />
-                     {isLoadingFiles && <Icon name="spinner" className="w-5 h-5 text-[--text-muted]" />}
+                    {isLoadingFiles && <Icon name="spinner" className="w-4 h-4 text-[--text-muted] animate-spin" />}
                 </div>
-                <div ref={resultsRef} className="max-h-[60vh] overflow-y-auto p-2">
+
+                {/* Results List */}
+                <div ref={resultsRef} className="max-h-[50vh] overflow-y-auto custom-scrollbar bg-[--bg-secondary]">
                     {filteredCommands.length > 0 ? (
                         filteredCommands.map((command, index) => (
                             <div
                                 key={command.id}
                                 onClick={() => executeCommand(command)}
                                 onMouseMove={() => setSelectedIndex(index)}
-                                className={`flex items-center justify-between gap-4 p-3 rounded-lg cursor-pointer ${selectedIndex === index ? 'bg-[--bg-hover]' : ''}`}
+                                className={`flex items-center justify-between gap-4 px-4 py-3 cursor-pointer transition-all border-l-2 ${selectedIndex === index ? 'bg-[--bg-hover] border-[--accent-chat]' : 'border-transparent'}`}
                             >
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <div className="text-[--text-muted]">{command.icon}</div>
+                                <div className="flex items-center gap-4 min-w-0">
+                                    <div className={`p-2 rounded-lg ${selectedIndex === index ? 'text-[--accent-chat]' : 'text-[--text-muted]'}`}>
+                                        {command.icon}
+                                    </div>
                                     <div className="min-w-0">
-                                        <p className="text-sm font-medium text-[--text-primary] truncate">{command.name}</p>
-                                        {command.description && <p className="text-xs text-[--text-muted] truncate">{command.description}</p>}
+                                        <p className={`text-sm font-semibold truncate ${selectedIndex === index ? 'text-[--text-primary]' : 'text-[--text-secondary]'}`}>
+                                            {command.name}
+                                        </p>
+                                        {command.description && (
+                                            <p className="text-[11px] text-[--text-muted] truncate uppercase tracking-wider font-bold opacity-60">
+                                                {command.description}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
-                                <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-[--bg-tertiary] text-[--text-muted] flex-shrink-0">{command.type}</span>
+                                <div className="flex items-center gap-2">
+                                     <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border border-[--border-primary] text-[--text-muted] bg-[--bg-sidebar]">
+                                        {command.type}
+                                    </span>
+                                    {selectedIndex === index && (
+                                        <div className="text-[--accent-chat]">
+                                            <Icon name="chevronRight" className="w-4 h-4" />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         ))
                     ) : (
-                        <div className="text-center p-6 text-sm text-[--text-muted]">No results found.</div>
+                        <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+                            <Icon name="search" className="w-12 h-12 text-[--border-primary] mb-4 opacity-20" />
+                            <p className="text-sm text-[--text-muted]">No results found for <span className="text-[--text-secondary] font-bold">"{searchTerm}"</span></p>
+                        </div>
                     )}
+                </div>
+
+                {/* Footer / Hints */}
+                <div className="px-4 py-2 bg-[--bg-sidebar] border-t border-[--border-primary] flex items-center justify-between">
+                    <div className="flex gap-4">
+                        <div className="flex items-center gap-1.5">
+                            <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-[--bg-tertiary] border border-[--border-primary] rounded text-[--text-muted]">↑↓</kbd>
+                            <span className="text-[10px] text-[--text-muted] uppercase font-bold tracking-wider">Navigate</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-[--bg-tertiary] border border-[--border-primary] rounded text-[--text-muted]">Enter</kbd>
+                            <span className="text-[10px] text-[--text-muted] uppercase font-bold tracking-wider">Select</span>
+                        </div>
+                         <div className="flex items-center gap-1.5">
+                            <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-[--bg-tertiary] border border-[--border-primary] rounded text-[--text-muted]">Esc</kbd>
+                            <span className="text-[10px] text-[--text-muted] uppercase font-bold tracking-wider">Close</span>
+                        </div>
+                    </div>
+                    <div className="text-[10px] text-[--text-muted] uppercase font-bold tracking-widest opacity-40">
+                        Quick Command Palette
+                    </div>
                 </div>
             </div>
         </div>

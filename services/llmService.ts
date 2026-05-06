@@ -124,10 +124,16 @@ export type StreamChunk =
 
 const getApiKey = (provider: LLMProviderConfig, apiKeys: Config['apiKeys']): string | undefined => {
     if (!provider.apiKeyName) return undefined;
-    if (provider.type === 'google-gemini') {
-        return process.env.API_KEY;
+    
+    const keyFromConfig = apiKeys?.[provider.apiKeyName];
+    if (keyFromConfig) return keyFromConfig;
+
+    // Fallback for environment variables if available (e.g. during development or if exposed)
+    if (typeof process !== 'undefined' && process.env) {
+        return process.env[provider.apiKeyName] || process.env.API_KEY;
     }
-    return apiKeys?.[provider.apiKeyName];
+    
+    return undefined;
 };
 
 const fetchLmStudioModels = async (provider: LLMProviderConfig): Promise<Model[]> => {
@@ -193,8 +199,22 @@ export const fetchModels = async (provider: LLMProviderConfig, apiKeys: Config['
       // We return a curated list of supported and recommended models.
       logger.info('Returning curated list of Google Gemini models.');
       return [
-        // FIX: Use recommended model name 'gemini-2.5-flash'
-        { id: 'gemini-2.5-flash', name: 'gemini-2.5-flash', object: 'model', created: Date.now() / 1000, owned_by: 'google', },
+        { 
+            id: 'gemini-1.5-flash', 
+            name: 'gemini-1.5-flash', 
+            object: 'model', 
+            created: Date.now() / 1000, 
+            owned_by: 'google',
+            details: { context_length: 1048576 }
+        },
+        { 
+            id: 'gemini-1.5-pro', 
+            name: 'gemini-1.5-pro', 
+            object: 'model', 
+            created: Date.now() / 1000, 
+            owned_by: 'google',
+            details: { context_length: 2097152 }
+        },
       ];
   }
 
@@ -412,11 +432,10 @@ const textCompletionGemini = async (
     messages: ChatMessage[],
     generationConfig?: GenerationConfig
 ): Promise<string> => {
-    // FIX: API key for Gemini must come from process.env.API_KEY
-    if (!process.env.API_KEY) throw new LLMServiceError('Google Gemini API key is not configured.');
+    const apiKey = getApiKey(provider, apiKeys);
+    if (!apiKey) throw new LLMServiceError('Google Gemini API key is not configured.');
     
-    // FIX: API key must be passed as a named parameter { apiKey: ... }
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey });
 
     const systemInstruction = messages.find(m => m.role === 'system')?.content as string | undefined;
     
@@ -488,17 +507,17 @@ const streamChatCompletionGemini = async (
     onChunk: (chunk: StreamChunk) => void,
     onError: (error: Error) => void,
     onDone: (metadata: ChatMessageMetadata) => void,
+    startTime: number,
     generationConfig?: GenerationConfig
 ) => {
-    // FIX: API key for Gemini must come from process.env.API_KEY
-    if (!process.env.API_KEY) {
+    const apiKey = getApiKey(provider, apiKeys);
+    if (!apiKey) {
         onError(new LLMServiceError('Google Gemini API key is not configured.'));
         return;
     }
 
     try {
-        // FIX: API key must be passed as a named parameter { apiKey: ... }
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const ai = new GoogleGenAI({ apiKey });
         const systemInstruction = messages.find(m => m.role === 'system')?.content as string || undefined;
         const contents = toGeminiContents(messages);
 
@@ -520,8 +539,12 @@ const streamChatCompletionGemini = async (
             config.tools = genAiTools;
         }
 
+        let fullText = '';
+        let usage: ChatMessageMetadata['usage'] = undefined;
+        let firstTokenTime: number | null = null;
+
         // FIX: Use generateContentStream for streaming responses
-        const stream = await ai.models.generateContentStream({
+        const result = await ai.models.generateContentStream({
             model: modelId,
             contents,
             config,
@@ -531,11 +554,13 @@ const streamChatCompletionGemini = async (
             logger.warn('Gemini stream abort requested. Processing will stop.');
         });
 
-        for await (const chunk of stream) {
+        for await (const chunk of result.stream) {
             if (signal.aborted) break;
             // FIX: Use .text property to extract text from chunks
             const text = chunk.text;
             if (text) {
+                if (!firstTokenTime) firstTokenTime = Date.now();
+                fullText += text;
                 onChunk({ type: 'content', text });
             }
             const functionCalls = chunk.candidates?.[0].content.parts.filter(p => p.functionCall).map(p => p.functionCall);
@@ -557,7 +582,44 @@ const streamChatCompletionGemini = async (
             }
         }
         
-        onDone({ usage: undefined });
+        const endTime = Date.now();
+        const duration = (endTime - startTime) / 1000;
+        
+        try {
+            const response = await result.response;
+            const usageMetadata = (response as any).usageMetadata;
+            if (usageMetadata) {
+                usage = {
+                    prompt_tokens: usageMetadata.promptTokenCount,
+                    completion_tokens: usageMetadata.candidatesTokenCount,
+                    total_tokens: usageMetadata.totalTokenCount
+                };
+            }
+        } catch (e) {
+            logger.warn('Could not fetch Gemini usage metadata:', e);
+        }
+        
+        if (!usage && fullText) {
+            const historyText = messages.map(m => typeof m.content === 'string' ? m.content : '').join('\n');
+            const promptEst = Math.ceil(historyText.length / 3.5);
+            const completionEst = Math.ceil(fullText.length / 3.5);
+            usage = { 
+                prompt_tokens: promptEst, 
+                completion_tokens: completionEst, 
+                total_tokens: promptEst + completionEst 
+            };
+        }
+        
+        let speed: number | undefined = undefined;
+        if (usage?.completion_tokens) {
+            const generationDuration = firstTokenTime ? (endTime - firstTokenTime) / 1000 : duration;
+            if (generationDuration > 0) {
+                speed = usage.completion_tokens / generationDuration;
+            }
+        }
+
+        const ttft = firstTokenTime ? (firstTokenTime - startTime) / 1000 : undefined;
+        onDone({ usage, speed, duration, ttft });
 
     } catch (e) {
         onError(e instanceof Error ? e : new Error(String(e)));
@@ -581,7 +643,7 @@ export const streamChatCompletion = async (
   let usage: ChatMessageUsage | undefined = undefined;
   
   if (provider.type === 'google-gemini') {
-      streamChatCompletionGemini(provider, apiKeys, modelId, messages, tools, signal, onChunk, onError, onDone, generationConfig);
+      await streamChatCompletionGemini(provider, apiKeys, modelId, messages, tools, signal, onChunk, onError, onDone, startTime, generationConfig);
       return;
   }
   
@@ -603,7 +665,22 @@ export const streamChatCompletion = async (
         if (generationConfig.topP !== undefined) options.top_p = generationConfig.topP;
     }
 
-    const body: Record<string, any> = { model: modelId, messages, stream: true, ...options };
+    const normalizedMessages = messages.map(m => {
+        if (Array.isArray(m.content)) {
+            return {
+                ...m,
+                content: m.content.map(p => {
+                    if (p.type === 'image_url' && !p.image_url.detail) {
+                        return { ...p, image_url: { ...p.image_url, detail: 'auto' } };
+                    }
+                    return p;
+                })
+            };
+        }
+        return m;
+    });
+
+    const body: Record<string, any> = { model: modelId, messages: normalizedMessages, stream: true, ...options };
     if (tools && tools.length > 0) {
       body.tools = tools;
       body.tool_choice = "auto";
@@ -626,19 +703,39 @@ export const streamChatCompletion = async (
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
 
+    let fullText = '';
+    let usage: ChatMessageMetadata['usage'] = undefined;
+    let firstTokenTime: number | null = null;
+
     let toolCallChunks: { [key: number]: { id: string, name: string, arguments: string } } = {};
 
     while (true) {
         const { done, value } = await reader.read();
         if (done) {
           const endTime = Date.now();
-          const durationInSeconds = (endTime - startTime) / 1000;
+          const duration = (endTime - startTime) / 1000;
+          
+          if (!usage && fullText) {
+              const historyText = messages.map(m => typeof m.content === 'string' ? m.content : '').join('\n');
+              const promptEst = Math.ceil(historyText.length / 3.5);
+              const completionEst = Math.ceil(fullText.length / 3.5);
+              usage = { 
+                  prompt_tokens: promptEst, 
+                  completion_tokens: completionEst, 
+                  total_tokens: promptEst + completionEst 
+              };
+          }
+
           let speed: number | undefined = undefined;
-          if (usage?.completion_tokens && durationInSeconds > 0) {
-            speed = usage.completion_tokens / durationInSeconds;
+          if (usage?.completion_tokens) {
+            const generationDuration = firstTokenTime ? (endTime - firstTokenTime) / 1000 : duration;
+            if (generationDuration > 0) {
+                speed = usage.completion_tokens / generationDuration;
+            }
           }
           logger.info('Chat stream finished.');
-          onDone({ usage, speed });
+          const ttft = firstTokenTime ? (firstTokenTime - startTime) / 1000 : undefined;
+          onDone({ usage, speed, duration, ttft });
           break;
         }
         const textChunk = decoder.decode(value, { stream: true });
@@ -652,7 +749,11 @@ export const streamChatCompletion = async (
                 try {
                   const json = JSON.parse(data);
                   const delta = json.choices?.[0]?.delta;
-                  if (delta?.content) onChunk({ type: 'content', text: delta.content });
+                  if (delta?.content) {
+                      if (!firstTokenTime) firstTokenTime = Date.now();
+                      fullText += delta.content;
+                      onChunk({ type: 'content', text: delta.content });
+                  }
                   
                   // Handle tool call streaming
                   if (delta?.tool_calls) {

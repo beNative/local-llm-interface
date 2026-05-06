@@ -53,6 +53,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
     const cpuTooltip = useTooltipTrigger("System-wide CPU Usage");
     const gpuTooltip = useTooltipTrigger(stats?.gpu !== undefined && stats.gpu >= 0 ? `System-wide GPU Usage: ${stats.gpu.toFixed(0)}%` : "System-wide GPU Usage (N/A or Requires NVIDIA GPU)");
     const ramTooltip = useTooltipTrigger("System-wide RAM Usage");
+    const vramTooltip = useTooltipTrigger(stats?.vram?.total ? `Dedicated VRAM Usage: ${formatBytes(stats.vram.used)} / ${formatBytes(stats.vram.total)}` : "VRAM Usage (N/A or Requires NVIDIA GPU)");
     const versionTooltip = useTooltipTrigger(version ? `Application Version ${version}` : 'Application Version');
 
 
@@ -74,6 +75,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
     const memUsagePercent = stats?.memory.total ? (stats.memory.used / stats.memory.total) * 100 : 0;
     const cpuUsagePercent = stats?.cpu || 0;
     const gpuUsagePercent = stats?.gpu !== undefined && stats.gpu >= 0 ? stats.gpu : 0;
+    const vramUsagePercent = stats?.vram?.total ? (stats.vram.used / stats.vram.total) * 100 : 0;
 
     const statusDotClass =
         connectionStatus === 'connecting'
@@ -85,17 +87,17 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
     const ProviderIcon = activeProvider ? (ProviderIcons[activeProvider.id] || ((props: any) => <Icon name="server" {...props} />)) : ((props: any) => <Icon name="server" {...props} />);
 
     return (
-        <footer className="flex items-center justify-between gap-6 px-4 py-1 bg-[--bg-primary] border-t border-[--border-primary] text-xs text-[--text-muted] font-mono flex-shrink-0">
+        <footer className="flex items-center justify-between gap-6 px-4 py-1.5 bg-[--bg-sidebar] border-t border-[--border-primary] text-[10px] text-[--text-muted] font-bold uppercase tracking-wider flex-shrink-0">
             {/* Left Side */}
             <div className="flex items-center gap-4">
                  <div className="relative" ref={providerRef}>
-                    <button {...providerTooltip} onClick={() => setIsProviderPopoverOpen(p => !p)} className="flex items-center gap-2 p-1 rounded hover:bg-[--bg-hover]">
-                        <ProviderIcon className="w-4 h-4" />
-                        <span className={`w-2 h-2 rounded-full ${statusDotClass}`}></span>
+                    <button {...providerTooltip} onClick={() => setIsProviderPopoverOpen(p => !p)} className="flex items-center gap-2 p-1 rounded hover:bg-[--bg-hover] transition-colors">
+                        <ProviderIcon className="w-3.5 h-3.5" />
+                        <span className={`w-1.5 h-1.5 rounded-full ${statusDotClass}`}></span>
                         <span className="hidden sm:inline">{activeProvider?.name || 'No Provider'}</span>
                     </button>
                     {isProviderPopoverOpen && (
-                         <div className="absolute bottom-full left-0 mb-2 w-48 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-lg z-20 overflow-hidden">
+                         <div className="absolute bottom-full left-0 mb-2 w-48 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-2xl z-20 overflow-hidden">
                             {providers.map(p => (
                                 <button
                                     key={p.id}
@@ -103,7 +105,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
                                         onChangeProvider(p.id);
                                         setIsProviderPopoverOpen(false);
                                     }}
-                                    className="w-full text-left block px-3 py-2 text-sm font-sans text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
+                                    className="w-full text-left block px-3 py-2 text-xs font-sans normal-case font-normal text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
                                 >
                                     {p.name}
                                 </button>
@@ -111,15 +113,15 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
                         </div>
                     )}
                 </div>
-                <div className="w-px h-4 bg-[--border-primary]" />
+                <div className="w-px h-3 bg-[--border-primary]" />
                  <div className="relative" ref={modelRef}>
-                    <button {...modelTooltip} onClick={() => setIsModelPopoverOpen(p => !p)} className="flex items-center gap-2 p-1 rounded hover:bg-[--bg-hover]" disabled={models.length === 0}>
-                        <Icon name="model" className="w-4 h-4" />
+                    <button {...modelTooltip} onClick={() => setIsModelPopoverOpen(p => !p)} className="flex items-center gap-2 p-1 rounded hover:bg-[--bg-hover] transition-colors" disabled={models.length === 0}>
+                        <Icon name="model" className="w-3.5 h-3.5" />
                         <span className="truncate max-w-48">{activeModel || (models.length > 0 ? 'Select Model' : 'No Models')}</span>
                     </button>
                     {isModelPopoverOpen && models.length > 0 && (
-                        <div className="absolute bottom-full left-0 mb-2 w-64 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
-                          <div className="p-2 text-xs font-semibold text-[--text-muted] border-b border-[--border-primary] font-sans">Start new chat with:</div>
+                        <div className="absolute bottom-full left-0 mb-2 w-64 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-2xl z-20 max-h-60 overflow-y-auto">
+                          <div className="p-2 text-xs font-semibold text-[--text-muted] border-b border-[--border-primary] font-sans normal-case">Switch to:</div>
                             {models.map(model => (
                                 <button
                                     key={model.id}
@@ -127,7 +129,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
                                         onSelectModel(model.id);
                                         setIsModelPopoverOpen(false);
                                     }}
-                                    className="w-full text-left block px-3 py-1.5 text-sm font-sans text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
+                                    className="w-full text-left block px-3 py-1.5 text-xs font-sans normal-case font-normal text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
                                 >
                                     {model.id}
                                 </button>
@@ -137,62 +139,55 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
                  </div>
                   {activeProject && (
                     <>
-                        <div className="w-px h-4 bg-[--border-primary]" />
+                        <div className="w-px h-3 bg-[--border-primary]" />
                         <div {...projectTooltip} className="flex items-center gap-2 p-1">
-                           <Icon name="code" className="w-4 h-4" />
+                           <Icon name="code" className="w-3.5 h-3.5" />
                            <span className="truncate max-w-48">{activeProject}</span>
                         </div>
                     </>
                 )}
             </div>
             
-            {/* Right Side */}
-            <div className="flex items-center gap-6">
-                 <div {...cpuTooltip} className="flex items-center gap-2">
-                    <Icon name="cpu" className="w-4 h-4" />
-                     {stats ? (
-                        <>
-                            <div className="w-20 h-2 bg-[--bg-tertiary] rounded-full overflow-hidden hidden md:block">
-                                <div className="h-full bg-[--accent-projects]" style={{ width: `${cpuUsagePercent}%` }}></div>
-                            </div>
-                            <span>{cpuUsagePercent.toFixed(0)}%</span>
-                        </>
-                    ) : (
-                        <span>--%</span>
-                    )}
+            {/* Right Side - System Stats */}
+            <div className="flex items-center gap-1.5 pr-2">
+                 <div {...cpuTooltip} className="flex items-center gap-1.5 px-2 py-1 rounded bg-[--bg-tertiary]/40 min-w-[55px] transition-all hover:bg-[--bg-tertiary]/70 group">
+                    <Icon name="cpu" className="w-3 h-3 text-[--accent-projects] opacity-80" />
+                    <span className="w-7 text-right font-mono text-[--text-primary] group-hover:text-white">{stats ? cpuUsagePercent.toFixed(0) : '--'}%</span>
                 </div>
-                <div {...gpuTooltip} className="flex items-center gap-2">
-                    <Icon name="gpu" className="w-4 h-4" />
-                     {stats && stats.gpu >= 0 ? (
-                        <>
-                            <div className="w-20 h-2 bg-[--bg-tertiary] rounded-full overflow-hidden hidden md:block">
-                                <div className="h-full bg-[--accent-api]" style={{ width: `${gpuUsagePercent}%` }}></div>
-                            </div>
-                            <span>{gpuUsagePercent.toFixed(0)}%</span>
-                        </>
-                    ) : (
-                        <span>--%</span>
-                    )}
+
+                <div {...gpuTooltip} className="flex items-center gap-1.5 px-2 py-1 rounded bg-[--bg-tertiary]/40 min-w-[55px] transition-all hover:bg-[--bg-tertiary]/70 group">
+                    <Icon name="gpu" className="w-3 h-3 text-[--accent-api] opacity-80" />
+                    <span className="w-7 text-right font-mono text-[--text-primary] group-hover:text-white">{stats && stats.gpu >= 0 ? gpuUsagePercent.toFixed(0) : '--'}%</span>
                 </div>
-                <div {...ramTooltip} className="flex items-center gap-2">
-                    <Icon name="ram" className="w-4 h-4" />
-                    {stats ? (
-                        <>
-                            <div className="w-20 h-2 bg-[--bg-tertiary] rounded-full overflow-hidden hidden md:block">
-                                <div className="h-full bg-[--accent-info]" style={{ width: `${memUsagePercent}%` }}></div>
-                            </div>
-                            <span>{formatBytes(stats.memory.used)} / {formatBytes(stats.memory.total)}</span>
-                        </>
-                    ) : (
-                        <span>-- MB / -- GB</span>
-                    )}
+
+                <div {...vramTooltip} className="flex items-center gap-2 px-2 py-1 rounded bg-[--bg-tertiary]/40 min-w-[120px] transition-all hover:bg-[--bg-tertiary]/70 group">
+                    <Icon name="gpu" className="w-3 h-3 text-orange-500 opacity-80" />
+                    <div className="flex flex-col flex-1">
+                        <div className="flex justify-between font-mono lowercase text-[9px] leading-none mb-1">
+                            <span className="text-[--text-primary] font-bold group-hover:text-white">{stats?.vram?.total ? formatBytes(stats.vram.used).split(' ')[0] : '--'}</span>
+                            <span className="text-[--text-muted] opacity-70">/ {stats?.vram?.total ? formatBytes(stats.vram.total) : '--'}</span>
+                        </div>
+                        <div className="w-full h-0.5 bg-[--bg-tertiary] rounded-full overflow-hidden">
+                            <div className="h-full bg-orange-500/80" style={{ width: `${vramUsagePercent}%` }}></div>
+                        </div>
+                    </div>
                 </div>
-                {version && (
-                    <>
-                        <div className="w-px h-4 bg-[--border-primary]" />
-                        <span {...versionTooltip}>v{version}</span>
-                    </>
-                )}
+
+                <div {...ramTooltip} className="flex items-center gap-2 px-2 py-1 rounded bg-[--bg-tertiary]/40 min-w-[120px] transition-all hover:bg-[--bg-tertiary]/70 group">
+                    <Icon name="ram" className="w-3 h-3 text-[--accent-info] opacity-80" />
+                    <div className="flex flex-col flex-1">
+                        <div className="flex justify-between font-mono lowercase text-[9px] leading-none mb-1">
+                            <span className="text-[--text-primary] font-bold group-hover:text-white">{stats ? formatBytes(stats.memory.used).split(' ')[0] : '--'}</span>
+                            <span className="text-[--text-muted] opacity-70">/ {stats ? formatBytes(stats.memory.total) : '--'}</span>
+                        </div>
+                        <div className="w-full h-0.5 bg-[--bg-tertiary] rounded-full overflow-hidden">
+                            <div className="h-full bg-[--accent-info]/80" style={{ width: `${memUsagePercent}%` }}></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="w-px h-3 bg-[--border-primary] mx-1" />
+                <div {...versionTooltip} className="px-2 py-1 text-[9px] text-[--text-muted] opacity-60 font-mono tracking-tighter hover:opacity-100 transition-opacity">v{version}</div>
             </div>
         </footer>
     );

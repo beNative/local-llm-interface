@@ -196,6 +196,7 @@ export interface ChatMessageContentPartImage {
   type: 'image_url';
   image_url: {
     url: string; // data URI
+    detail?: 'auto' | 'low' | 'high';
   };
 }
 
@@ -210,6 +211,8 @@ export interface ChatMessageUsage {
 export interface ChatMessageMetadata {
   usage?: ChatMessageUsage;
   speed?: number; // tokens/sec
+  duration?: number; // seconds
+  ttft?: number; // seconds
   ragContext?: {
     files: string[];
   };
@@ -265,6 +268,8 @@ export interface ChatSession {
   generationConfig?: GenerationConfig;
   projectId: string | null;
   agentToolsEnabled?: boolean;
+  createdAt: number;
+  updatedAt: number;
 }
 
 // File System and Project Types
@@ -312,6 +317,10 @@ export interface SystemStats {
     total: number;
   };
   gpu?: number;
+  vram?: {
+    used: number;
+    total: number;
+  };
 }
 
 export interface LogEntry {

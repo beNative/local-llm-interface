@@ -8,6 +8,9 @@ import DefaultBrainCircuitIcon from './icons/BrainCircuitIcon';
 import DefaultCheckIcon from './icons/CheckIcon';
 import DefaultCheckCircleIcon from './icons/CheckCircleIcon';
 import DefaultChevronDownIcon from './icons/ChevronDownIcon';
+import DefaultClockIcon from './icons/ClockIcon';
+import DefaultEyeIcon from './icons/EyeIcon';
+import DefaultZapIcon from './icons/ZapIcon';
 import DefaultChevronRightIcon from './icons/ChevronRightIcon';
 import DefaultChevronUpIcon from './icons/ChevronUpIcon';
 import DefaultClipboardIcon from './icons/ClipboardIcon';
@@ -61,6 +64,9 @@ import {
     ChevronDown as LucideChevronDown,
     ChevronRight as LucideChevronRight,
     ChevronUp as LucideChevronUp,
+    Clock as LucideClock,
+    Zap as LucideZap,
+    Eye as LucideEye,
     Clipboard as LucideClipboard,
     Code as LucideCode,
     Cpu as LucideCpu,
@@ -113,6 +119,9 @@ import {
     ChevronDownIcon as HeroChevronDown,
     ChevronRightIcon as HeroChevronRight,
     ChevronUpIcon as HeroChevronUp,
+    ClockIcon as HeroClock,
+    BoltIcon as HeroZap,
+    EyeIcon as HeroEye,
     ClipboardIcon as HeroClipboard,
     CodeBracketIcon as HeroCode,
     CpuChipIcon as HeroCpu,
@@ -185,6 +194,9 @@ const iconMap = {
         chevronDown: DefaultChevronDownIcon,
         chevronRight: DefaultChevronRightIcon,
         chevronUp: DefaultChevronUpIcon,
+        clock: DefaultClockIcon,
+        eye: DefaultEyeIcon,
+        zap: DefaultZapIcon,
         clipboard: DefaultClipboardIcon,
         code: DefaultCodeIcon,
         cpu: DefaultCpuIcon,
@@ -235,6 +247,9 @@ const iconMap = {
         chevronDown: LucideChevronDown,
         chevronRight: LucideChevronRight,
         chevronUp: LucideChevronUp,
+        clock: LucideClock,
+        zap: LucideZap,
+        eye: LucideEye,
         clipboard: LucideClipboard,
         code: LucideCode,
         cpu: LucideCpu,
@@ -285,6 +300,9 @@ const iconMap = {
         chevronDown: HeroChevronDown,
         chevronRight: HeroChevronRight,
         chevronUp: HeroChevronUp,
+        clock: HeroClock,
+        zap: HeroZap,
+        eye: HeroEye,
         clipboard: HeroClipboard,
         code: HeroCode,
         cpu: HeroCpu,

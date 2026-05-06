@@ -59,7 +59,7 @@ const TitleBar: React.FC<TitleBarProps> = ({ activeView, onNavigate, onToggleLog
     return (
         <div 
             style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
-            className="flex items-center justify-between h-9 bg-[--bg-primary] border-b border-[--border-primary] flex-shrink-0"
+            className="flex items-center justify-between h-9 bg-[--bg-primary]/90 backdrop-blur-sm border-b border-[--border-primary] flex-shrink-0"
         >
             {/* Left side: App Icon and some space */}
             <div className="flex items-center gap-2 pl-2">
@@ -84,25 +84,7 @@ const TitleBar: React.FC<TitleBarProps> = ({ activeView, onNavigate, onToggleLog
             
             {/* Right Side: Nav buttons and Window controls */}
             <div className="flex items-center h-full">
-                <nav className="flex items-center gap-1 px-2">
-                    <TitleBarNavButton active={activeView === 'chat'} onClick={() => onNavigate('chat')} view="chat" title="Chat">
-                        <Icon name="messageSquare" className="w-4 h-4" /> 
-                    </TitleBarNavButton>
-                     <TitleBarNavButton active={activeView === 'projects'} onClick={() => onNavigate('projects')} view="projects" title="Projects">
-                        <Icon name="code" className="w-4 h-4" /> 
-                    </TitleBarNavButton>
-                     <TitleBarNavButton active={activeView === 'api'} onClick={() => onNavigate('api')} view="api" title="API Client">
-                        <Icon name="server" className="w-4 h-4" />
-                    </TitleBarNavButton>
-                    <TitleBarNavButton active={activeView === 'settings'} onClick={() => onNavigate('settings')} view="settings" title="Settings">
-                        <Icon name="settings" className="w-4 h-4" />
-                    </TitleBarNavButton>
-                    <TitleBarNavButton active={activeView === 'info'} onClick={() => onNavigate('info')} view="info" title="Info">
-                        <Icon name="info" className="w-4 h-4" />
-                    </TitleBarNavButton>
-                </nav>
-                
-                <div className="w-px h-5 bg-[--border-secondary]"/>
+                <div className="w-px h-5 bg-[--border-secondary] mx-2"/>
                 
                 <div style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties} className="flex items-center px-2">
                     <button

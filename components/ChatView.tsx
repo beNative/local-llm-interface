@@ -27,6 +27,7 @@ import PlayIcon from './icons/PlayIcon';
 import GlobeIcon from './icons/GlobeIcon';
 import ClipboardIcon from './icons/ClipboardIcon';
 import CheckIcon from './icons/CheckIcon';
+import Icon from './Icon';
 
 const ContextSources: React.FC<{ files: string[] }> = ({ files }) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -75,25 +76,65 @@ const PredefinedPromptButton: React.FC<{ prompt: PredefinedPrompt; onSelect: (co
 };
 
 const MessageMetadata: React.FC<{ metadata: ChatMessageMetadata }> = ({ metadata }) => {
-    const { usage, speed } = metadata;
+    const { usage, speed, duration, ttft } = metadata;
+    if (!usage && speed === undefined && duration === undefined) return null;
 
-    const stats: string[] = [];
-    if (usage?.prompt_tokens !== undefined) {
-        stats.push(`Input: ${usage.prompt_tokens} tokens`);
-    }
-    if (usage?.completion_tokens !== undefined) {
-        stats.push(`Output: ${usage.completion_tokens} tokens`);
-    }
-    if (speed !== undefined) {
-        stats.push(`Speed: ${speed.toFixed(1)} t/s`);
-    }
-
-    if (stats.length === 0) return null;
+    const speedTooltip = useTooltipTrigger("Generation Speed: Average tokens generated per second during the generation phase.");
+    const tokenTooltip = useTooltipTrigger(`Token Usage: ${usage?.total_tokens || usage?.completion_tokens || 0} total (Prompt: ${usage?.prompt_tokens || 0}, Completion: ${usage?.completion_tokens || 0})`);
+    const durationTooltip = useTooltipTrigger(`Timing: Total ${duration?.toFixed(2)}s${ttft !== undefined ? ` | Time to First Token (TTFT): ${ttft.toFixed(2)}s` : ''}`);
 
     return (
-        <div className="mt-3 pt-2 border-t border-[--assistant-message-text-color]/10 text-xs font-mono opacity-70">
-            {stats.join('  •  ')}
+        <div className="mt-4 pt-3 border-t border-[--assistant-message-text-color]/5 flex items-center flex-wrap gap-2 animate-in fade-in slide-in-from-top-1">
+             <Icon name="lightbulb" className="w-3.5 h-3.5 text-[--text-muted] opacity-50 mr-1" />
+             
+             {speed !== undefined && (
+                <div {...speedTooltip} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[--bg-tertiary]/40 border border-[--border-primary]/30 text-[10px] font-bold uppercase tracking-wider text-[--text-muted] hover:bg-[--bg-tertiary]/60 transition-colors cursor-help">
+                    <Icon name="zap" className="w-3 h-3 text-yellow-500/80" />
+                    <span>{speed.toFixed(2)} tok/sec</span>
+                </div>
+            )}
+            
+            {usage?.completion_tokens !== undefined && (
+                <div {...tokenTooltip} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[--bg-tertiary]/40 border border-[--border-primary]/30 text-[10px] font-bold uppercase tracking-wider text-[--text-muted] hover:bg-[--bg-tertiary]/60 transition-colors cursor-help">
+                    <Icon name="fileText" className="w-3 h-3 text-blue-500/80" />
+                    <span>{usage.completion_tokens} tokens</span>
+                </div>
+            )}
+            
+            {duration !== undefined && (
+                <div {...durationTooltip} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[--bg-tertiary]/40 border border-[--border-primary]/30 text-[10px] font-bold uppercase tracking-wider text-[--text-muted] hover:bg-[--bg-tertiary]/60 transition-colors cursor-help">
+                    <Icon name="clock" className="w-3 h-3 text-green-500/80" />
+                    <span>{duration.toFixed(2)}s</span>
+                </div>
+            )}
         </div>
+    );
+};
+
+const CopyButton: React.FC<{ content: string; className?: string }> = ({ content, className }) => {
+    const [isCopied, setIsCopied] = useState(false);
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const copyTooltip = useTooltipTrigger(isCopied ? "Copied!" : "Copy to clipboard");
+
+    const handleCopy = async () => {
+        try {
+            await navigator.clipboard.writeText(content);
+            setIsCopied(true);
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+            timeoutRef.current = setTimeout(() => setIsCopied(false), 2000);
+        } catch (err) {
+            console.error('Failed to copy text: ', err);
+        }
+    };
+
+    return (
+        <button
+            onClick={handleCopy}
+            {...copyTooltip}
+            className={`p-1.5 rounded-lg bg-[--bg-secondary]/80 hover:bg-[--bg-hover] text-[--text-muted] hover:text-[--text-primary] transition-all border border-[--border-primary]/30 shadow-sm ${className}`}
+        >
+            <Icon name={isCopied ? 'check' : 'clipboard'} className={`w-3.5 h-3.5 ${isCopied ? 'text-green-500' : ''}`} />
+        </button>
     );
 };
 
@@ -211,9 +252,17 @@ const MemoizedChatMessage = React.memo<{
   const effectiveContent =
       isStreamingPlaceholder && streamingDraft !== null ? streamingDraft : msg.content;
 
+  const copyText = useMemo(() => {
+    if (typeof effectiveContent === 'string') return effectiveContent;
+    if (Array.isArray(effectiveContent)) {
+        return effectiveContent.filter(p => p.type === 'text').map(p => (p as any).text).join('\n');
+    }
+    return '';
+  }, [effectiveContent]);
+
   return (
     <div
-      className={`flex items-start gap-4 ${msg.role === 'user' ? 'justify-end' : ''}`}
+      className={`flex items-start gap-4 group ${msg.role === 'user' ? 'justify-end' : ''}`}
       style={{ contentVisibility: 'auto', containIntrinsicSize: '1px 220px' } as React.CSSProperties}
     >
       {msg.role === 'assistant' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center"><ModelIcon className="w-5 h-5 text-[--accent-chat]" /></div>}
@@ -223,13 +272,16 @@ const MemoizedChatMessage = React.memo<{
           color: msg.role === 'user' ? 'var(--user-message-text-color)' : 'var(--assistant-message-text-color)',
           backgroundImage: msg.role === 'user' ? 'var(--user-message-bg-image)' : 'none',
         }}
-        className="p-4 rounded-none shadow-sm max-w-full overflow-hidden"
+        className={`relative p-4 rounded-xl shadow-sm max-w-full overflow-hidden border ${msg.role === 'user' ? 'border-transparent' : 'border-[--border-primary]'}`}
       >
         {msg.role === 'assistant' ? (
           (isStreamingPlaceholder && !effectiveContent) ? (
             <SpinnerIcon className="w-5 h-5 text-gray-400"/>
           ) : (
             <>
+              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                  <CopyButton content={copyText} />
+              </div>
               {msg.metadata?.ragContext && <ContextSources files={msg.metadata.ragContext.files} />}
               {effectiveContent && (
                 <div
@@ -254,10 +306,14 @@ const MemoizedChatMessage = React.memo<{
             </>
           )
         ) : ( 
-          <div
-            className="space-y-2"
-            style={{ fontSize: 'var(--chat-font-size)' }}
-          >
+          <>
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                <CopyButton content={copyText} />
+            </div>
+            <div
+              className="space-y-2"
+              style={{ fontSize: 'var(--chat-font-size)' }}
+            >
             {Array.isArray(msg.content) ? (
               msg.content.map((part, i) => {
                 if (part.type === 'image_url') {
@@ -272,7 +328,8 @@ const MemoizedChatMessage = React.memo<{
               <p className="whitespace-pre-wrap">{msg.content}</p>
             )}
           </div>
-        )}
+        </>
+      )}
       </div>
        {msg.role === 'user' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center font-bold text-[--text-primary]">U</div>}
     </div>
@@ -424,6 +481,38 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
   const promptsButtonRef = useRef<HTMLButtonElement>(null);
 
   const { messages, name: sessionName, projectId, agentToolsEnabled } = session;
+
+  const currentModel = useMemo(() => models.find(m => m.id === session.modelId), [models, session.modelId]);
+
+  const hasVision = useMemo(() => {
+    if (!currentModel) return false;
+    const id = currentModel.id.toLowerCase();
+    const family = currentModel.details?.family?.toLowerCase() || '';
+    return id.includes('vision') || id.includes('llava') || id.includes('moondream') || id.includes('gemini') || family.includes('vision');
+  }, [currentModel]);
+
+  const hasTools = useMemo(() => {
+    if (!currentModel) return false;
+    const id = currentModel.id.toLowerCase();
+    return id.includes('gemini') || id.includes('gpt-') || id.includes('claude') || id.includes('llama-3') || id.includes('mistral') || id.includes('qwen');
+  }, [currentModel]);
+
+  const contextStats = useMemo(() => {
+    const lastMessageWithUsage = [...messages].reverse().find(m => m.metadata?.usage);
+    const historyUsed = lastMessageWithUsage?.metadata?.usage?.total_tokens || 0;
+    
+    // Add estimate for the current input being typed
+    const inputEstimate = Math.ceil(input.length / 3.5);
+    const used = historyUsed + inputEstimate;
+
+    const max = currentModel?.details?.context_length || 32768;
+    const percent = Math.min(100, Math.round((used / max) * 100));
+    return { used, max, percent };
+  }, [messages, currentModel, input]);
+
+  const contextTooltip = useTooltipTrigger(`Context Usage: ${contextStats.used} / ${contextStats.max} tokens (${contextStats.percent}%)`);
+  const visionTooltip = useTooltipTrigger("This model supports image analysis (Vision)");
+  const toolsTooltip = useTooltipTrigger("This model supports native tool use (Function Calling)");
   
   const currentProject = useMemo(() => projects.find(p => p.id === projectId), [projects, projectId]);
 
@@ -562,7 +651,7 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
         if (input.trim()) {
             contentParts.push({ type: 'text', text: input.trim() });
         }
-        contentParts.push({ type: 'image_url', image_url: { url: attachedImage } });
+        contentParts.push({ type: 'image_url', image_url: { url: attachedImage, detail: 'auto' } });
         onSendMessage(contentParts);
     } else {
         onSendMessage(input.trim());
@@ -623,15 +712,30 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
       e.preventDefault(); // Necessary to allow dropping
   };
 
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            const file = items[i].getAsFile();
+            if (file) {
+                handleImageChange(file);
+                e.preventDefault();
+            }
+        }
+    }
+  };
+
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.stopPropagation();
       setIsDraggingOver(false);
 
-      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-          const file = e.dataTransfer.files[0];
-          handleImageChange(file);
-          e.dataTransfer.clearData();
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+          const file = files[0];
+          if (file.type.startsWith('image/')) {
+              handleImageChange(file);
+          }
       }
   };
 
@@ -677,282 +781,377 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
 
   return (
     <div 
-        className="relative flex flex-col h-full bg-[--bg-primary]"
+        className="relative flex h-full bg-[--bg-primary] overflow-hidden"
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
     >
-      <header className="flex items-center justify-between p-[var(--space-4)] bg-[--bg-primary] border-b border-[--border-primary] gap-[var(--space-4)]">
-        <div className="flex items-center gap-2 min-w-0">
-          <ProviderIcon provider={provider} className="w-6 h-6 text-[--accent-chat] flex-shrink-0"/>
-          <div className="flex flex-col min-w-0">
-            {isEditingTitle ? (
-              <input
-                ref={titleInputRef}
-                value={editedTitle}
-                onChange={(e) => setEditedTitle(e.target.value)}
-                onBlur={handleTitleRename}
-                onKeyDown={(e) => e.key === 'Enter' && handleTitleRename()}
-                className="text-lg font-semibold bg-transparent border-b border-[--border-focus] focus:outline-none text-[--text-primary] w-full"
-              />
-            ) : (
-              <h2
-                {...titleTooltip}
-                className="text-lg font-semibold text-[--text-primary] truncate cursor-pointer hover:bg-[--bg-hover] px-2 py-1 rounded-lg"
-                onClick={() => setIsEditingTitle(true)}
-              >
-                {session.name}
-              </h2>
-            )}
-            <div className='flex items-center gap-3'>
-              <div className="relative" ref={modelSelectorRef}>
-                  <button
-                      {...modelTooltip}
-                      onClick={() => setIsModelSelectorOpen(prev => !prev)}
-                      className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] px-2 py-0.5 rounded-lg hover:bg-[--bg-hover]"
-                  >
-                      <span className="truncate max-w-xs">{provider?.name} / {session.modelId}</span>
-                      <ChevronDownIcon className={`w-3 h-3 transition-transform ${isModelSelectorOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  {isModelSelectorOpen && (
-                      <div className="absolute top-full left-0 mt-1.5 w-64 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
-                          <div className="p-2 text-xs font-semibold text-[--text-muted] border-b border-[--border-primary]">Start new chat with:</div>
-                          {models.map(model => (
-                              <button 
-                                  key={model.id}
-                                  onClick={() => {
-                                      onSelectModel(model.id);
-                                      setIsModelSelectorOpen(false);
-                                  }}
-                                  className="w-full text-left block px-3 py-1.5 text-sm text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
-                              >
-                                  {model.id}
-                              </button>
-                          ))}
-                      </div>
-                  )}
-              </div>
-               <div className="relative" ref={personaSelectorRef}>
-               <button
-                    {...personaTooltip}
-                    onClick={() => setIsPersonaSelectorOpen(prev => !prev)}
-                    className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] px-2 py-0.5 rounded-lg hover:bg-[--bg-hover]"
-                >
-                    <IdentityIcon className="w-3.5 h-3.5" />
-                    <span className="truncate max-w-xs">Persona: {currentPersonaName}</span>
-                    <ChevronDownIcon className={`w-3 h-3 transition-transform ${isPersonaSelectorOpen ? 'rotate-180' : ''}`} />
-                </button>
-                {isPersonaSelectorOpen && (
-                    <div className="absolute top-full left-0 mt-1.5 w-64 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
-                        <div className="p-2 text-xs font-semibold text-[--text-muted] border-b border-[--border-primary]">Select a Persona</div>
-                        <button 
-                            onClick={() => {
-                                onSetSessionSystemPrompt(null);
-                                setIsPersonaSelectorOpen(false);
-                            }}
-                            className="w-full text-left block px-3 py-1.5 text-sm text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
-                        >
-                            Default Assistant
-                        </button>
-                        {systemPrompts.map(prompt => (
-                            <PersonaSelectorItem
-                                key={prompt.id}
-                                prompt={prompt}
-                                onSelect={(id) => {
-                                    onSetSessionSystemPrompt(id);
-                                    setIsPersonaSelectorOpen(false);
-                                }}
-                            />
-                        ))}
-                    </div>
-                )}
-              </div>
-               <div className="relative" ref={paramsSelectorRef}>
+      <div className="flex-1 flex flex-col min-w-0 h-full relative">
+        <header className="flex items-center justify-between px-6 py-2 bg-[--bg-sidebar] border-b border-[--border-primary] z-10">
+          <div className="flex items-center gap-4 min-w-0 flex-1">
+             <div className="relative flex-shrink-0" ref={modelSelectorRef}>
                 <button
-                    {...paramsTooltip}
-                    onClick={() => setIsParamsOpen(prev => !prev)}
-                    className="flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] px-2 py-0.5 rounded-lg hover:bg-[--bg-hover]"
+                    {...modelTooltip}
+                    onClick={() => setIsModelSelectorOpen(prev => !prev)}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[--bg-tertiary] border border-[--border-primary] text-sm font-medium hover:border-[--border-focus] transition-all"
                 >
-                    <SlidersIcon className="w-3.5 h-3.5" />
-                    <span>Parameters</span>
-                    <ChevronDownIcon className={`w-3 h-3 transition-transform ${isParamsOpen ? 'rotate-180' : ''}`} />
+                    <ProviderIcon provider={provider} className="w-4 h-4" />
+                    <span className="truncate max-w-[200px]">{session.modelId}</span>
+                    <ChevronDownIcon className={`w-4 h-4 text-[--text-muted] transition-transform ${isModelSelectorOpen ? 'rotate-180' : ''}`} />
                 </button>
-                {isParamsOpen && (
-                    <div className="absolute top-full left-0 mt-1.5 w-72 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-lg z-20 p-4 space-y-4">
-                        <div className="flex justify-between items-center">
-                            <h4 className="text-sm font-semibold text-[--text-secondary]">Generation Parameters</h4>
-                            <button onClick={handleResetParams} className="text-xs text-[--text-muted] hover:underline">Reset</button>
-                        </div>
-                        
-                        <div>
-                            <label htmlFor="temperature" className="flex justify-between text-xs text-[--text-muted] mb-1">
-                                <span>Temperature</span>
-                                <span className="font-mono">{session.generationConfig?.temperature?.toFixed(2) ?? 'N/A'}</span>
-                            </label>
-                            <input
-                                type="range"
-                                id="temperature"
-                                min="0" max="2" step="0.01"
-                                value={session.generationConfig?.temperature ?? 0.8}
-                                onChange={e => handleParamChange('temperature', e.target.value)}
-                                className="w-full h-2 bg-[--bg-tertiary] rounded-lg appearance-none cursor-pointer"
-                            />
-                             <p className="text-xs text-[--text-muted]/70 mt-1">Controls randomness. Lower is more deterministic.</p>
-                        </div>
-                        
-                        <div>
-                            <label htmlFor="topK" className="flex justify-between text-xs text-[--text-muted] mb-1">
-                                <span>Top-K</span>
-                                <span className="font-mono">{session.generationConfig?.topK ?? 'N/A'}</span>
-                            </label>
-                            <input
-                                type="range"
-                                id="topK"
-                                min="1" max="100" step="1"
-                                value={session.generationConfig?.topK ?? 40}
-                                onChange={e => handleParamChange('topK', e.target.value)}
-                                className="w-full h-2 bg-[--bg-tertiary] rounded-lg appearance-none cursor-pointer"
-                            />
-                             <p className="text-xs text-[--text-muted]/70 mt-1">Considers the top K most likely tokens.</p>
-                        </div>
-
-                        <div>
-                            <label htmlFor="topP" className="flex justify-between text-xs text-[--text-muted] mb-1">
-                                <span>Top-P</span>
-                                <span className="font-mono">{session.generationConfig?.topP?.toFixed(2) ?? 'N/A'}</span>
-                            </label>
-                            <input
-                                type="range"
-                                id="topP"
-                                min="0" max="1" step="0.01"
-                                value={session.generationConfig?.topP ?? 0.9}
-                                onChange={e => handleParamChange('topP', e.target.value)}
-                                className="w-full h-2 bg-[--bg-tertiary] rounded-lg appearance-none cursor-pointer"
-                            />
-                             <p className="text-xs text-[--text-muted]/70 mt-1">Nucleus sampling. Considers tokens with probability mass up to this value.</p>
+                {isModelSelectorOpen && (
+                    <div className="absolute top-full left-0 mt-2 w-72 bg-[--bg-secondary] border border-[--border-primary] rounded-xl shadow-2xl z-50 overflow-hidden">
+                        <div className="p-3 text-xs font-bold uppercase tracking-wider text-[--text-muted] bg-[--bg-sidebar] border-b border-[--border-primary]">Change Model</div>
+                        <div className="max-h-80 overflow-y-auto">
+                            {models.map(model => (
+                                <button 
+                                    key={model.id}
+                                    onClick={() => {
+                                        onSelectModel(model.id);
+                                        setIsModelSelectorOpen(false);
+                                    }}
+                                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-[--bg-hover] transition-colors border-b border-[--border-primary]/5 last:border-0"
+                                >
+                                    <div className="font-medium text-[--text-primary]">{model.id}</div>
+                                    <div className="text-xs text-[--text-muted] truncate">{model.providerId}</div>
+                                </button>
+                            ))}
                         </div>
                     </div>
                 )}
+            </div>
+
+            <div className="h-4 w-px bg-[--border-primary]" />
+
+            {isEditingTitle ? (
+                <input
+                  ref={titleInputRef}
+                  value={editedTitle}
+                  onChange={(e) => setEditedTitle(e.target.value)}
+                  onBlur={handleTitleRename}
+                  onKeyDown={(e) => e.key === 'Enter' && handleTitleRename()}
+                  className="flex-1 bg-transparent border-b border-[--border-focus] focus:outline-none text-sm font-medium py-1 px-2"
+                />
+              ) : (
+                <h2
+                  {...titleTooltip}
+                  className="text-sm font-medium text-[--text-secondary] truncate cursor-pointer hover:bg-[--bg-hover] px-2 py-1 rounded-md transition-colors"
+                  onClick={() => setIsEditingTitle(true)}
+                >
+                  {session.name}
+                </h2>
+              )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {projectId && (
+                <div {...projectContextTooltip} className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-green-500/10 text-green-500 text-xs font-medium border border-green-500/20">
+                    <CodeIcon className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Project Context</span>
+                </div>
+            )}
+            <button
+                onClick={() => setIsParamsOpen(prev => !prev)}
+                className={`p-2 rounded-lg transition-colors ${isParamsOpen ? 'bg-[--accent-chat] text-white' : 'text-[--text-muted] hover:bg-[--bg-hover]'}`}
+                title="Toggle Configuration Sidebar"
+            >
+                <SlidersIcon className="w-5 h-5" />
+            </button>
+          </div>
+        </header>
+
+        <ChatTranscript
+          messages={messages}
+          theme={theme}
+          isResponding={isResponding}
+          streamingDraft={streamingDraft}
+          retrievalStatus={retrievalStatus}
+          markdownComponents={markdownComponents}
+          onRunCodeSnippet={onRunCodeSnippet}
+        />
+
+        <div className="p-4 bg-[--bg-primary]">
+          {isDraggingOver && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-[--bg-backdrop] backdrop-blur-sm">
+                <div className="flex flex-col items-center p-8 border-4 border-dashed border-[--accent-chat] rounded-3xl bg-[--bg-primary] shadow-2xl">
+                    <PaperclipIcon className="w-16 h-16 text-[--accent-chat] mb-4 animate-bounce" />
+                    <p className="text-xl font-bold text-[--text-primary]">Drop Image Here</p>
+                    <p className="text-[--text-muted]">to analyze it with {session.modelId}</p>
+                </div>
+            </div>
+          )}
+          
+          <div className="max-w-4xl mx-auto relative">
+            {attachedImage && (
+              <div className="absolute bottom-full left-0 mb-4 p-2 bg-[--bg-secondary] border border-[--border-primary] rounded-xl shadow-xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2">
+                <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-[--border-secondary]">
+                    <img src={attachedImage} className="w-full h-full object-cover" alt="Attachment" />
+                    <button
+                        {...removeImgTooltip}
+                        onClick={() => setAttachedImage(null)}
+                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 transition-colors"
+                    >
+                        <XIcon className="w-3 h-3" />
+                    </button>
+                </div>
+                <div className="pr-4">
+                    <p className="text-xs font-bold text-[--text-primary]">Image Ready</p>
+                    <p className="text-[10px] text-[--text-muted]">Analysis enabled for this model</p>
+                </div>
+              </div>
+            )}
+            
+            <div className={`relative flex flex-col border rounded-2xl transition-all duration-300 shadow-sm ${isResponding ? 'bg-[--bg-tertiary] border-transparent' : 'bg-[--bg-secondary] border-[--border-primary] focus-within:border-[--border-focus] focus-within:ring-1 focus-within:ring-[--border-focus] focus-within:shadow-md'}`}>
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyPress}
+                onPaste={handlePaste}
+                placeholder={isResponding ? "AI is thinking..." : "Ask anything... (Shift+Enter for newline)"}
+                disabled={isResponding}
+                rows={1}
+                className="w-full p-4 pr-12 bg-transparent resize-none focus:outline-none text-[--text-primary] text-base min-h-[56px] max-h-[40vh]"
+              />
+              
+              <div className="flex items-center justify-between px-3 py-2 border-t border-[--border-primary]/50">
+                <div className="flex items-center gap-1.5 ml-1">
+                   <button
+                        {...attachImgTooltip}
+                        onClick={() => fileInputRef.current?.click()}
+                        className="p-2 rounded-lg text-[--text-muted] hover:bg-[--bg-hover] hover:text-[--text-primary] transition-all"
+                    >
+                        <Icon name="plus" className="w-4 h-4" />
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={(e) => {
+                                handleImageChange(e.target.files ? e.target.files[0] : null);
+                                e.target.value = ''; 
+                            }}
+                            className="hidden"
+                            accept="image/*"
+                        />
+                    </button>
+                    
+                    {hasTools && (
+                        <div {...toolsTooltip} className="p-2 text-[--text-muted] opacity-60">
+                            <Icon name="hammer" className="w-4 h-4" />
+                        </div>
+                    )}
+
+                    {hasVision && (
+                        <div {...visionTooltip} className="flex items-center gap-1.5 px-2 py-0.5 ml-1 rounded-md bg-yellow-500/10 border border-yellow-500/20 text-[10px] font-bold text-yellow-600 dark:text-yellow-500">
+                            <Icon name="eye" className="w-3 h-3" />
+                            <span>Vision</span>
+                        </div>
+                    )}
+                    
+                    <div className="relative ml-1">
+                        <button
+                            ref={promptsButtonRef}
+                            {...predefinedPromptsTooltip}
+                            onClick={() => setIsPromptsOpen(!isPromptsOpen)}
+                            className={`p-2 rounded-lg transition-all ${isPromptsOpen ? 'bg-[--bg-hover] text-[--text-primary]' : 'text-[--text-muted] hover:bg-[--bg-hover] hover:text-[--text-primary]'}`}
+                        >
+                            <BookmarkIcon className="w-4 h-4" />
+                        </button>
+                        {isPromptsOpen && (
+                            <div 
+                                ref={promptsPopoverRef}
+                                className="absolute bottom-full left-0 mb-2 w-64 bg-[--bg-secondary] border border-[--border-primary] rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2"
+                            >
+                                <div className="p-3 text-xs font-bold uppercase tracking-wider text-[--text-muted] bg-[--bg-sidebar] border-b border-[--border-primary]">Prompts</div>
+                                <div className="max-h-60 overflow-y-auto">
+                                    {predefinedPrompts.length === 0 ? (
+                                        <div className="p-4 text-center text-xs text-[--text-muted]">No prompts saved</div>
+                                    ) : (
+                                        predefinedPrompts.map((p, i) => (
+                                            <PredefinedPromptButton key={i} prompt={p} onSelect={handleSelectPrompt} />
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    <div {...contextTooltip} className="flex items-center gap-2 pr-2">
+                        <div className="relative w-5 h-5">
+                            <svg className="w-full h-full transform -rotate-90">
+                                <circle
+                                    cx="10" cy="10" r="8"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    fill="transparent"
+                                    className="text-[--border-primary]"
+                                />
+                                <circle
+                                    cx="10" cy="10" r="8"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    fill="transparent"
+                                    strokeDasharray={50.26}
+                                    strokeDashoffset={50.26 - (50.26 * contextStats.percent) / 100}
+                                    className="text-blue-500 transition-all duration-500"
+                                    strokeLinecap="round"
+                                />
+                            </svg>
+                        </div>
+                        <span className="text-[10px] font-mono text-[--text-muted] tabular-nums">{contextStats.percent}%</span>
+                    </div>
+                    {projectId && (
+                        <div className="flex items-center gap-2 mr-2">
+                             <label className="text-[10px] font-bold uppercase tracking-widest text-[--text-muted] cursor-help" {...agentToolsTooltip}>
+                                Agent Mode
+                            </label>
+                            <button
+                                onClick={() => onSetSessionAgentToolsEnabled(!agentToolsEnabled)}
+                                className={`w-8 h-4 rounded-full relative transition-colors duration-200 ${agentToolsEnabled ? 'bg-green-500' : 'bg-gray-400'}`}
+                            >
+                                <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform duration-200 ${agentToolsEnabled ? 'left-4.5' : 'left-0.5'}`} />
+                            </button>
+                        </div>
+                    )}
+                    {isResponding ? (
+                        <button
+                            {...stopGenTooltip}
+                            onClick={onStopGeneration}
+                            className="p-2 rounded-xl bg-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all flex items-center gap-2 px-4"
+                        >
+                            <StopIcon className="w-4 h-4" />
+                            <span className="text-xs font-bold uppercase tracking-wider">Stop</span>
+                        </button>
+                    ) : (
+                        <button
+                            {...sendMsgTooltip}
+                            onClick={handleSend}
+                            disabled={!input.trim() && !attachedImage}
+                            className={`p-2 rounded-xl transition-all flex items-center gap-2 px-4 ${(!input.trim() && !attachedImage) ? 'bg-[--bg-tertiary] text-[--text-muted] cursor-not-allowed' : 'bg-[--accent-chat] text-white hover:opacity-90 shadow-lg shadow-blue-500/20'}`}
+                        >
+                            <span className="text-xs font-bold uppercase tracking-wider">Send</span>
+                            <SendIcon className="w-4 h-4" />
+                        </button>
+                    )}
+                </div>
               </div>
             </div>
           </div>
         </div>
-        {isElectron && (
-            <div className="flex items-center gap-4">
-                {currentProject && (
-                    <div {...projectContextTooltip} className="flex items-center gap-2 text-sm text-[--text-muted] bg-[--bg-tertiary] px-3 py-1.5 rounded-lg border border-[--border-primary]">
-                        <CodeIcon className="w-5 h-5"/>
-                        <span className="font-semibold text-[--text-secondary]">{currentProject.name}</span>
-                    </div>
-                )}
-                {currentProject && (
-                    <label 
-                        {...agentToolsTooltip}
-                        className="flex items-center gap-2 cursor-pointer" 
-                    >
-                        <BrainCircuitIcon className={`w-5 h-5 ${agentToolsEnabled ? 'text-[--accent-chat]' : 'text-[--text-muted]'}`} />
-                        <span className="text-sm text-[--text-muted] hidden lg:inline">Enable Project Agent</span>
-                        <div className="relative inline-flex items-center cursor-pointer">
-                            <input 
-                                type="checkbox" 
-                                checked={!!agentToolsEnabled} 
-                                onChange={(e) => onSetSessionAgentToolsEnabled(e.target.checked)} 
-                                className="sr-only peer" 
-                                id="agent-tools-toggle"
-                            />
-                            <div className="w-11 h-6 bg-[--bg-tertiary] rounded-full peer peer-checked:bg-[--accent-chat] peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[--border-focus] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
-                        </div>
-                    </label>
-                )}
-            </div>
-        )}
-      </header>
-      <ChatTranscript
-        messages={messages}
-        theme={theme}
-        isResponding={isResponding}
-        streamingDraft={streamingDraft}
-        retrievalStatus={retrievalStatus}
-        markdownComponents={markdownComponents}
-        onRunCodeSnippet={onRunCodeSnippet}
-      />
-      <footer className="p-[var(--space-4)] bg-[--bg-primary] border-t border-[--border-primary] flex-shrink-0">
-          <div
-              className="relative flex items-center gap-2 bg-[--bg-secondary] border border-[--border-primary] rounded-none px-[var(--space-4)] py-[var(--space-2)] focus-within:border-[--accent-chat] focus-within:ring-2 focus-within:ring-[--border-focus]"
-          >
-              {attachedImage && (
-                  <div className="absolute bottom-full left-0 mb-2 p-2 bg-[--bg-secondary] border border-[--border-primary] rounded-lg">
-                      <img src={attachedImage} alt="Attachment preview" className="h-20 w-20 object-cover rounded" />
-                      <button {...removeImgTooltip} onClick={() => setAttachedImage(null)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-none p-0.5">
-                          <XIcon className="w-3 h-3" />
-                      </button>
-                  </div>
-              )}
-              <div className="flex items-center gap-1">
-                  <input type="file" ref={fileInputRef} onChange={e => handleImageChange(e.target.files ? e.target.files[0] : null)} accept="image/*" className="hidden" />
-                  <button {...attachImgTooltip} onClick={() => fileInputRef.current?.click()} className="p-[var(--space-2)] text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-none">
-                      <PaperclipIcon className="w-5 h-5" />
-                  </button>
-                  <div className="relative">
-                      <button
-                          ref={promptsButtonRef}
-                          {...predefinedPromptsTooltip}
-                          onClick={() => setIsPromptsOpen(p => !p)}
-                          className="p-[var(--space-2)] text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-none"
-                      >
-                          <BookmarkIcon className="w-5 h-5" />
-                      </button>
-                      {isPromptsOpen && (
-                          <div ref={promptsPopoverRef} className="absolute bottom-full left-0 mb-2 w-72 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
-                              <div className="p-2 text-xs font-semibold text-[--text-muted] border-b border-[--border-primary]">Saved Prompts</div>
-                              {predefinedPrompts.length > 0 ? (
-                                  predefinedPrompts.map(p => (
-                                      <PredefinedPromptButton
-                                          key={p.id}
-                                          prompt={p}
-                                          onSelect={handleSelectPrompt}
-                                      />
-                                  ))
-                              ) : (
-                                  <p className="p-3 text-sm text-center text-[--text-muted]">No prompts saved yet. Add some in Settings.</p>
-                              )}
-                          </div>
-                      )}
-                  </div>
-              </div>
-              <textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  placeholder="Type your message or drop an image..."
-                  className="flex-1 bg-transparent text-[length:var(--font-size-base)] focus:outline-none resize-none overflow-y-hidden"
-                  rows={1}
-                  disabled={isResponding}
-              />
-              <div className="flex items-center">
-                  {isResponding ? (
-                      <button {...stopGenTooltip} onClick={onStopGeneration} className="p-2 bg-red-500 text-white rounded-none hover:bg-red-600">
-                          <StopIcon className="w-5 h-5" />
-                      </button>
-                  ) : (
-                      <button {...sendMsgTooltip} onClick={handleSend} disabled={!input.trim() && !attachedImage} className="p-2 bg-[--accent-chat] text-[--user-message-text-color] rounded-none disabled:opacity-50 disabled:cursor-not-allowed">
-                          <SendIcon className="w-5 h-5" />
-                      </button>
-                  )}
-              </div>
-          </div>
-      </footer>
+      </div>
 
-      {isDraggingOver && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center pointer-events-none z-30">
-              <div className="text-center text-white p-8 bg-black/30 rounded-lg backdrop-blur-sm">
-                  <PaperclipIcon className="w-16 h-16 mx-auto mb-4" />
-                  <h3 className="text-2xl font-bold">Drop your image here</h3>
+      {/* Right Sidebar for Parameters (LM Studio Style) */}
+      <aside className={`w-80 h-full bg-[--bg-sidebar]/80 backdrop-blur-md border-l border-[--border-primary] overflow-y-auto transition-all duration-300 transform ${isParamsOpen ? 'translate-x-0' : 'translate-x-full fixed right-0 opacity-0 pointer-events-none'}`}>
+          <div className="p-6 space-y-8">
+              <div>
+                  <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-[--text-muted] mb-4">Chat Context</h3>
+                  <div className="space-y-4">
+                      <div>
+                          <label className="text-xs font-medium text-[--text-secondary] mb-2 block">System Prompt / Persona</label>
+                          <div className="relative" ref={personaSelectorRef}>
+                            <button
+                                onClick={() => setIsPersonaSelectorOpen(prev => !prev)}
+                                className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[--bg-tertiary] border border-[--border-primary] text-sm hover:border-[--border-focus] transition-all"
+                            >
+                                <div className="flex items-center gap-2 truncate">
+                                    <IdentityIcon className="w-4 h-4 text-[--accent-chat]" />
+                                    <span className="truncate">{currentPersonaName}</span>
+                                </div>
+                                <ChevronDownIcon className={`w-4 h-4 text-[--text-muted] transition-transform ${isPersonaSelectorOpen ? 'rotate-180' : ''}`} />
+                            </button>
+                            {isPersonaSelectorOpen && (
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-[--bg-secondary] border border-[--border-primary] rounded-xl shadow-2xl z-50 overflow-hidden">
+                                    <div className="max-h-60 overflow-y-auto">
+                                        <button 
+                                            onClick={() => {
+                                                onSetSessionSystemPrompt(null);
+                                                setIsPersonaSelectorOpen(false);
+                                            }}
+                                            className="w-full text-left px-4 py-2.5 text-sm hover:bg-[--bg-hover] transition-colors border-b border-[--border-primary]/5 last:border-0"
+                                        >
+                                            Default Assistant
+                                        </button>
+                                        {systemPrompts.map(prompt => (
+                                            <button 
+                                                key={prompt.id}
+                                                onClick={() => {
+                                                    onSetSessionSystemPrompt(prompt.id);
+                                                    setIsPersonaSelectorOpen(false);
+                                                }}
+                                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-[--bg-hover] transition-colors border-b border-[--border-primary]/5 last:border-0"
+                                            >
+                                                {prompt.title}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                          </div>
+                      </div>
+                      <div className="p-3 bg-[--bg-tertiary]/50 border border-[--border-primary] rounded-lg">
+                          <p className="text-[11px] leading-relaxed text-[--text-muted] italic">
+                              "{currentPersonaContent.length > 150 ? currentPersonaContent.substring(0, 150) + '...' : currentPersonaContent}"
+                          </p>
+                      </div>
+                  </div>
+              </div>
+
+              <div className="h-px bg-[--border-primary]" />
+
+              <div>
+                  <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-[--text-muted]">Parameters</h3>
+                      <button onClick={handleResetParams} className="text-[10px] font-bold text-[--accent-chat] uppercase tracking-wider hover:opacity-80">Reset</button>
+                  </div>
+                  <div className="space-y-6">
+                      <div className="space-y-3">
+                          <div className="flex justify-between text-xs">
+                              <span className="text-[--text-secondary] font-medium">Temperature</span>
+                              <span className="font-mono text-[--accent-chat]">{session.generationConfig?.temperature?.toFixed(2) ?? '0.80'}</span>
+                          </div>
+                          <input
+                              type="range"
+                              min="0" max="2" step="0.01"
+                              value={session.generationConfig?.temperature ?? 0.8}
+                              onChange={e => handleParamChange('temperature', e.target.value)}
+                              className="w-full h-1 bg-[--bg-tertiary] rounded-lg appearance-none cursor-pointer accent-[--accent-chat]"
+                          />
+                          <p className="text-[10px] text-[--text-muted]">Higher values make output more random, lower more deterministic.</p>
+                      </div>
+
+                      <div className="space-y-3">
+                          <div className="flex justify-between text-xs">
+                              <span className="text-[--text-secondary] font-medium">Top P (Nucleus)</span>
+                              <span className="font-mono text-[--accent-chat]">{session.generationConfig?.topP?.toFixed(2) ?? '0.90'}</span>
+                          </div>
+                          <input
+                              type="range"
+                              min="0" max="1" step="0.01"
+                              value={session.generationConfig?.topP ?? 0.9}
+                              onChange={e => handleParamChange('topP', e.target.value)}
+                              className="w-full h-1 bg-[--bg-tertiary] rounded-lg appearance-none cursor-pointer accent-[--accent-chat]"
+                          />
+                      </div>
+
+                      <div className="space-y-3">
+                          <div className="flex justify-between text-xs">
+                              <span className="text-[--text-secondary] font-medium">Top K</span>
+                              <span className="font-mono text-[--accent-chat]">{session.generationConfig?.topK ?? '40'}</span>
+                          </div>
+                          <input
+                              type="range"
+                              min="1" max="100" step="1"
+                              value={session.generationConfig?.topK ?? 40}
+                              onChange={e => handleParamChange('topK', e.target.value)}
+                              className="w-full h-1 bg-[--bg-tertiary] rounded-lg appearance-none cursor-pointer accent-[--accent-chat]"
+                          />
+                      </div>
+                  </div>
               </div>
           </div>
-      )}
+      </aside>
     </div>
   );
 }
