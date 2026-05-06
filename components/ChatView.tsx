@@ -821,7 +821,7 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
                         <input
                             type="file"
                             ref={fileInputRef}
-                            onChange={(e) => handleImageChange(e.target.files ? e.dataTransfer ? e.dataTransfer.files[0] : e.target.files[0] : null)}
+                            onChange={(e) => handleImageChange(e.target.files ? e.target.files[0] : null)}
                             className="hidden"
                             accept="image/*"
                         />
