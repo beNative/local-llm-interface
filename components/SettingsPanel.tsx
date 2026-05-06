@@ -846,7 +846,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-[--text-muted] mb-2">Control Density</label>
+                                    <label className="block text-sm font-medium text-[--text-muted] mb-1">Interface Density</label>
+                                    <p className="text-[10px] text-[--text-muted] mb-3 uppercase font-bold tracking-widest opacity-60">Adjust spacing and typography for power users</p>
                                     <div className="grid grid-cols-3 gap-2">
                                         {densities.map(d => (
                                             <button

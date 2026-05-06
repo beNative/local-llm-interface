@@ -52,7 +52,7 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
   const groupedSessions = groupSessions(sessions);
 
   return (
-    <aside className="h-full bg-[--bg-sidebar] border-r border-[--border-primary] flex flex-col">
+    <aside className="h-full bg-[--bg-sidebar]/80 backdrop-blur-md border-r border-[--border-primary] flex flex-col">
       <div className="p-4 flex-shrink-0">
         <button
           {...newChatTooltip}

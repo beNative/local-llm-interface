@@ -1256,7 +1256,7 @@ const AppContent: React.FC = () => {
               type: 'function',
               function: {
                   name: 'executePython',
-                  description: 'Executes a Python code snippet and returns its standard output and standard error. This is the primary way to run code.',
+                  description: 'Executes a Python code snippet and returns its standard output and standard error. Use this for complex calculations, data processing, or when you need to verify logic with code.',
                   parameters: {
                       type: 'object',
                       properties: {
@@ -1280,11 +1280,26 @@ const AppContent: React.FC = () => {
           );
       }
 
+      const finalMessages = [...messages];
+      if (tools.length > 0) {
+          const toolGuidelines = `\n\n[TOOL USAGE GUIDELINES]\n- You have access to tools. Use them ONLY when absolutely necessary to fulfill the user's request.\n- If the user's request can be fulfilled without using tools (e.g. general questions, greetings, or things you already know), do NOT use tools.\n- Avoid using 'executePython' for simple calculations you can do yourself.\n- If you are unsure if a tool is needed, prioritize NOT using it.`;
+          
+          const systemMsgIndex = finalMessages.findIndex(m => m.role === 'system');
+          if (systemMsgIndex >= 0) {
+              const originalContent = finalMessages[systemMsgIndex].content;
+              if (typeof originalContent === 'string') {
+                  finalMessages[systemMsgIndex] = { ...finalMessages[systemMsgIndex], content: originalContent + toolGuidelines };
+              }
+          } else {
+              finalMessages.unshift({ role: 'system', content: toolGuidelines.trim() });
+          }
+      }
+
       let accumulatedContent = '';
       let accumulatedToolCalls: ToolCall[] = [];
 
       await streamChatCompletion(
-          providerForSession, config.apiKeys, session.modelId, messages, tools.length > 0 ? tools : undefined, controller.signal,
+          providerForSession, config.apiKeys, session.modelId, finalMessages, tools.length > 0 ? tools : undefined, controller.signal,
           (chunk) => { // onChunk
               if (chunk.type === 'content') {
                   accumulatedContent += chunk.text;

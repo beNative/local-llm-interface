@@ -27,6 +27,7 @@ import PlayIcon from './icons/PlayIcon';
 import GlobeIcon from './icons/GlobeIcon';
 import ClipboardIcon from './icons/ClipboardIcon';
 import CheckIcon from './icons/CheckIcon';
+import Icon from './Icon';
 
 const ContextSources: React.FC<{ files: string[] }> = ({ files }) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -75,25 +76,65 @@ const PredefinedPromptButton: React.FC<{ prompt: PredefinedPrompt; onSelect: (co
 };
 
 const MessageMetadata: React.FC<{ metadata: ChatMessageMetadata }> = ({ metadata }) => {
-    const { usage, speed } = metadata;
+    const { usage, speed, duration, ttft } = metadata;
+    if (!usage && speed === undefined && duration === undefined) return null;
 
-    const stats: string[] = [];
-    if (usage?.prompt_tokens !== undefined) {
-        stats.push(`Input: ${usage.prompt_tokens} tokens`);
-    }
-    if (usage?.completion_tokens !== undefined) {
-        stats.push(`Output: ${usage.completion_tokens} tokens`);
-    }
-    if (speed !== undefined) {
-        stats.push(`Speed: ${speed.toFixed(1)} t/s`);
-    }
-
-    if (stats.length === 0) return null;
+    const speedTooltip = useTooltipTrigger("Generation Speed: Average tokens generated per second during the generation phase.");
+    const tokenTooltip = useTooltipTrigger(`Token Usage: ${usage?.total_tokens || usage?.completion_tokens || 0} total (Prompt: ${usage?.prompt_tokens || 0}, Completion: ${usage?.completion_tokens || 0})`);
+    const durationTooltip = useTooltipTrigger(`Timing: Total ${duration?.toFixed(2)}s${ttft !== undefined ? ` | Time to First Token (TTFT): ${ttft.toFixed(2)}s` : ''}`);
 
     return (
-        <div className="mt-3 pt-2 border-t border-[--assistant-message-text-color]/10 text-xs font-mono opacity-70">
-            {stats.join('  •  ')}
+        <div className="mt-4 pt-3 border-t border-[--assistant-message-text-color]/5 flex items-center flex-wrap gap-2 animate-in fade-in slide-in-from-top-1">
+             <Icon name="lightbulb" className="w-3.5 h-3.5 text-[--text-muted] opacity-50 mr-1" />
+             
+             {speed !== undefined && (
+                <div {...speedTooltip} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[--bg-tertiary]/40 border border-[--border-primary]/30 text-[10px] font-bold uppercase tracking-wider text-[--text-muted] hover:bg-[--bg-tertiary]/60 transition-colors cursor-help">
+                    <Icon name="zap" className="w-3 h-3 text-yellow-500/80" />
+                    <span>{speed.toFixed(2)} tok/sec</span>
+                </div>
+            )}
+            
+            {usage?.completion_tokens !== undefined && (
+                <div {...tokenTooltip} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[--bg-tertiary]/40 border border-[--border-primary]/30 text-[10px] font-bold uppercase tracking-wider text-[--text-muted] hover:bg-[--bg-tertiary]/60 transition-colors cursor-help">
+                    <Icon name="fileText" className="w-3 h-3 text-blue-500/80" />
+                    <span>{usage.completion_tokens} tokens</span>
+                </div>
+            )}
+            
+            {duration !== undefined && (
+                <div {...durationTooltip} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[--bg-tertiary]/40 border border-[--border-primary]/30 text-[10px] font-bold uppercase tracking-wider text-[--text-muted] hover:bg-[--bg-tertiary]/60 transition-colors cursor-help">
+                    <Icon name="clock" className="w-3 h-3 text-green-500/80" />
+                    <span>{duration.toFixed(2)}s</span>
+                </div>
+            )}
         </div>
+    );
+};
+
+const CopyButton: React.FC<{ content: string; className?: string }> = ({ content, className }) => {
+    const [isCopied, setIsCopied] = useState(false);
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const copyTooltip = useTooltipTrigger(isCopied ? "Copied!" : "Copy to clipboard");
+
+    const handleCopy = async () => {
+        try {
+            await navigator.clipboard.writeText(content);
+            setIsCopied(true);
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+            timeoutRef.current = setTimeout(() => setIsCopied(false), 2000);
+        } catch (err) {
+            console.error('Failed to copy text: ', err);
+        }
+    };
+
+    return (
+        <button
+            onClick={handleCopy}
+            {...copyTooltip}
+            className={`p-1.5 rounded-lg bg-[--bg-secondary]/80 hover:bg-[--bg-hover] text-[--text-muted] hover:text-[--text-primary] transition-all border border-[--border-primary]/30 shadow-sm ${className}`}
+        >
+            <Icon name={isCopied ? 'check' : 'clipboard'} className={`w-3.5 h-3.5 ${isCopied ? 'text-green-500' : ''}`} />
+        </button>
     );
 };
 
@@ -211,9 +252,17 @@ const MemoizedChatMessage = React.memo<{
   const effectiveContent =
       isStreamingPlaceholder && streamingDraft !== null ? streamingDraft : msg.content;
 
+  const copyText = useMemo(() => {
+    if (typeof effectiveContent === 'string') return effectiveContent;
+    if (Array.isArray(effectiveContent)) {
+        return effectiveContent.filter(p => p.type === 'text').map(p => (p as any).text).join('\n');
+    }
+    return '';
+  }, [effectiveContent]);
+
   return (
     <div
-      className={`flex items-start gap-4 ${msg.role === 'user' ? 'justify-end' : ''}`}
+      className={`flex items-start gap-4 group ${msg.role === 'user' ? 'justify-end' : ''}`}
       style={{ contentVisibility: 'auto', containIntrinsicSize: '1px 220px' } as React.CSSProperties}
     >
       {msg.role === 'assistant' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center"><ModelIcon className="w-5 h-5 text-[--accent-chat]" /></div>}
@@ -223,13 +272,16 @@ const MemoizedChatMessage = React.memo<{
           color: msg.role === 'user' ? 'var(--user-message-text-color)' : 'var(--assistant-message-text-color)',
           backgroundImage: msg.role === 'user' ? 'var(--user-message-bg-image)' : 'none',
         }}
-        className={`p-4 rounded-xl shadow-sm max-w-full overflow-hidden border ${msg.role === 'user' ? 'border-transparent' : 'border-[--border-primary]'}`}
+        className={`relative p-4 rounded-xl shadow-sm max-w-full overflow-hidden border ${msg.role === 'user' ? 'border-transparent' : 'border-[--border-primary]'}`}
       >
         {msg.role === 'assistant' ? (
           (isStreamingPlaceholder && !effectiveContent) ? (
             <SpinnerIcon className="w-5 h-5 text-gray-400"/>
           ) : (
             <>
+              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                  <CopyButton content={copyText} />
+              </div>
               {msg.metadata?.ragContext && <ContextSources files={msg.metadata.ragContext.files} />}
               {effectiveContent && (
                 <div
@@ -254,10 +306,14 @@ const MemoizedChatMessage = React.memo<{
             </>
           )
         ) : ( 
-          <div
-            className="space-y-2"
-            style={{ fontSize: 'var(--chat-font-size)' }}
-          >
+          <>
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                <CopyButton content={copyText} />
+            </div>
+            <div
+              className="space-y-2"
+              style={{ fontSize: 'var(--chat-font-size)' }}
+            >
             {Array.isArray(msg.content) ? (
               msg.content.map((part, i) => {
                 if (part.type === 'image_url') {
@@ -272,7 +328,8 @@ const MemoizedChatMessage = React.memo<{
               <p className="whitespace-pre-wrap">{msg.content}</p>
             )}
           </div>
-        )}
+        </>
+      )}
       </div>
        {msg.role === 'user' && <div className="w-8 h-8 flex-shrink-0 rounded-full bg-[--bg-tertiary] flex items-center justify-center font-bold text-[--text-primary]">U</div>}
     </div>
@@ -424,6 +481,38 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
   const promptsButtonRef = useRef<HTMLButtonElement>(null);
 
   const { messages, name: sessionName, projectId, agentToolsEnabled } = session;
+
+  const currentModel = useMemo(() => models.find(m => m.id === session.modelId), [models, session.modelId]);
+
+  const hasVision = useMemo(() => {
+    if (!currentModel) return false;
+    const id = currentModel.id.toLowerCase();
+    const family = currentModel.details?.family?.toLowerCase() || '';
+    return id.includes('vision') || id.includes('llava') || id.includes('moondream') || id.includes('gemini') || family.includes('vision');
+  }, [currentModel]);
+
+  const hasTools = useMemo(() => {
+    if (!currentModel) return false;
+    const id = currentModel.id.toLowerCase();
+    return id.includes('gemini') || id.includes('gpt-') || id.includes('claude') || id.includes('llama-3') || id.includes('mistral') || id.includes('qwen');
+  }, [currentModel]);
+
+  const contextStats = useMemo(() => {
+    const lastMessageWithUsage = [...messages].reverse().find(m => m.metadata?.usage);
+    const historyUsed = lastMessageWithUsage?.metadata?.usage?.total_tokens || 0;
+    
+    // Add estimate for the current input being typed
+    const inputEstimate = Math.ceil(input.length / 3.5);
+    const used = historyUsed + inputEstimate;
+
+    const max = currentModel?.details?.context_length || 32768;
+    const percent = Math.min(100, Math.round((used / max) * 100));
+    return { used, max, percent };
+  }, [messages, currentModel, input]);
+
+  const contextTooltip = useTooltipTrigger(`Context Usage: ${contextStats.used} / ${contextStats.max} tokens (${contextStats.percent}%)`);
+  const visionTooltip = useTooltipTrigger("This model supports image analysis (Vision)");
+  const toolsTooltip = useTooltipTrigger("This model supports native tool use (Function Calling)");
   
   const currentProject = useMemo(() => projects.find(p => p.id === projectId), [projects, projectId]);
 
@@ -562,7 +651,7 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
         if (input.trim()) {
             contentParts.push({ type: 'text', text: input.trim() });
         }
-        contentParts.push({ type: 'image_url', image_url: { url: attachedImage } });
+        contentParts.push({ type: 'image_url', image_url: { url: attachedImage, detail: 'auto' } });
         onSendMessage(contentParts);
     } else {
         onSendMessage(input.trim());
@@ -623,15 +712,30 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
       e.preventDefault(); // Necessary to allow dropping
   };
 
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            const file = items[i].getAsFile();
+            if (file) {
+                handleImageChange(file);
+                e.preventDefault();
+            }
+        }
+    }
+  };
+
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.stopPropagation();
       setIsDraggingOver(false);
 
-      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-          const file = e.dataTransfer.files[0];
-          handleImageChange(file);
-          e.dataTransfer.clearData();
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+          const file = files[0];
+          if (file.type.startsWith('image/')) {
+              handleImageChange(file);
+          }
       }
   };
 
@@ -804,6 +908,7 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyPress}
+                onPaste={handlePaste}
                 placeholder={isResponding ? "AI is thinking..." : "Ask anything... (Shift+Enter for newline)"}
                 disabled={isResponding}
                 rows={1}
@@ -811,22 +916,39 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
               />
               
               <div className="flex items-center justify-between px-3 py-2 border-t border-[--border-primary]/50">
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5 ml-1">
                    <button
                         {...attachImgTooltip}
                         onClick={() => fileInputRef.current?.click()}
                         className="p-2 rounded-lg text-[--text-muted] hover:bg-[--bg-hover] hover:text-[--text-primary] transition-all"
                     >
-                        <PaperclipIcon className="w-4 h-4" />
+                        <Icon name="plus" className="w-4 h-4" />
                         <input
                             type="file"
                             ref={fileInputRef}
-                            onChange={(e) => handleImageChange(e.target.files ? e.target.files[0] : null)}
+                            onChange={(e) => {
+                                handleImageChange(e.target.files ? e.target.files[0] : null);
+                                e.target.value = ''; 
+                            }}
                             className="hidden"
                             accept="image/*"
                         />
                     </button>
-                    <div className="relative">
+                    
+                    {hasTools && (
+                        <div {...toolsTooltip} className="p-2 text-[--text-muted] opacity-60">
+                            <Icon name="hammer" className="w-4 h-4" />
+                        </div>
+                    )}
+
+                    {hasVision && (
+                        <div {...visionTooltip} className="flex items-center gap-1.5 px-2 py-0.5 ml-1 rounded-md bg-yellow-500/10 border border-yellow-500/20 text-[10px] font-bold text-yellow-600 dark:text-yellow-500">
+                            <Icon name="eye" className="w-3 h-3" />
+                            <span>Vision</span>
+                        </div>
+                    )}
+                    
+                    <div className="relative ml-1">
                         <button
                             ref={promptsButtonRef}
                             {...predefinedPromptsTooltip}
@@ -855,7 +977,31 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
+                    <div {...contextTooltip} className="flex items-center gap-2 pr-2">
+                        <div className="relative w-5 h-5">
+                            <svg className="w-full h-full transform -rotate-90">
+                                <circle
+                                    cx="10" cy="10" r="8"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    fill="transparent"
+                                    className="text-[--border-primary]"
+                                />
+                                <circle
+                                    cx="10" cy="10" r="8"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    fill="transparent"
+                                    strokeDasharray={50.26}
+                                    strokeDashoffset={50.26 - (50.26 * contextStats.percent) / 100}
+                                    className="text-blue-500 transition-all duration-500"
+                                    strokeLinecap="round"
+                                />
+                            </svg>
+                        </div>
+                        <span className="text-[10px] font-mono text-[--text-muted] tabular-nums">{contextStats.percent}%</span>
+                    </div>
                     {projectId && (
                         <div className="flex items-center gap-2 mr-2">
                              <label className="text-[10px] font-bold uppercase tracking-widest text-[--text-muted] cursor-help" {...agentToolsTooltip}>
@@ -897,7 +1043,7 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
       </div>
 
       {/* Right Sidebar for Parameters (LM Studio Style) */}
-      <aside className={`w-80 h-full bg-[--bg-sidebar] border-l border-[--border-primary] overflow-y-auto transition-all duration-300 transform ${isParamsOpen ? 'translate-x-0' : 'translate-x-full fixed right-0 opacity-0 pointer-events-none'}`}>
+      <aside className={`w-80 h-full bg-[--bg-sidebar]/80 backdrop-blur-md border-l border-[--border-primary] overflow-y-auto transition-all duration-300 transform ${isParamsOpen ? 'translate-x-0' : 'translate-x-full fixed right-0 opacity-0 pointer-events-none'}`}>
           <div className="p-6 space-y-8">
               <div>
                   <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-[--text-muted] mb-4">Chat Context</h3>

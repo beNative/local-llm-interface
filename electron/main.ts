@@ -257,14 +257,14 @@ let previousCpuTimes = os.cpus().map(cpu => {
     return { total, idle: cpu.times.idle };
 });
 
-const getGpuUsage = (): Promise<number> => {
+const getGpuStats = (): Promise<{ usage: number, memory: { used: number, total: number } }> => {
     return new Promise((resolve) => {
         const platform = os.platform();
         if (platform !== 'win32' && platform !== 'linux') {
-            return resolve(-1);
+            return resolve({ usage: -1, memory: { used: 0, total: 0 } });
         }
 
-        const smi = spawn('nvidia-smi', ['--query-gpu=utilization.gpu', '--format=csv,noheader,nounits']);
+        const smi = spawn('nvidia-smi', ['--query-gpu=utilization.gpu,memory.used,memory.total', '--format=csv,noheader,nounits']);
         let stdout = '';
         
         smi.stdout.on('data', (data) => {
@@ -272,16 +272,25 @@ const getGpuUsage = (): Promise<number> => {
         });
 
         smi.on('error', () => {
-            // Command not found, etc. This is not an application error.
-            resolve(-1);
+            resolve({ usage: -1, memory: { used: 0, total: 0 } });
         });
 
         smi.on('close', (code) => {
             if (code === 0) {
-                const usage = parseFloat(stdout.trim());
-                resolve(isNaN(usage) ? -1 : usage);
+                const parts = stdout.trim().split(',').map(s => parseFloat(s.trim()));
+                if (parts.length === 3) {
+                    resolve({ 
+                        usage: isNaN(parts[0]) ? -1 : parts[0], 
+                        memory: { 
+                            used: isNaN(parts[1]) ? 0 : parts[1] * 1024 * 1024, // Convert MB to bytes
+                            total: isNaN(parts[2]) ? 0 : parts[2] * 1024 * 1024 // Convert MB to bytes
+                        } 
+                    });
+                } else {
+                    resolve({ usage: -1, memory: { used: 0, total: 0 } });
+                }
             } else {
-                resolve(-1);
+                resolve({ usage: -1, memory: { used: 0, total: 0 } });
             }
         });
     });
@@ -352,7 +361,7 @@ const createWindow = () => {
     const avgCpuUsage = totalCpuUsage / cpus.length;
     const totalSystemMem = os.totalmem();
     const usedSystemMem = totalSystemMem - os.freemem();
-    const gpuUsage = await getGpuUsage();
+    const gpuStats = await getGpuStats();
 
     mainWindow.webContents.send('system-stats-update', {
       cpu: avgCpuUsage,
@@ -360,7 +369,8 @@ const createWindow = () => {
         used: usedSystemMem,
         total: totalSystemMem,
       },
-      gpu: gpuUsage,
+      gpu: gpuStats.usage,
+      vram: gpuStats.memory,
     });
   }, 2000); // Send stats every 2 seconds
 

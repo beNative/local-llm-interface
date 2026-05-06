@@ -44,7 +44,7 @@ const NavItem: React.FC<{
 
 const MainSidebar: React.FC<MainSidebarProps> = ({ activeView, onNavigate, theme }) => {
     return (
-        <aside className="flex flex-col items-center py-4 w-16 h-full bg-[--bg-sidebar] border-r border-[--border-primary] z-20">
+        <aside className="flex flex-col items-center py-4 w-16 h-full bg-[--bg-sidebar]/80 backdrop-blur-md border-r border-[--border-primary] z-20">
             {/* Logo area */}
             <div className="mb-8 p-2 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-inner">
                 <Icon name="brainCircuit" className="w-8 h-8 text-white" />

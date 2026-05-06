@@ -59,7 +59,7 @@ const TitleBar: React.FC<TitleBarProps> = ({ activeView, onNavigate, onToggleLog
     return (
         <div 
             style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
-            className="flex items-center justify-between h-9 bg-[--bg-primary] border-b border-[--border-primary] flex-shrink-0"
+            className="flex items-center justify-between h-9 bg-[--bg-primary]/90 backdrop-blur-sm border-b border-[--border-primary] flex-shrink-0"
         >
             {/* Left side: App Icon and some space */}
             <div className="flex items-center gap-2 pl-2">

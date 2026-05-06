@@ -53,6 +53,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
     const cpuTooltip = useTooltipTrigger("System-wide CPU Usage");
     const gpuTooltip = useTooltipTrigger(stats?.gpu !== undefined && stats.gpu >= 0 ? `System-wide GPU Usage: ${stats.gpu.toFixed(0)}%` : "System-wide GPU Usage (N/A or Requires NVIDIA GPU)");
     const ramTooltip = useTooltipTrigger("System-wide RAM Usage");
+    const vramTooltip = useTooltipTrigger(stats?.vram?.total ? `Dedicated VRAM Usage: ${formatBytes(stats.vram.used)} / ${formatBytes(stats.vram.total)}` : "VRAM Usage (N/A or Requires NVIDIA GPU)");
     const versionTooltip = useTooltipTrigger(version ? `Application Version ${version}` : 'Application Version');
 
 
@@ -74,6 +75,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
     const memUsagePercent = stats?.memory.total ? (stats.memory.used / stats.memory.total) * 100 : 0;
     const cpuUsagePercent = stats?.cpu || 0;
     const gpuUsagePercent = stats?.gpu !== undefined && stats.gpu >= 0 ? stats.gpu : 0;
+    const vramUsagePercent = stats?.vram?.total ? (stats.vram.used / stats.vram.total) * 100 : 0;
 
     const statusDotClass =
         connectionStatus === 'connecting'
@@ -146,53 +148,46 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
                 )}
             </div>
             
-            {/* Right Side */}
-            <div className="flex items-center gap-6">
-                 <div {...cpuTooltip} className="flex items-center gap-2">
-                    <Icon name="cpu" className="w-3.5 h-3.5" />
-                     {stats ? (
-                        <>
-                            <div className="w-16 h-1 bg-[--bg-tertiary] rounded-full overflow-hidden hidden md:block">
-                                <div className="h-full bg-[--accent-projects]" style={{ width: `${cpuUsagePercent}%` }}></div>
-                            </div>
-                            <span className="w-8">{cpuUsagePercent.toFixed(0)}%</span>
-                        </>
-                    ) : (
-                        <span>--%</span>
-                    )}
+            {/* Right Side - System Stats */}
+            <div className="flex items-center gap-1.5 pr-2">
+                 <div {...cpuTooltip} className="flex items-center gap-1.5 px-2 py-1 rounded bg-[--bg-tertiary]/40 min-w-[55px] transition-all hover:bg-[--bg-tertiary]/70 group">
+                    <Icon name="cpu" className="w-3 h-3 text-[--accent-projects] opacity-80" />
+                    <span className="w-7 text-right font-mono text-[--text-primary] group-hover:text-white">{stats ? cpuUsagePercent.toFixed(0) : '--'}%</span>
                 </div>
-                <div {...gpuTooltip} className="flex items-center gap-2">
-                    <Icon name="gpu" className="w-3.5 h-3.5" />
-                     {stats && stats.gpu >= 0 ? (
-                        <>
-                            <div className="w-16 h-1 bg-[--bg-tertiary] rounded-full overflow-hidden hidden md:block">
-                                <div className="h-full bg-[--accent-api]" style={{ width: `${gpuUsagePercent}%` }}></div>
-                            </div>
-                            <span className="w-8">{gpuUsagePercent.toFixed(0)}%</span>
-                        </>
-                    ) : (
-                        <span>--%</span>
-                    )}
+
+                <div {...gpuTooltip} className="flex items-center gap-1.5 px-2 py-1 rounded bg-[--bg-tertiary]/40 min-w-[55px] transition-all hover:bg-[--bg-tertiary]/70 group">
+                    <Icon name="gpu" className="w-3 h-3 text-[--accent-api] opacity-80" />
+                    <span className="w-7 text-right font-mono text-[--text-primary] group-hover:text-white">{stats && stats.gpu >= 0 ? gpuUsagePercent.toFixed(0) : '--'}%</span>
                 </div>
-                <div {...ramTooltip} className="flex items-center gap-2">
-                    <Icon name="ram" className="w-3.5 h-3.5" />
-                    {stats ? (
-                        <>
-                            <div className="w-16 h-1 bg-[--bg-tertiary] rounded-full overflow-hidden hidden md:block">
-                                <div className="h-full bg-[--accent-info]" style={{ width: `${memUsagePercent}%` }}></div>
-                            </div>
-                            <span className="font-mono lowercase">{formatBytes(stats.memory.used)} / {formatBytes(stats.memory.total)}</span>
-                        </>
-                    ) : (
-                        <span>-- / --</span>
-                    )}
+
+                <div {...vramTooltip} className="flex items-center gap-2 px-2 py-1 rounded bg-[--bg-tertiary]/40 min-w-[120px] transition-all hover:bg-[--bg-tertiary]/70 group">
+                    <Icon name="gpu" className="w-3 h-3 text-orange-500 opacity-80" />
+                    <div className="flex flex-col flex-1">
+                        <div className="flex justify-between font-mono lowercase text-[9px] leading-none mb-1">
+                            <span className="text-[--text-primary] font-bold group-hover:text-white">{stats?.vram?.total ? formatBytes(stats.vram.used).split(' ')[0] : '--'}</span>
+                            <span className="text-[--text-muted] opacity-70">/ {stats?.vram?.total ? formatBytes(stats.vram.total) : '--'}</span>
+                        </div>
+                        <div className="w-full h-0.5 bg-[--bg-tertiary] rounded-full overflow-hidden">
+                            <div className="h-full bg-orange-500/80" style={{ width: `${vramUsagePercent}%` }}></div>
+                        </div>
+                    </div>
                 </div>
-                {version && (
-                    <>
-                        <div className="w-px h-3 bg-[--border-primary]" />
-                        <span {...versionTooltip} className="font-mono lowercase opacity-60">v{version}</span>
-                    </>
-                )}
+
+                <div {...ramTooltip} className="flex items-center gap-2 px-2 py-1 rounded bg-[--bg-tertiary]/40 min-w-[120px] transition-all hover:bg-[--bg-tertiary]/70 group">
+                    <Icon name="ram" className="w-3 h-3 text-[--accent-info] opacity-80" />
+                    <div className="flex flex-col flex-1">
+                        <div className="flex justify-between font-mono lowercase text-[9px] leading-none mb-1">
+                            <span className="text-[--text-primary] font-bold group-hover:text-white">{stats ? formatBytes(stats.memory.used).split(' ')[0] : '--'}</span>
+                            <span className="text-[--text-muted] opacity-70">/ {stats ? formatBytes(stats.memory.total) : '--'}</span>
+                        </div>
+                        <div className="w-full h-0.5 bg-[--bg-tertiary] rounded-full overflow-hidden">
+                            <div className="h-full bg-[--accent-info]/80" style={{ width: `${memUsagePercent}%` }}></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="w-px h-3 bg-[--border-primary] mx-1" />
+                <div {...versionTooltip} className="px-2 py-1 text-[9px] text-[--text-muted] opacity-60 font-mono tracking-tighter hover:opacity-100 transition-opacity">v{version}</div>
             </div>
         </footer>
     );

@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.20.0] - 2026-05-06
+
+### Added
+- **Advanced Performance Metrics**: Introduced real-time generation speed (TOK/SEC) and Time to First Token (TTFT) metrics for precise local LLM benchmarking.
+- **Detailed Token Breakdown**: Added tooltips to message metadata showing exactly how many tokens were used for the prompt vs. the completion.
+- **Interactive System Hints**: Implemented professional, styled tooltips for all status bar indicators (CPU, GPU, RAM, VRAM) and performance metrics.
+- **Message Copy Actions**: Added convenient hover-triggered "Copy to Clipboard" buttons at the top-right of every message bubble.
+- **Real-Time Context Preview**: The context usage ring now provides a live estimate of tokens as you type, helping manage large conversations.
+
+### Changed
+- **Status Bar Redesign**: Optimized system monitoring indicators into compact, fixed-size capsules to prevent layout shifting and improve professionalism.
+- **Gemini Model Support**: Added explicit context window metadata (1M-2M tokens) for Gemini 1.5 Flash and Pro models.
+- **Improved Token Estimation**: Refined fallback token counters to be history-aware, preventing "context reset" visual bugs when native usage data is missing.
+
+### Fixed
+- **Tool-Calling Heuristics**: Injected stricter system guidelines to minimize unnecessary tool invocations in complex conversations.
+- **Gemini Stream Reliability**: Resolved issues where Gemini streams could prematurely resolve or fail to capture final usage metadata.
+
 ## [0.19.3] - 2025-10-06
 
 ### Changed
