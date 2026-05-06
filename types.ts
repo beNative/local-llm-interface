@@ -220,6 +220,7 @@ export interface ChatMessageMetadata {
 
 // A standard message from a user or assistant (text response)
 export interface StandardChatMessage {
+  id?: string;
   role: 'user' | 'assistant' | 'system';
   content: string | ChatMessageContentPart[];
   metadata?: ChatMessageMetadata;
@@ -229,8 +230,9 @@ export interface StandardChatMessage {
 
 // A message from the assistant requesting one or more tool calls
 export interface AssistantToolCallMessage {
+  id?: string;
   role: 'assistant';
-  content: string | null; // May contain text, but often null when calling tools
+  content: string | null;
   tool_calls: ToolCall[];
   metadata?: ChatMessageMetadata;
   fileModification?: never;
@@ -239,10 +241,11 @@ export interface AssistantToolCallMessage {
 
 // A message from the application providing the result of a tool call
 export interface ToolResponseMessage {
+  id?: string;
   role: 'tool';
   tool_call_id: string;
   name: string;
-  content: string; // The result of the tool, serialized as a string
+  content: string;
   metadata?: never;
   fileModification?: never;
   tool_calls?: never;

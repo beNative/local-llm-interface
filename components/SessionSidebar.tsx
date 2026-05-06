@@ -89,7 +89,7 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
                           <Icon name="messageSquare" className="w-3.5 h-3.5 flex-shrink-0" />
                       </div>
                       <div className="min-w-0 flex-1 truncate">
-                        <span className="block font-medium truncate mb-0.5">
+                        <span className="block font-medium truncate mb-0.5" title={session.name}>
                           {session.name}
                         </span>
                         <div className="flex items-center gap-2 text-[10px] text-[--text-muted] font-medium uppercase tracking-wider">
@@ -101,6 +101,7 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
                     
                     <div className="flex flex-col justify-center gap-1 pr-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
+                        aria-label="Generate session name"
                         {...generateNameTooltip}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -111,6 +112,7 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({ sessions, activeSession
                         <Icon name="sparkles" className="w-3.5 h-3.5" />
                       </button>
                       <button
+                        aria-label="Delete session"
                         {...deleteSessionTooltip}
                         onClick={(e) => {
                           e.stopPropagation();

@@ -18,6 +18,9 @@ import ModalContainer from './components/Modal';
 import StatusBar from './components/StatusBar';
 import Icon from './components/Icon';
 import MainSidebar from './components/MainSidebar';
+import NavButton from './components/NavButton';
+import type { View } from './components/NavButton';
+import RunOutputModal from './components/RunOutputModal';
 import { IconProvider } from './components/IconProvider';
 import { TooltipProvider } from './components/TooltipProvider';
 import ToolCallApprovalModal from './components/ToolCallApprovalModal';
@@ -30,8 +33,11 @@ import { allowsTypingContext, ensureShortcutSettings, eventToShortcut, getDefaul
 import { useInstrumentation } from './hooks/useInstrumentation';
 import { useAutomationRegistration } from './hooks/useAutomationRegistration';
 import type { AutomationTarget } from './services/instrumentation/types';
-
-type View = 'chat' | 'projects' | 'api' | 'settings' | 'info';
+import { useSystemStats } from './hooks/useSystemStats';
+import { useAppUpdater } from './hooks/useAppUpdater';
+import { useWindowState } from './hooks/useWindowState';
+import GlobalErrorBoundary from './components/GlobalErrorBoundary';
+import { generateMessageId } from './utils/messageId';
 
 const SIDEBAR_MIN_WIDTH = 200;
 const SIDEBAR_MAX_WIDTH = 600;
@@ -40,128 +46,6 @@ const SIDEBAR_KEYBOARD_LARGE_STEP = 48;
 
 const clampSidebarWidth = (value: number) =>
     Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, Math.round(value)));
-
-const NavButton: React.FC<{
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  ariaLabel: string;
-  view: View;
-  title: string;
-}> = ({ active, onClick, children, ariaLabel, view, title }) => {
-    const accentVar = `var(--accent-${view})`;
-    const tooltipProps = useTooltipTrigger(title);
-    const nodeRef = useRef<HTMLButtonElement | null>(null);
-    const [automationTarget, setAutomationTarget] = useState<AutomationTarget | null>(null);
-
-    const setButtonRef = useCallback(
-        (node: HTMLButtonElement | null) => {
-            nodeRef.current = node;
-            if (!node) {
-                setAutomationTarget(null);
-                return;
-            }
-
-            setAutomationTarget({
-                id: `nav-${view}`,
-                description: `Navigation button for ${view} view`,
-                element: node,
-                metadata: { view, active },
-                actions: {
-                    click: ({ element }) => (element ?? node)?.click(),
-                    focus: ({ element }) => (element ?? node)?.focus(),
-                    isActive: () => active,
-                },
-            });
-        },
-        [view, active],
-    );
-
-    useEffect(() => {
-        if (!nodeRef.current) {
-            return;
-        }
-        setAutomationTarget({
-            id: `nav-${view}`,
-            description: `Navigation button for ${view} view`,
-            element: nodeRef.current,
-            metadata: { view, active },
-            actions: {
-                click: ({ element }) => (element ?? nodeRef.current)?.click(),
-                focus: ({ element }) => (element ?? nodeRef.current)?.focus(),
-                isActive: () => active,
-            },
-        });
-    }, [view, active]);
-
-    useAutomationRegistration(automationTarget);
-    return (
-        <button
-            ref={setButtonRef}
-            onClick={onClick}
-            aria-label={ariaLabel}
-            {...tooltipProps}
-            data-automation-id={`nav-${view}`}
-            className={`relative flex items-center gap-[var(--space-2)] px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--font-size-sm)] font-medium rounded-lg transition-colors duration-200 ${
-                active
-                    ? `text-[--accent-${view}]`
-                    : 'text-[--text-muted] hover:bg-[--bg-hover] hover:text-[--text-primary]'
-            }`}
-        >
-            {children}
-            {active && (
-                 <span
-                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1/2 h-0.5 rounded-full"
-                    style={{ backgroundColor: accentVar }}
-                />
-            )}
-        </button>
-    );
-};
-
-const RunOutputModal: React.FC<{
-    runOutput: { title: string; stdout: string; stderr: string };
-    onClose: () => void;
-}> = ({ runOutput, onClose }) => {
-    return (
-        <ModalContainer
-            onClose={onClose}
-            title={runOutput.title}
-            titleId="run-output-modal-title"
-            descriptionId="run-output-modal-content"
-            size="lg"
-            bodyClassName="font-mono text-xs space-y-[var(--space-4)]"
-            footer={
-                <button
-                    onClick={onClose}
-                    className="px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--font-size-sm)] font-medium text-[--text-secondary] bg-[--bg-tertiary] rounded-[--border-radius] hover:bg-[--bg-hover] focus:outline-none focus-visible:ring-2 focus-visible:ring-[--border-focus]"
-                >
-                    Close
-                </button>
-            }
-        >
-            {runOutput.stdout && (
-                <section className="space-y-[var(--space-2)] font-sans text-[length:var(--font-size-sm)]">
-                    <h3 className="text-[--text-muted] font-semibold uppercase">Output (stdout)</h3>
-                    <pre className="whitespace-pre-wrap rounded-[--border-radius] bg-[--bg-tertiary] p-[var(--space-3)] font-mono text-[--text-secondary]">
-                        {runOutput.stdout}
-                    </pre>
-                </section>
-            )}
-            {runOutput.stderr && (
-                <section className="space-y-[var(--space-2)] font-sans text-[length:var(--font-size-sm)]">
-                    <h3 className="font-semibold uppercase text-red-500">Error (stderr)</h3>
-                    <pre className="whitespace-pre-wrap rounded-[--border-radius] bg-red-900/20 p-[var(--space-3)] font-mono text-red-500">
-                        {runOutput.stderr}
-                    </pre>
-                </section>
-            )}
-            {!runOutput.stdout && !runOutput.stderr && (
-                <p className="font-sans text-[--text-muted]">The script produced no output.</p>
-            )}
-        </ModalContainer>
-    );
-};
 
 const AppContent: React.FC = () => {
   const [config, setConfig] = useState<Config | null>(null);
@@ -179,7 +63,6 @@ const AppContent: React.FC = () => {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [paletteAnchorRect, setPaletteAnchorRect] = useState<DOMRect | null>(null);
   const [editingFile, setEditingFile] = useState<{ path: string; name: string } | null>(null);
-  const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
   const [appVersion, setAppVersion] = useState('');
   const [pendingToolCalls, setPendingToolCalls] = useState<ToolCall[] | null>(null);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
@@ -192,7 +75,9 @@ const AppContent: React.FC = () => {
   const isResizingRef = useRef(false);
   const mainSidebarRef = useRef<HTMLDivElement>(null);
   const { addToast } = useToast();
-  const [isMaximized, setIsMaximized] = useState(false);
+  const systemStats = useSystemStats(isElectron);
+  useAppUpdater(isElectron);
+  const isMaximized = useWindowState(isElectron);
   const instrumentationApi = useInstrumentation();
   const { log: instrumentationLog, performance: performanceMonitor, hooks: hookRegistry } = instrumentationApi;
   const instrumentationStateRef = useRef({
@@ -688,70 +573,8 @@ const AppContent: React.FC = () => {
     };
   }, []);
 
-    // Effect for system stats monitoring
-    useEffect(() => {
-        if (isElectron && window.electronAPI) {
-            const statsHandler = (stats: SystemStats) => setSystemStats(stats);
-            window.electronAPI.onSystemStatsUpdate(statsHandler);
-
-            return () => {
-                window.electronAPI?.removeSystemStatsUpdateListener();
-            };
-        }
-    }, [isElectron]);
-
-    // Effect for handling app updates
-    useEffect(() => {
-        if (isElectron && window.electronAPI) {
-            const handleUpdateAvailable = (info: any) => {
-                addToast({ type: 'info', message: `New version ${info.version} found.` });
-            };
-            const handleUpdateDownloading = () => {
-                addToast({ type: 'info', message: `Downloading update...`, duration: 10000 });
-            };
-            const handleUpdateDownloaded = (info: any) => {
-                addToast({
-                    type: 'success',
-                    message: `Update ${info.version} is ready to install.`,
-                    action: {
-                        label: 'Restart & Install',
-                        onClick: () => window.electronAPI!.quitAndInstallUpdate(),
-                    }
-                });
-            };
-            const handleUpdateError = (error: Error) => {
-                 addToast({ type: 'error', message: `Update failed: ${error.message}` });
-            };
-            const handleUpdateNotAvailable = () => {
-                 addToast({ type: 'success', message: 'You are on the latest version.', duration: 3000 });
-            };
-
-            window.electronAPI.onUpdateAvailable(handleUpdateAvailable);
-            window.electronAPI.onUpdateDownloading(handleUpdateDownloading);
-            window.electronAPI.onUpdateDownloaded(handleUpdateDownloaded);
-            window.electronAPI.onUpdateError(handleUpdateError);
-            window.electronAPI.onUpdateNotAvailable(handleUpdateNotAvailable);
-
-            return () => {
-                window.electronAPI!.removeUpdateAvailableListener();
-                window.electronAPI!.removeUpdateDownloadingListener();
-                window.electronAPI!.removeUpdateDownloadedListener();
-                window.electronAPI!.removeUpdateErrorListener();
-                window.electronAPI!.removeUpdateNotAvailableListener();
-            }
-        }
-    }, [isElectron, addToast]);
-    
-    // Effect for window state changes (maximize/unmaximize)
-    useEffect(() => {
-        if (isElectron && window.electronAPI) {
-            const handler = (maximized: boolean) => setIsMaximized(maximized);
-            window.electronAPI.onWindowStateChange(handler);
-            return () => {
-                window.electronAPI?.removeWindowStateChangeListener();
-            };
-        }
-    }, [isElectron]);
+    // System stats, app updates, and window state are now handled by extracted hooks:
+    // useSystemStats, useAppUpdater, useWindowState (see imports above)
 
 
   const handleConfigChange = useCallback((incomingConfig: Config) => {
@@ -1320,7 +1143,7 @@ const AppContent: React.FC = () => {
           },
           (err) => { // onError
              clearStreamingDraft(sessionId);
-             const errorMsg: StandardChatMessage = { role: 'assistant', content: `Sorry, an error occurred: ${err.message}` };
+             const errorMsg: StandardChatMessage = { id: generateMessageId(), role: 'assistant', content: `Sorry, an error occurred: ${err.message}` };
              updateSessionMessages(sessionId, [...messages, errorMsg]);
              setIsResponding(false);
           },
@@ -1419,8 +1242,8 @@ const AppContent: React.FC = () => {
 
     const isFirstUserMessage = session.messages.filter(m => m.role === 'user').length === 0;
 
-    const userMessage: StandardChatMessage = { role: 'user', content };
-    const assistantPlaceholder: StandardChatMessage = { role: 'assistant', content: '' };
+    const userMessage: StandardChatMessage = { id: generateMessageId(), role: 'user', content };
+    const assistantPlaceholder: StandardChatMessage = { id: generateMessageId(), role: 'assistant', content: '' };
     const messagesWithUser = [...session.messages, userMessage];
     updateSessionMessages(sessionId, [...messagesWithUser, assistantPlaceholder]);
     
@@ -1852,12 +1675,14 @@ const AppContent: React.FC = () => {
 };
 
 const App: React.FC = () => (
-  <ToastProvider>
-    <TooltipProvider>
-      <AppContent />
-      <ToastContainer />
-    </TooltipProvider>
-  </ToastProvider>
+  <GlobalErrorBoundary>
+    <ToastProvider>
+      <TooltipProvider>
+        <AppContent />
+        <ToastContainer />
+      </TooltipProvider>
+    </ToastProvider>
+  </GlobalErrorBoundary>
 );
 
 export default App;

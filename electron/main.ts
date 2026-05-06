@@ -61,26 +61,70 @@ const saveSettings = (settings: object) => {
   }
 };
 
-const runCommand = (command: string, args: string[], cwd: string): Promise<{ stdout: string; stderr:string }> => {
+/** Maximum output size in bytes before truncation (100 KB). */
+const MAX_OUTPUT_SIZE = 100 * 1024;
+
+/** Default timeout for spawned processes in milliseconds (60 seconds). */
+const DEFAULT_COMMAND_TIMEOUT_MS = 60_000;
+
+/**
+ * Truncates a string to `maxLength` characters, appending a notice if truncated.
+ */
+const truncateOutput = (output: string, maxLength: number = MAX_OUTPUT_SIZE): string => {
+    if (output.length <= maxLength) return output;
+    return output.slice(0, maxLength) + `\n\n[Output truncated — exceeded ${Math.round(maxLength / 1024)}KB limit]`;
+};
+
+const runCommand = (
+    command: string,
+    args: string[],
+    cwd: string,
+    timeoutMs: number = DEFAULT_COMMAND_TIMEOUT_MS,
+): Promise<{ stdout: string; stderr: string }> => {
     return new Promise((resolve) => {
         const child = spawn(command, args, { cwd, shell: os.platform() === 'win32' });
         let stdout = '';
         let stderr = '';
+        let killed = false;
 
-        child.stdout.on('data', (data) => { stdout += data.toString(); });
-        child.stderr.on('data', (data) => { stderr += data.toString(); });
+        // Enforce timeout
+        const timer = setTimeout(() => {
+            killed = true;
+            child.kill('SIGTERM');
+            // Give it a moment to terminate gracefully, then force-kill
+            setTimeout(() => {
+                try { child.kill('SIGKILL'); } catch (_) { /* already dead */ }
+            }, 2000);
+        }, timeoutMs);
+
+        child.stdout.on('data', (data) => {
+            const chunk = data.toString();
+            if (stdout.length < MAX_OUTPUT_SIZE) {
+                stdout += chunk;
+            }
+        });
+        child.stderr.on('data', (data) => {
+            const chunk = data.toString();
+            if (stderr.length < MAX_OUTPUT_SIZE) {
+                stderr += chunk;
+            }
+        });
         
         child.on('error', (error) => {
+            clearTimeout(timer);
             console.error(`Spawn error for ${command}`, error);
             stderr += `\nFailed to start command: ${error.message}`;
-            resolve({ stdout, stderr });
+            resolve({ stdout: truncateOutput(stdout), stderr: truncateOutput(stderr) });
         });
 
         child.on('close', (code) => {
-            if (code !== 0) {
-                 stderr += `\nProcess exited with non-zero code: ${code}`;
+            clearTimeout(timer);
+            if (killed) {
+                stderr += `\nProcess was terminated — exceeded ${timeoutMs / 1000}s timeout.`;
+            } else if (code !== 0) {
+                stderr += `\nProcess exited with non-zero code: ${code}`;
             }
-            resolve({ stdout, stderr });
+            resolve({ stdout: truncateOutput(stdout), stderr: truncateOutput(stderr) });
         });
     });
 };
@@ -545,6 +589,32 @@ electron.app.whenReady().then(() => {
             throw error; // Throw error back to renderer
         }
     });
+
+    // Log retention: clean up log files older than 7 days on startup
+    try {
+        const LOG_RETENTION_DAYS = 7;
+        const logDir = electron.app.getPath('userData');
+        const cutoff = Date.now() - LOG_RETENTION_DAYS * 86400000;
+        const logFilePattern = /^local-llm-interface-\d{4}-\d{2}-\d{2}\.log$/;
+        const files = fs.readdirSync(logDir);
+        let cleaned = 0;
+        for (const file of files) {
+            if (!logFilePattern.test(file)) continue;
+            const filePath = path.join(logDir, file);
+            try {
+                const fileStat = fs.statSync(filePath);
+                if (fileStat.mtimeMs < cutoff) {
+                    fs.unlinkSync(filePath);
+                    cleaned++;
+                }
+            } catch { /* skip unreadable files */ }
+        }
+        if (cleaned > 0) {
+            console.log(`[log-retention] Cleaned up ${cleaned} log file(s) older than ${LOG_RETENTION_DAYS} days.`);
+        }
+    } catch (error) {
+        console.warn('[log-retention] Failed to clean old log files:', error);
+    }
 
     electron.ipcMain.handle('python:run', async (_, code: string): Promise<{ stdout: string; stderr: string }> => {
         const settings: any = readSettings();

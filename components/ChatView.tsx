@@ -22,6 +22,7 @@ import FileCodeIcon from './icons/FileCodeIcon';
 import SlidersIcon from './icons/SlidersIcon';
 import ProviderIcon from './ProviderIcon';
 import { useTooltipTrigger } from '../hooks/useTooltipTrigger';
+import { useClickOutside } from '../hooks/useClickOutside';
 import { countTokens } from '../services/tokenizerService';
 import ToolCallDisplay from './ToolCallDisplay';
 import PlayIcon from './icons/PlayIcon';
@@ -393,7 +394,7 @@ const ChatTranscript = React.memo<ChatTranscriptProps>(({
           const isLastMessage = index === arr.length - 1;
           return (
               <MemoizedChatMessage
-                  key={`${msg.role}-${index}`}
+                  key={msg.id || `${msg.role}-${index}`}
                   msg={msg}
                   markdownComponents={markdownComponents}
                   theme={theme}
@@ -578,58 +579,10 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
     }
   }, [isEditingTitle]);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-        if (modelSelectorRef.current && !modelSelectorRef.current.contains(event.target as Node)) {
-            setIsModelSelectorOpen(false);
-        }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-        document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [modelSelectorRef]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-        if (personaSelectorRef.current && !personaSelectorRef.current.contains(event.target as Node)) {
-            setIsPersonaSelectorOpen(false);
-        }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-        document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [personaSelectorRef]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-        if (paramsSelectorRef.current && !paramsSelectorRef.current.contains(event.target as Node)) {
-            setIsParamsOpen(false);
-        }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-        document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [paramsSelectorRef]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-        if (
-            promptsPopoverRef.current && 
-            !promptsPopoverRef.current.contains(event.target as Node) &&
-            promptsButtonRef.current &&
-            !promptsButtonRef.current.contains(event.target as Node)
-        ) {
-            setIsPromptsOpen(false);
-        }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-        document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+  useClickOutside(modelSelectorRef, () => setIsModelSelectorOpen(false), isModelSelectorOpen);
+  useClickOutside(personaSelectorRef, () => setIsPersonaSelectorOpen(false), isPersonaSelectorOpen);
+  useClickOutside(paramsSelectorRef, () => setIsParamsOpen(false), isParamsOpen);
+  useClickOutside([promptsPopoverRef, promptsButtonRef], () => setIsPromptsOpen(false), isPromptsOpen);
   
   useEffect(() => {
     if (predefinedInput) {

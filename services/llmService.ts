@@ -666,7 +666,6 @@ export const streamChatCompletion = async (
   generationConfig?: GenerationConfig
 ) => {
   const startTime = Date.now();
-  let usage: ChatMessageUsage | undefined = undefined;
   
   if (provider.type === 'google-gemini') {
       await streamChatCompletionGemini(provider, apiKeys, modelId, messages, tools, signal, onChunk, onError, onDone, startTime, generationConfig);

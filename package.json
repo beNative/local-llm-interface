@@ -11,6 +11,7 @@
   },
   "scripts": {
     "start": "npm run build && electron .",
+    "dev": "node esbuild.dev.js",
     "build": "node esbuild.config.js",
     "instrumentation:demo": "node scripts/run-instrumentation-demo.js",
     "package": "npm run build && electron-builder",
