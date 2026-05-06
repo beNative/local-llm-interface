@@ -19,6 +19,7 @@ The application is an [Electron](https://www.electronjs.org/) application that w
 - **esbuild**: A very fast JavaScript/TypeScript bundler used for building the main, renderer, and preload scripts.
 - **TailwindCSS**: A utility-first CSS framework for styling the application.
 - **diff-match-patch**: Library used to compute and render the diff view for AI-assisted file modifications.
+- **@xenova/transformers**: A WASM-based tokenizer service used to provide accurate, local token counts without model interaction.
 
 ## 3. Project Structure
 
@@ -105,6 +106,25 @@ This workflow is an integrated part of the **Tool Use / Function Calling** syste
 
 ### Chat Performance Optimization
 The chat view faced a performance degradation issue in long conversations, where input latency increased significantly. This was caused by the re-rendering of the entire message list on every keystroke in the input box. The issue was resolved by memoizing the individual chat message component (`MemoizedChatMessage` using `React.memo`). This ensures that only the message components whose props have changed (e.g., the last message being streamed) are re-rendered, while the rest of the conversation history is not, leading to a consistently smooth user experience regardless of conversation length.
+
+### Application Scale
+The application supports a custom zoom factor (from 50% to 200%) to improve accessibility.
+- **Implementation**: The application uses Electron's native `webFrame.setZoomFactor` API.
+- **Consistency**: Unlike CSS `zoom`, native scaling ensures that the entire rendering context (including mouse coordinates, `getBoundingClientRect()` values, and viewport units like `vh/vw`) remains perfectly synchronized in a single "logical" coordinate space. This eliminates misalignment in absolute-positioned elements like tooltips and splitters.
+- **Fallback**: In the browser version, the app gracefully falls back to standard CSS transforms where `setZoomFactor` is unavailable.
+
+### Native Tokenization (Local Verification)
+To ensure precise context management, the app performs local tokenization for major model families.
+- **TokenizerService**: A dedicated service (`services/tokenizerService.ts`) wraps `@xenova/transformers`. It downloads and caches optimized WASM tokenizers for Llama, Gemma, Phi, and other families.
+- **Verified Status**: When a compatible model is detected, the UI displays a "Verified" checkmark in the context ring, indicating that the token count is 100% accurate and calculated locally rather than estimated via heuristics.
+
+### Hardware Monitoring
+The main process (`electron/main.ts`) periodically polls system diagnostics to provide real-time status updates to the renderer.
+- **GPU Dispatcher**: A multi-platform dispatcher handles hardware-specific commands:
+    - **NVIDIA**: Uses `nvidia-smi` to track VRAM and utilization.
+    - **Apple Silicon**: Uses `system_profiler` and `ioreg` to detect unified memory and SOC metrics.
+    - **DGX Spark / Blackwell**: Implements specific detection for unified memory architectures (NVLink-C2C).
+- **IPC Bridge**: Stats are pushed to the renderer via the `system-stats-update` channel.
 
 ### Services Deep Dive
 

@@ -38,44 +38,24 @@ const TooltipComponent: React.FC<{ tooltipState: TooltipState }> = ({ tooltipSta
 
     useLayoutEffect(() => {
         if (tooltipState.visible && tooltipState.targetRect && tooltipRef.current) {
-            // 1. Get the current zoom factor from the root element. Fallback to 1 if not set.
-            // FIX: Cast style to `any` to access the non-standard `zoom` property and prevent a TypeScript error.
-            const zoomFactor = parseFloat((document.documentElement.style as any).zoom || '1');
-            
             const tooltipNode = tooltipRef.current;
-            const offset = 10; // The desired offset in layout pixels.
+            const offset = 10;
 
-            // The tooltip's own dimensions must also be un-scaled to be used in layout pixel calculations.
-            const { width: scaledTooltipWidth, height: scaledTooltipHeight } = tooltipNode.getBoundingClientRect();
-            const tooltipWidth = scaledTooltipWidth / zoomFactor;
-            const tooltipHeight = scaledTooltipHeight / zoomFactor;
+            const { width: tooltipWidth, height: tooltipHeight } = tooltipNode.getBoundingClientRect();
+            const targetRect = tooltipState.targetRect;
 
-            // 2. Un-scale the targetRect coordinates to get layout coordinates.
-            const layoutRect = {
-                top: tooltipState.targetRect.top / zoomFactor,
-                left: tooltipState.targetRect.left / zoomFactor,
-                bottom: tooltipState.targetRect.bottom / zoomFactor,
-                width: tooltipState.targetRect.width / zoomFactor,
-                height: tooltipState.targetRect.height / zoomFactor,
-            };
-
-            // 3. Get the layout viewport dimensions.
-            const layoutViewportWidth = window.innerWidth / zoomFactor;
-            const layoutViewportHeight = window.innerHeight / zoomFactor;
-            
-            // 4. Calculate position using layout coordinates.
             // Default position: above, centered
-            let top = layoutRect.top - tooltipHeight - offset;
-            let left = layoutRect.left + (layoutRect.width / 2) - (tooltipWidth / 2);
+            let top = targetRect.top - tooltipHeight - offset;
+            let left = targetRect.left + (targetRect.width / 2) - (tooltipWidth / 2);
 
             // Adjust if clipped at the top
             if (top < offset) {
-                top = layoutRect.bottom + offset;
+                top = targetRect.bottom + offset;
             }
 
             // Adjust if it would now be clipped at the bottom
-            if (top + tooltipHeight > layoutViewportHeight - offset) {
-                top = layoutViewportHeight - tooltipHeight - offset;
+            if (top + tooltipHeight > window.innerHeight - offset) {
+                top = window.innerHeight - tooltipHeight - offset;
             }
 
             // Adjust if clipped on the left
@@ -84,8 +64,8 @@ const TooltipComponent: React.FC<{ tooltipState: TooltipState }> = ({ tooltipSta
             }
 
             // Adjust if clipped on the right
-            if (left + tooltipWidth > layoutViewportWidth - offset) {
-                left = layoutViewportWidth - tooltipWidth - offset;
+            if (left + tooltipWidth > window.innerWidth - offset) {
+                left = window.innerWidth - tooltipWidth - offset;
             }
 
             setPosition({ top, left });

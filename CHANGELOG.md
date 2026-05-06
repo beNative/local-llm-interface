@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.21.0] - 2026-05-06
+
+### Added
+- **Native Precision Tokenization**: Integrated `@xenova/transformers` (WASM) to provide 100% accurate, local token counts for major model families (Llama, Gemma, etc.).
+- **Verified Token Status**: Added a "Verified" checkmark to the context ring when local tokenization is active, ensuring users can trust the context usage display.
+- **Unified Memory Monitoring**: Rewrote GPU diagnostics to support advanced hardware:
+    - **Apple Silicon (M1/M2/M3)**: Native detection of unified memory and SOC temperatures.
+    - **NVIDIA DGX Spark / Blackwell**: Enhanced support for unified memory architectures and NVLink-C2C interconnects.
+    - **Cross-Platform Fallbacks**: Improved reliability for AMD and Intel systems on Windows/Linux.
+
+### Changed
+- **Native Scaling Migration**: Replaced the non-standard CSS `zoom` property with native Electron `webFrame.setZoomFactor`. This resolves coordinate mismatch bugs for splitters, tooltips, and popovers.
+- **Simplified Tooltip Engine**: Removed complex "un-scaling" math from the tooltip system, making it more robust and easier to maintain.
+
+### Fixed
+- **Splitter Precision**: Corrected a long-standing issue where sidebar splitters would "jump" or be offset from the cursor at non-100% scales.
+- **Icon Consistency**: Removed non-interactive decorative icons from the sidebar and title bar to avoid UI confusion.
+
 ## [0.20.0] - 2026-05-06
 
 ### Added

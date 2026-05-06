@@ -190,6 +190,7 @@ const AppContent: React.FC = () => {
 
   const toggleLogsTooltip = useTooltipTrigger('Toggle the application logs panel for debugging');
   const isResizingRef = useRef(false);
+  const mainSidebarRef = useRef<HTMLDivElement>(null);
   const { addToast } = useToast();
   const [isMaximized, setIsMaximized] = useState(false);
   const instrumentationApi = useInstrumentation();
@@ -531,7 +532,16 @@ const AppContent: React.FC = () => {
   // Effect to apply application scale (zoom).
   useEffect(() => {
     const scale = config?.themeOverrides?.scale || 100;
-    (document.documentElement.style as any).zoom = `${scale / 100}`;
+    const factor = scale / 100;
+    
+    // Clear the non-standard CSS zoom property to avoid conflicts
+    (document.documentElement.style as any).zoom = '';
+    
+    // Use native Electron zoom for perfect coordinate and layout consistency
+    if (window.electronAPI?.setZoomFactor) {
+        window.electronAPI.setZoomFactor(factor);
+    }
+    
     logger.debug(`Application scale set to: ${scale}%`);
   }, [config?.themeOverrides?.scale]);
 
@@ -1521,7 +1531,8 @@ const AppContent: React.FC = () => {
 
   const handleResizeMouseMove = useCallback((e: MouseEvent) => {
     if (!isResizingRef.current) return;
-    const nextWidth = clampSidebarWidth(e.clientX);
+    const offset = mainSidebarRef.current?.offsetWidth || 0;
+    const nextWidth = clampSidebarWidth(e.clientX - offset);
     setSidebarWidth(prev => (prev === nextWidth ? prev : nextWidth));
   }, []);
 
@@ -1715,25 +1726,16 @@ const AppContent: React.FC = () => {
       ? config?.projects?.find(p => p.id === activeSession.projectId)?.name || null
       : null;
       
-  const scale = config?.themeOverrides?.scale || 100;
-  const zoomFactor = scale > 0 ? scale / 100 : 1;
-  
-  const containerStyle: React.CSSProperties = {
-    // When zoom is applied, vh units are scaled. To counteract this and ensure
-    // the container always fills the viewport height, we calculate the inverse.
-    // e.g., if zoom is 0.8 (80%), we set height to 125vh (100/0.8).
-    // The final rendered height becomes 125vh * 0.8 = 100vh.
-    height: `calc(100vh / ${zoomFactor})`,
-  };
-
   return (
     <IconProvider iconSet={config?.themeOverrides?.iconSet || 'default'}>
-        <div style={containerStyle} className="flex flex-row font-sans bg-[--bg-primary] h-screen overflow-hidden text-[--text-primary]">
-          <MainSidebar 
-              activeView={view} 
-              onNavigate={setView} 
-              theme={config?.theme || 'dark'} 
-          />
+        <div className="flex flex-row font-sans bg-[--bg-primary] h-screen overflow-hidden text-[--text-primary]">
+          <div ref={mainSidebarRef} className="h-full flex-shrink-0">
+            <MainSidebar 
+                activeView={view} 
+                onNavigate={setView} 
+                theme={config?.theme || 'dark'} 
+            />
+          </div>
 
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
               {config && <CommandPalette

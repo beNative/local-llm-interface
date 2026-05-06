@@ -133,6 +133,7 @@ electron.contextBridge.exposeInMainWorld('electronAPI', {
   maximizeWindow: () => electron.ipcRenderer.invoke('window:maximize'),
   unmaximizeWindow: () => electron.ipcRenderer.invoke('window:unmaximize'),
   closeWindow: () => electron.ipcRenderer.invoke('window:close'),
+  setZoomFactor: (factor: number) => electron.webFrame.setZoomFactor(factor),
   // FIX: Complete truncated line and function signature to match electron.d.ts
   onWindowStateChange: (callback: (isMaximized: boolean) => void) => electron.ipcRenderer.on('window-state-changed', (_event, isMaximized) => callback(isMaximized)),
   // FIX: Add missing function to match electron.d.ts
