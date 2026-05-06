@@ -1000,7 +1000,7 @@ const AppContent: React.FC = () => {
           if (!c) return c;
           return {
               ...c,
-              sessions: c.sessions!.map(s => s.id === sessionId ? { ...s, messages } : s)
+              sessions: c.sessions!.map(s => s.id === sessionId ? { ...s, messages, updatedAt: Date.now() } : s)
           };
       });
   }, []);
@@ -1078,6 +1078,8 @@ const AppContent: React.FC = () => {
         },
         projectId: null,
         agentToolsEnabled: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
     };
     setConfig(c => {
         if (!c) return null;
@@ -1105,8 +1107,10 @@ const AppContent: React.FC = () => {
             topK: 40,
             topP: 0.9,
         },
-        projectId: projectId,
-        agentToolsEnabled: true, // Enable by default for project chats
+        projectId: project.id,
+        agentToolsEnabled: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
     };
     setConfig(c => {
         if (!c) return null;

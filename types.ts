@@ -265,6 +265,8 @@ export interface ChatSession {
   generationConfig?: GenerationConfig;
   projectId: string | null;
   agentToolsEnabled?: boolean;
+  createdAt: number;
+  updatedAt: number;
 }
 
 // File System and Project Types
