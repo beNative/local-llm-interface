@@ -85,17 +85,17 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
     const ProviderIcon = activeProvider ? (ProviderIcons[activeProvider.id] || ((props: any) => <Icon name="server" {...props} />)) : ((props: any) => <Icon name="server" {...props} />);
 
     return (
-        <footer className="flex items-center justify-between gap-6 px-4 py-1 bg-[--bg-primary] border-t border-[--border-primary] text-xs text-[--text-muted] font-mono flex-shrink-0">
+        <footer className="flex items-center justify-between gap-6 px-4 py-1.5 bg-[--bg-sidebar] border-t border-[--border-primary] text-[10px] text-[--text-muted] font-bold uppercase tracking-wider flex-shrink-0">
             {/* Left Side */}
             <div className="flex items-center gap-4">
                  <div className="relative" ref={providerRef}>
-                    <button {...providerTooltip} onClick={() => setIsProviderPopoverOpen(p => !p)} className="flex items-center gap-2 p-1 rounded hover:bg-[--bg-hover]">
-                        <ProviderIcon className="w-4 h-4" />
-                        <span className={`w-2 h-2 rounded-full ${statusDotClass}`}></span>
+                    <button {...providerTooltip} onClick={() => setIsProviderPopoverOpen(p => !p)} className="flex items-center gap-2 p-1 rounded hover:bg-[--bg-hover] transition-colors">
+                        <ProviderIcon className="w-3.5 h-3.5" />
+                        <span className={`w-1.5 h-1.5 rounded-full ${statusDotClass}`}></span>
                         <span className="hidden sm:inline">{activeProvider?.name || 'No Provider'}</span>
                     </button>
                     {isProviderPopoverOpen && (
-                         <div className="absolute bottom-full left-0 mb-2 w-48 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-lg z-20 overflow-hidden">
+                         <div className="absolute bottom-full left-0 mb-2 w-48 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-2xl z-20 overflow-hidden">
                             {providers.map(p => (
                                 <button
                                     key={p.id}
@@ -103,7 +103,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
                                         onChangeProvider(p.id);
                                         setIsProviderPopoverOpen(false);
                                     }}
-                                    className="w-full text-left block px-3 py-2 text-sm font-sans text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
+                                    className="w-full text-left block px-3 py-2 text-xs font-sans normal-case font-normal text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
                                 >
                                     {p.name}
                                 </button>
@@ -111,15 +111,15 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
                         </div>
                     )}
                 </div>
-                <div className="w-px h-4 bg-[--border-primary]" />
+                <div className="w-px h-3 bg-[--border-primary]" />
                  <div className="relative" ref={modelRef}>
-                    <button {...modelTooltip} onClick={() => setIsModelPopoverOpen(p => !p)} className="flex items-center gap-2 p-1 rounded hover:bg-[--bg-hover]" disabled={models.length === 0}>
-                        <Icon name="model" className="w-4 h-4" />
+                    <button {...modelTooltip} onClick={() => setIsModelPopoverOpen(p => !p)} className="flex items-center gap-2 p-1 rounded hover:bg-[--bg-hover] transition-colors" disabled={models.length === 0}>
+                        <Icon name="model" className="w-3.5 h-3.5" />
                         <span className="truncate max-w-48">{activeModel || (models.length > 0 ? 'Select Model' : 'No Models')}</span>
                     </button>
                     {isModelPopoverOpen && models.length > 0 && (
-                        <div className="absolute bottom-full left-0 mb-2 w-64 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
-                          <div className="p-2 text-xs font-semibold text-[--text-muted] border-b border-[--border-primary] font-sans">Start new chat with:</div>
+                        <div className="absolute bottom-full left-0 mb-2 w-64 bg-[--bg-secondary] border border-[--border-primary] rounded-lg shadow-2xl z-20 max-h-60 overflow-y-auto">
+                          <div className="p-2 text-xs font-semibold text-[--text-muted] border-b border-[--border-primary] font-sans normal-case">Switch to:</div>
                             {models.map(model => (
                                 <button
                                     key={model.id}
@@ -127,7 +127,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
                                         onSelectModel(model.id);
                                         setIsModelPopoverOpen(false);
                                     }}
-                                    className="w-full text-left block px-3 py-1.5 text-sm font-sans text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
+                                    className="w-full text-left block px-3 py-1.5 text-xs font-sans normal-case font-normal text-[--text-secondary] hover:bg-[--bg-hover] hover:text-[--text-primary]"
                                 >
                                     {model.id}
                                 </button>
@@ -137,9 +137,9 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
                  </div>
                   {activeProject && (
                     <>
-                        <div className="w-px h-4 bg-[--border-primary]" />
+                        <div className="w-px h-3 bg-[--border-primary]" />
                         <div {...projectTooltip} className="flex items-center gap-2 p-1">
-                           <Icon name="code" className="w-4 h-4" />
+                           <Icon name="code" className="w-3.5 h-3.5" />
                            <span className="truncate max-w-48">{activeProject}</span>
                         </div>
                     </>
@@ -149,48 +149,48 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
             {/* Right Side */}
             <div className="flex items-center gap-6">
                  <div {...cpuTooltip} className="flex items-center gap-2">
-                    <Icon name="cpu" className="w-4 h-4" />
+                    <Icon name="cpu" className="w-3.5 h-3.5" />
                      {stats ? (
                         <>
-                            <div className="w-20 h-2 bg-[--bg-tertiary] rounded-full overflow-hidden hidden md:block">
+                            <div className="w-16 h-1 bg-[--bg-tertiary] rounded-full overflow-hidden hidden md:block">
                                 <div className="h-full bg-[--accent-projects]" style={{ width: `${cpuUsagePercent}%` }}></div>
                             </div>
-                            <span>{cpuUsagePercent.toFixed(0)}%</span>
+                            <span className="w-8">{cpuUsagePercent.toFixed(0)}%</span>
                         </>
                     ) : (
                         <span>--%</span>
                     )}
                 </div>
                 <div {...gpuTooltip} className="flex items-center gap-2">
-                    <Icon name="gpu" className="w-4 h-4" />
+                    <Icon name="gpu" className="w-3.5 h-3.5" />
                      {stats && stats.gpu >= 0 ? (
                         <>
-                            <div className="w-20 h-2 bg-[--bg-tertiary] rounded-full overflow-hidden hidden md:block">
+                            <div className="w-16 h-1 bg-[--bg-tertiary] rounded-full overflow-hidden hidden md:block">
                                 <div className="h-full bg-[--accent-api]" style={{ width: `${gpuUsagePercent}%` }}></div>
                             </div>
-                            <span>{gpuUsagePercent.toFixed(0)}%</span>
+                            <span className="w-8">{gpuUsagePercent.toFixed(0)}%</span>
                         </>
                     ) : (
                         <span>--%</span>
                     )}
                 </div>
                 <div {...ramTooltip} className="flex items-center gap-2">
-                    <Icon name="ram" className="w-4 h-4" />
+                    <Icon name="ram" className="w-3.5 h-3.5" />
                     {stats ? (
                         <>
-                            <div className="w-20 h-2 bg-[--bg-tertiary] rounded-full overflow-hidden hidden md:block">
+                            <div className="w-16 h-1 bg-[--bg-tertiary] rounded-full overflow-hidden hidden md:block">
                                 <div className="h-full bg-[--accent-info]" style={{ width: `${memUsagePercent}%` }}></div>
                             </div>
-                            <span>{formatBytes(stats.memory.used)} / {formatBytes(stats.memory.total)}</span>
+                            <span className="font-mono lowercase">{formatBytes(stats.memory.used)} / {formatBytes(stats.memory.total)}</span>
                         </>
                     ) : (
-                        <span>-- MB / -- GB</span>
+                        <span>-- / --</span>
                     )}
                 </div>
                 {version && (
                     <>
-                        <div className="w-px h-4 bg-[--border-primary]" />
-                        <span {...versionTooltip}>v{version}</span>
+                        <div className="w-px h-3 bg-[--border-primary]" />
+                        <span {...versionTooltip} className="font-mono lowercase opacity-60">v{version}</span>
                     </>
                 )}
             </div>

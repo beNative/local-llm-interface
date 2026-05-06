@@ -17,6 +17,7 @@ import CommandPalette from './components/CommandPalette';
 import ModalContainer from './components/Modal';
 import StatusBar from './components/StatusBar';
 import Icon from './components/Icon';
+import MainSidebar from './components/MainSidebar';
 import { IconProvider } from './components/IconProvider';
 import { TooltipProvider } from './components/TooltipProvider';
 import ToolCallApprovalModal from './components/ToolCallApprovalModal';
@@ -1708,132 +1709,122 @@ const AppContent: React.FC = () => {
 
   return (
     <IconProvider iconSet={config?.themeOverrides?.iconSet || 'default'}>
-        <div style={containerStyle} className="flex flex-col font-sans bg-[--bg-primary] h-screen overflow-hidden text-[--text-primary]">
-          {config && <CommandPalette
-            isOpen={isCommandPaletteOpen}
-            onClose={closeCommandPalette}
-            sessions={config.sessions || []}
-            projects={config.projects || []}
-            onNavigate={setView}
-            onSelectSession={handleSelectSession}
-            onOpenFile={handleOpenFileFromPalette}
-            anchorRect={paletteAnchorRect}
-            onShowKeyboardShortcuts={handleOpenKeyboardShortcuts}
-          />}
-          <AboutModal 
-            isOpen={isAboutModalOpen} 
-            onClose={() => setIsAboutModalOpen(false)} 
-            version={appVersion} 
+        <div style={containerStyle} className="flex flex-row font-sans bg-[--bg-primary] h-screen overflow-hidden text-[--text-primary]">
+          <MainSidebar 
+              activeView={view} 
+              onNavigate={setView} 
+              theme={config?.theme || 'dark'} 
           />
-          {runOutput && <RunOutputModal runOutput={runOutput} onClose={() => setRunOutput(null)} />}
-          {pendingToolCalls && (
-              <ToolCallApprovalModal
-                toolCalls={pendingToolCalls}
-                onFinalize={handleToolApproval}
-                onClose={() => setPendingToolCalls(null)}
-              />
-          )}
-          
-          {isElectron && config ? (
-            <TitleBar
-                activeView={view}
+
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+              {config && <CommandPalette
+                isOpen={isCommandPaletteOpen}
+                onClose={closeCommandPalette}
+                sessions={config.sessions || []}
+                projects={config.projects || []}
                 onNavigate={setView}
-                onToggleLogs={() => setIsLogPanelVisible(!isLogPanelVisible)}
-                onToggleTheme={handleThemeToggle}
-                theme={config.theme || 'dark'}
-                onOpenCommandPalette={openCommandPalette}
-                isMaximized={isMaximized}
-            />
-          ) : (
-            <header className="flex items-center justify-between p-[var(--space-2)] border-b border-[--border-primary] bg-[--bg-primary] sticky top-0 z-10 flex-shrink-0">
-              <nav className="flex items-center gap-1">
-                <NavButton active={view === 'chat'} onClick={() => setView('chat')} title="Switch to the main chat interface" ariaLabel="Chat View" view="chat">
-                  <Icon name="messageSquare" className="w-5 h-5" />
-                  <span>Chat</span>
-                </NavButton>
-                <NavButton active={view === 'projects'} onClick={() => setView('projects')} title="Manage local code projects" ariaLabel="Projects View" view="projects">
-                  <Icon name="code" className="w-5 h-5" />
-                  <span>Projects</span>
-                </NavButton>
-                <NavButton active={view === 'api'} onClick={() => setView('api')} title="Test HTTP endpoints using natural language" ariaLabel="API Client View" view="api">
-                  <Icon name="server" className="w-5 h-5" />
-                  <span>API Client</span>
-                </NavButton>
-                <NavButton active={view === 'settings'} onClick={() => openSettings()} title="Configure application settings" ariaLabel="Settings View" view="settings">
-                  <Icon name="settings" className="w-5 h-5" />
-                  <span>Settings</span>
-                </NavButton>
-                <NavButton active={view === 'info'} onClick={() => setView('info')} title="View application documentation and manuals" ariaLabel="Info View" view="info">
-                  <Icon name="info" className="w-5 h-5" />
-                  <span>Info</span>
-                </NavButton>
-              </nav>
-
-              <div className="flex items-center gap-2 pr-2">
-                <div className="hidden sm:block text-xs text-[--text-muted] border border-[--border-secondary] rounded-md px-2 py-1 font-mono">
-                      Cmd/Ctrl + K
-                </div>
-                <button
-                  onClick={() => setIsLogPanelVisible(!isLogPanelVisible)}
-                  className="p-2 rounded-full text-[--text-muted] hover:bg-[--bg-hover] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-primary] focus:ring-[--border-focus]"
-                  aria-label="Toggle logs panel"
-                  {...toggleLogsTooltip}
-                  >
-                  <Icon name="fileText" className="w-5 h-5" />
-                  </button>
-                <ThemeSwitcher theme={config?.theme || 'dark'} onToggle={handleThemeToggle} />
-              </div>
-            </header>
-          )}
-
-          <main className="flex-1 flex overflow-hidden">
-            {view === 'chat' && activeSession && (
-              <>
-                <div style={{ width: `${sidebarWidth}px` }} className="flex-shrink-0 h-full">
-                  <SessionSidebar
-                    sessions={sessions}
-                    activeSessionId={activeSessionId || null}
-                    onNewChat={handleNewChat}
-                    onSelectSession={handleSelectSession}
-                    onDeleteSession={handleDeleteSession}
-                    onGenerateSessionName={handleManualGenerateSessionName}
-                  />
-                </div>
-                <div
-                  onMouseDown={handleResizeMouseDown}
-                  onKeyDown={handleResizeKeyDown}
-                  className="w-1.5 flex-shrink-0 cursor-col-resize bg-[--bg-tertiary] hover:bg-[--border-focus] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[--border-focus]"
-                  aria-label="Resize sidebar"
-                  aria-orientation="vertical"
-                  aria-valuemin={SIDEBAR_MIN_WIDTH}
-                  aria-valuemax={SIDEBAR_MAX_WIDTH}
-                  aria-valuenow={sidebarWidth}
-                  aria-valuetext={`${sidebarWidth} pixels`}
-                  role="separator"
-                  tabIndex={0}
-                ></div>
-              </>
-            )}
-            <div className="flex-1 overflow-hidden">
-                {renderContent()}
-            </div>
-          </main>
-          {isLogPanelVisible && <LoggingPanel onClose={() => setIsLogPanelVisible(false)} />}
-          {isElectron && config && (
-              <StatusBar
-                  stats={systemStats}
-                  connectionStatus={connectionStatus}
-                  statusText={statusText}
-                  providers={providers}
-                  selectedProviderId={selectedProviderId}
-                  activeModel={activeSession?.modelId || null}
-                  activeProject={activeProjectName}
-                  models={models}
-                  onSelectModel={handleSelectModel}
-                  onChangeProvider={handleProviderChange}
-                  version={appVersion}
+                onSelectSession={handleSelectSession}
+                onOpenFile={handleOpenFileFromPalette}
+                anchorRect={paletteAnchorRect}
+                onShowKeyboardShortcuts={handleOpenKeyboardShortcuts}
+              />}
+              <AboutModal 
+                isOpen={isAboutModalOpen} 
+                onClose={() => setIsAboutModalOpen(false)} 
+                version={appVersion} 
               />
-          )}
+              {runOutput && <RunOutputModal runOutput={runOutput} onClose={() => setRunOutput(null)} />}
+              {pendingToolCalls && (
+                  <ToolCallApprovalModal
+                    toolCalls={pendingToolCalls}
+                    onFinalize={handleToolApproval}
+                    onClose={() => setPendingToolCalls(null)}
+                  />
+              )}
+              
+              {isElectron && config ? (
+                <TitleBar
+                    activeView={view}
+                    onNavigate={setView}
+                    onToggleLogs={() => setIsLogPanelVisible(!isLogPanelVisible)}
+                    onToggleTheme={handleThemeToggle}
+                    theme={config.theme || 'dark'}
+                    onOpenCommandPalette={openCommandPalette}
+                    isMaximized={isMaximized}
+                />
+              ) : (
+                <header className="flex items-center justify-between p-[var(--space-2)] border-b border-[--border-primary] bg-[--bg-primary] sticky top-0 z-10 flex-shrink-0 h-10">
+                   <div className="flex items-center gap-2 pl-2">
+                        <span className="text-sm font-semibold tracking-tight">LOCAL LLM</span>
+                   </div>
+
+                  <div className="flex items-center gap-2 pr-2">
+                    <div className="hidden sm:block text-xs text-[--text-muted] border border-[--border-secondary] rounded-md px-2 py-1 font-mono">
+                          Cmd/Ctrl + K
+                    </div>
+                    <button
+                      onClick={() => setIsLogPanelVisible(!isLogPanelVisible)}
+                      className="p-1.5 rounded-full text-[--text-muted] hover:bg-[--bg-hover] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[--bg-primary] focus:ring-[--border-focus]"
+                      aria-label="Toggle logs panel"
+                      {...toggleLogsTooltip}
+                      >
+                      <Icon name="fileText" className="w-4 h-4" />
+                      </button>
+                    <ThemeSwitcher theme={config?.theme || 'dark'} onToggle={handleThemeToggle} />
+                  </div>
+                </header>
+              )}
+
+              <main className="flex-1 flex overflow-hidden">
+                {view === 'chat' && activeSession && (
+                  <>
+                    <div style={{ width: `${sidebarWidth}px` }} className="flex-shrink-0 h-full">
+                      <SessionSidebar
+                        sessions={sessions}
+                        activeSessionId={activeSessionId || null}
+                        onNewChat={handleNewChat}
+                        onSelectSession={handleSelectSession}
+                        onDeleteSession={handleDeleteSession}
+                        onGenerateSessionName={handleManualGenerateSessionName}
+                      />
+                    </div>
+                    <div
+                      onMouseDown={handleResizeMouseDown}
+                      onKeyDown={handleResizeKeyDown}
+                      className="w-1.5 flex-shrink-0 cursor-col-resize bg-[--bg-tertiary] hover:bg-[--border-focus] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[--border-focus]"
+                      aria-label="Resize sidebar"
+                      aria-orientation="vertical"
+                      aria-valuemin={SIDEBAR_MIN_WIDTH}
+                      aria-valuemax={SIDEBAR_MAX_WIDTH}
+                      aria-valuenow={sidebarWidth}
+                      aria-valuetext={`${sidebarWidth} pixels`}
+                      role="separator"
+                      tabIndex={0}
+                    ></div>
+                  </>
+                )}
+                <div className="flex-1 overflow-hidden min-w-0">
+                    {renderContent()}
+                </div>
+              </main>
+              
+              {isLogPanelVisible && <LoggingPanel onClose={() => setIsLogPanelVisible(false)} />}
+              {isElectron && config && (
+                  <StatusBar
+                      stats={systemStats}
+                      connectionStatus={connectionStatus}
+                      statusText={statusText}
+                      providers={providers}
+                      selectedProviderId={selectedProviderId}
+                      activeModel={activeSession?.modelId || null}
+                      activeProject={activeProjectName}
+                      models={models}
+                      onSelectModel={handleSelectModel}
+                      onChangeProvider={handleProviderChange}
+                      version={appVersion}
+                  />
+              )}
+          </div>
         </div>
     </IconProvider>
   );
