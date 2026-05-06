@@ -39,12 +39,6 @@ jobs:
             electron-cache: ~/.cache/electron
             electron-builder-cache: ~/.cache/electron-builder
             npm-target-arch: x64
-          - name: Linux armv7l
-            os: ubuntu-latest
-            build-script: package:linux:armv7l
-            electron-cache: ~/.cache/electron
-            electron-builder-cache: ~/.cache/electron-builder
-            npm-target-arch: arm
           - name: Linux arm64
             os: ubuntu-latest
             build-script: package:linux:arm64
@@ -66,7 +60,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Cache Electron downloads
