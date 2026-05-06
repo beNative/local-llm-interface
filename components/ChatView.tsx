@@ -505,7 +505,17 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
     const inputEstimate = Math.ceil(input.length / 3.5);
     const used = historyUsed + inputEstimate;
 
-    const max = currentModel?.details?.context_length || 32768;
+    const getFallbackContextLength = () => {
+      const modelId = currentModel?.id.toLowerCase() || '';
+      if (modelId.includes('gemini-1.5-flash')) return 1048576;
+      if (modelId.includes('gemini-1.5-pro')) return 2097152;
+      if (modelId.includes('gemini')) return 1048576;
+      if (modelId.includes('gpt-4o') || modelId.includes('gpt-4-turbo')) return 128000;
+      if (modelId.includes('claude-3')) return 200000;
+      return 131072; // Default to 128K for modern models
+    };
+
+    const max = currentModel?.details?.context_length || getFallbackContextLength();
     const percent = Math.min(100, Math.round((used / max) * 100));
     return { used, max, percent };
   }, [messages, currentModel, input]);

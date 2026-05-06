@@ -61,9 +61,9 @@ const TitleBar: React.FC<TitleBarProps> = ({ activeView, onNavigate, onToggleLog
             style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
             className="flex items-center justify-between h-9 bg-[--bg-primary]/90 backdrop-blur-sm border-b border-[--border-primary] flex-shrink-0"
         >
-            {/* Left side: App Icon and some space */}
-            <div className="flex items-center gap-2 pl-2">
-                 <Icon name="brainCircuit" className="w-5 h-5 text-[--accent-chat]" />
+            {/* Left side: App title or logo */}
+            <div className="flex items-center gap-2 pl-3">
+                 <span className="text-[11px] font-bold tracking-tight text-[--text-muted]/70 select-none">LOCAL LLM</span>
             </div>
 
             {/* Center: Search / Command Palette */}

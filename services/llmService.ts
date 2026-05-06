@@ -281,6 +281,10 @@ export const fetchModels = async (provider: LLMProviderConfig, apiKeys: Config['
           baseModels = data.data.map((m: any) => ({
             ...m,
             name: m.id,
+            details: {
+                ...m.details,
+                context_length: m.context_length || m.max_context_length || m.details?.context_length || m.details?.max_context_length
+            }
           }));
       } else {
           logger.warn('Models endpoint returned unknown format, no models found.');
@@ -374,7 +378,29 @@ export const fetchOllamaModelDetails = async (baseUrl: string, modelName: string
             throw new Error(`Failed to fetch model details: ${response.status} ${response.statusText}. ${errorText}`);
         }
         const data = await response.json();
-        return { ...data.details, modelfile: data.modelfile, parameters: data.parameters, template: data.template };
+        
+        // Try to extract context length from parameters or modelfile
+        let context_length: number | undefined = undefined;
+        
+        // Check parameters string (often contains "num_ctx 8192")
+        if (data.parameters) {
+            const ctxMatch = data.parameters.match(/num_ctx\s+(\d+)/);
+            if (ctxMatch) context_length = parseInt(ctxMatch[1], 10);
+        }
+        
+        // Fallback to modelfile if not in parameters
+        if (!context_length && data.modelfile) {
+            const ctxMatch = data.modelfile.match(/PARAMETER\s+num_ctx\s+(\d+)/i);
+            if (ctxMatch) context_length = parseInt(ctxMatch[1], 10);
+        }
+
+        return { 
+            ...data.details, 
+            modelfile: data.modelfile, 
+            parameters: data.parameters, 
+            template: data.template,
+            context_length
+        };
     } catch (error) {
         logger.error(`Error fetching Ollama model details: ${error}`);
         throw error;
