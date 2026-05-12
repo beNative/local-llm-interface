@@ -461,7 +461,8 @@ const textCompletionOpenAI = async (
         throw new LLMServiceError(`API error: ${response.status} ${response.statusText}. ${errorText}`);
     }
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    const message = data.choices?.[0]?.message;
+    const content = message?.content || message?.reasoning_content;
     if (!content) throw new LLMServiceError('API response did not contain message content.');
     return content;
 };
@@ -746,12 +747,19 @@ export const streamChatCompletion = async (
     let fullText = '';
     let usage: ChatMessageMetadata['usage'] = undefined;
     let firstTokenTime: number | null = null;
+    let lineBuffer = '';
 
     let toolCallChunks: { [key: number]: { id: string, name: string, arguments: string } } = {};
 
     while (true) {
         const { done, value } = await reader.read();
+        
         if (done) {
+          // Process any remaining data in the buffer if it doesn't end with a newline
+          if (lineBuffer.trim()) {
+            processLine(lineBuffer.trim());
+          }
+
           const endTime = Date.now();
           const duration = (endTime - startTime) / 1000;
           
@@ -778,65 +786,80 @@ export const streamChatCompletion = async (
           onDone({ usage, speed, duration, ttft });
           break;
         }
+
         const textChunk = decoder.decode(value, { stream: true });
-        const lines = textChunk.split('\n').filter((line) => line.trim() !== '');
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
+        lineBuffer += textChunk;
+
+        let lineEndIndex;
+        while ((lineEndIndex = lineBuffer.indexOf('\n')) !== -1) {
+            const line = lineBuffer.slice(0, lineEndIndex).trim();
+            lineBuffer = lineBuffer.slice(lineEndIndex + 1);
+            if (line) {
+                processLine(line);
+            }
+        }
+    }
+
+    function processLine(line: string) {
+        if (line.startsWith('data: ')) {
             const data = line.substring(6);
             if (data.trim() === '[DONE]') {
-              // This is handled by `done` above
-            } else {
-                try {
-                  const json = JSON.parse(data);
-                  const delta = json.choices?.[0]?.delta;
-                  if (delta?.content) {
-                      if (!firstTokenTime) firstTokenTime = Date.now();
-                      fullText += delta.content;
-                      onChunk({ type: 'content', text: delta.content });
-                  }
-                  
-                  // Handle tool call streaming
-                  if (delta?.tool_calls) {
-                      for (const toolCall of delta.tool_calls) {
-                          const index = toolCall.index;
-                          if (!toolCallChunks[index]) {
-                              toolCallChunks[index] = { id: '', name: '', arguments: '' };
-                          }
-                          if (toolCall.id) toolCallChunks[index].id = toolCall.id;
-                          if (toolCall.function?.name) toolCallChunks[index].name += toolCall.function.name;
-                          if (toolCall.function?.arguments) toolCallChunks[index].arguments += toolCall.function.arguments;
-                      }
-                  }
-
-                  const finishReason = json.choices?.[0]?.finish_reason;
-                  // Emit tool calls on 'tool_calls' (OpenAI) or 'stop' (Ollama) when chunks exist
-                  if (finishReason && Object.keys(toolCallChunks).length > 0) {
-                        const final_tool_calls: ToolCall[] = Object.values(toolCallChunks).map(tc => ({
-                            id: tc.id,
-                            type: 'function',
-                            function: { name: tc.name, arguments: tc.arguments }
-                        }));
-                        if (final_tool_calls.length > 0) {
-                            onChunk({ type: 'tool_calls', tool_calls: final_tool_calls });
-                        }
-                        toolCallChunks = {};
-                  }
-
-                  if (json.usage) usage = json.usage;
-                  if (json.done === true && json.prompt_eval_count !== undefined) {
-                      usage = {
-                          prompt_tokens: json.prompt_eval_count,
-                          completion_tokens: json.eval_count,
-                          total_tokens: json.prompt_eval_count + (json.eval_count || 0),
-                      };
-                  }
-                } catch (e) {
-                   logger.warn(`Could not parse stream data chunk: ${e}, Data: "${data}"`);
-                }
+                return;
             }
-          }
+            try {
+                const json = JSON.parse(data);
+                const delta = json.choices?.[0]?.delta;
+                
+                // Support both standard content and reasoning_content (for models like Qwen 2.5/3.5/3.6, DeepSeek R1, etc.)
+                const contentChunk = delta?.content || delta?.reasoning_content;
+                
+                if (contentChunk) {
+                    if (!firstTokenTime) firstTokenTime = Date.now();
+                    fullText += contentChunk;
+                    onChunk({ type: 'content', text: contentChunk });
+                }
+                
+                // Handle tool call streaming
+                if (delta?.tool_calls) {
+                    for (const toolCall of delta.tool_calls) {
+                        const index = toolCall.index;
+                        if (!toolCallChunks[index]) {
+                            toolCallChunks[index] = { id: '', name: '', arguments: '' };
+                        }
+                        if (toolCall.id) toolCallChunks[index].id = toolCall.id;
+                        if (toolCall.function?.name) toolCallChunks[index].name += toolCall.function.name;
+                        if (toolCall.function?.arguments) toolCallChunks[index].arguments += toolCall.function.arguments;
+                    }
+                }
+
+                const finishReason = json.choices?.[0]?.finish_reason;
+                // Emit tool calls on 'tool_calls' (OpenAI) or 'stop' (Ollama) when chunks exist
+                if (finishReason && Object.keys(toolCallChunks).length > 0) {
+                    const final_tool_calls: ToolCall[] = Object.values(toolCallChunks).map(tc => ({
+                        id: tc.id,
+                        type: 'function',
+                        function: { name: tc.name, arguments: tc.arguments }
+                    }));
+                    if (final_tool_calls.length > 0) {
+                        onChunk({ type: 'tool_calls', tool_calls: final_tool_calls });
+                    }
+                    toolCallChunks = {};
+                }
+
+                if (json.usage) usage = json.usage;
+                if (json.done === true && json.prompt_eval_count !== undefined) {
+                    usage = {
+                        prompt_tokens: json.prompt_eval_count,
+                        completion_tokens: json.eval_count,
+                        total_tokens: json.prompt_eval_count + (json.eval_count || 0),
+                    };
+                }
+            } catch (e) {
+                logger.warn(`Could not parse stream data chunk: ${e}, Data: "${line}"`);
+            }
         }
-      }
+    }
+
 
   } catch (error) {
      if (error instanceof Error && error.name === 'AbortError') {
