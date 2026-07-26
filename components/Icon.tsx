@@ -15,6 +15,7 @@ import DefaultChevronRightIcon from './icons/ChevronRightIcon';
 import DefaultChevronUpIcon from './icons/ChevronUpIcon';
 import DefaultClipboardIcon from './icons/ClipboardIcon';
 import DefaultCodeIcon from './icons/CodeIcon';
+import DefaultCopyIcon from './icons/CopyIcon';
 import DefaultCpuIcon from './icons/CpuIcon';
 import DefaultDownloadCloudIcon from './icons/DownloadCloudIcon';
 import DefaultFileIcon from './icons/FileIcon';
@@ -199,6 +200,7 @@ const iconMap = {
         zap: DefaultZapIcon,
         clipboard: DefaultClipboardIcon,
         code: DefaultCodeIcon,
+        copy: DefaultCopyIcon,
         cpu: DefaultCpuIcon,
         downloadCloud: DefaultDownloadCloudIcon,
         file: DefaultFileIcon,

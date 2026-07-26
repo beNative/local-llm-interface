@@ -741,6 +741,19 @@ const AppContent: React.FC = () => {
     });
   };
 
+  const handleDeleteMultipleSessions = useCallback((sessionIds: string[]) => {
+    const idSet = new Set(sessionIds);
+    setConfig(c => {
+      if (!c) return null;
+      const newSessions = c.sessions?.filter(s => !idSet.has(s.id)) || [];
+      let newActiveId = c.activeSessionId;
+      if (c.activeSessionId && idSet.has(c.activeSessionId)) {
+        newActiveId = newSessions.length > 0 ? newSessions[0].id : undefined;
+      }
+      return { ...c, sessions: newSessions, activeSessionId: newActiveId };
+    });
+  }, []);
+
   const handleRenameSession = useCallback((sessionId: string, newName: string) => {
     setConfig(c => {
         if (!c) return null;
@@ -1612,7 +1625,7 @@ const AppContent: React.FC = () => {
               )}
 
               <main className="flex-1 flex overflow-hidden">
-                {view === 'chat' && activeSession && (
+                {view === 'chat' && (
                   <>
                     <div style={{ width: `${sidebarWidth}px` }} className="flex-shrink-0 h-full">
                       <SessionSidebar
@@ -1621,6 +1634,7 @@ const AppContent: React.FC = () => {
                         onNewChat={handleNewChat}
                         onSelectSession={handleSelectSession}
                         onDeleteSession={handleDeleteSession}
+                        onDeleteMultipleSessions={handleDeleteMultipleSessions}
                         onGenerateSessionName={handleManualGenerateSessionName}
                       />
                     </div>

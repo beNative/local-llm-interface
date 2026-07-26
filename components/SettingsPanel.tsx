@@ -33,13 +33,14 @@ const densities: ThemeOverrides['density'][] = ['compact', 'normal', 'comfortabl
 
 const ProviderEditorModal: React.FC<{
   provider: LLMProviderConfig | null;
+  isDuplicate?: boolean;
   onClose: () => void;
   onSave: (provider: LLMProviderConfig) => void;
-}> = ({ provider, onClose, onSave }) => {
-    const [name, setName] = useState(provider?.name || '');
+}> = ({ provider, isDuplicate, onClose, onSave }) => {
+    const [name, setName] = useState(isDuplicate ? `${provider?.name || ''} (Copy)` : provider?.name || '');
     const [baseUrl, setBaseUrl] = useState(provider?.baseUrl || '');
     const [requiresApiKey, setRequiresApiKey] = useState(!!provider?.apiKeyName);
-    const [apiKeyName, setApiKeyName] = useState(provider?.apiKeyName || '');
+    const [apiKeyName, setApiKeyName] = useState(provider?.apiKeyName ? (isDuplicate ? `${provider.apiKeyName}_COPY` : provider.apiKeyName) : '');
 
     const handleSave = () => {
         if (!name.trim() || !baseUrl.trim() || (requiresApiKey && !apiKeyName.trim())) {
@@ -47,10 +48,10 @@ const ProviderEditorModal: React.FC<{
             return;
         }
         onSave({
-            id: provider?.id || `custom_${Date.now()}`,
+            id: (!isDuplicate && provider?.id) ? provider.id : `custom_${Date.now()}`,
             name: name.trim(),
             baseUrl: baseUrl.trim(),
-            type: 'openai-compatible', // Currently only support adding openai-compatible custom providers
+            type: provider?.type || 'openai-compatible', // Currently support openai-compatible custom providers
             apiKeyName: requiresApiKey ? apiKeyName.trim() : undefined,
             isCustom: true,
         });
@@ -59,7 +60,7 @@ const ProviderEditorModal: React.FC<{
     return (
         <ModalContainer
             onClose={onClose}
-            title={`${provider ? 'Edit' : 'Add'} Custom Provider`}
+            title={`${isDuplicate ? 'Duplicate' : provider ? 'Edit' : 'Add'} Custom Provider`}
             size="md"
             panelClassName="max-w-lg"
             bodyClassName="space-y-[var(--space-4)]"
@@ -312,6 +313,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
   const [activeSection, setActiveSection] = useState<SettingsSection>(initialSection ?? 'general');
   const [editingProvider, setEditingProvider] = useState<LLMProviderConfig | null>(null);
   const [isAddingProvider, setIsAddingProvider] = useState(false);
+  const [isDuplicateProvider, setIsDuplicateProvider] = useState(false);
   const [providerStatuses, setProviderStatuses] = useState<Record<string, 'online' | 'offline' | 'checking' | 'unknown'>>({});
   const isUpdatingFromProps = useRef(true);
   const [jsonText, setJsonText] = useState('');
@@ -438,6 +440,13 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
       return { ...current, providers };
     });
     setEditingProvider(null);
+    setIsAddingProvider(false);
+    setIsDuplicateProvider(false);
+  };
+
+  const handleDuplicateProvider = (providerToDuplicate: LLMProviderConfig) => {
+    setEditingProvider(providerToDuplicate);
+    setIsDuplicateProvider(true);
     setIsAddingProvider(false);
   };
 
@@ -659,7 +668,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                   {(editingProvider || isAddingProvider) && (
                     <ProviderEditorModal
                       provider={editingProvider}
-                      onClose={() => { setEditingProvider(null); setIsAddingProvider(false); }}
+                      isDuplicate={isDuplicateProvider}
+                      onClose={() => { setEditingProvider(null); setIsAddingProvider(false); setIsDuplicateProvider(false); }}
                       onSave={handleSaveProvider}
                     />
                   )}
@@ -695,9 +705,16 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                                             </button>
                                         </>
                                     )}
+                                    <button 
+                                        title="Duplicate provider configuration"
+                                        onClick={() => handleDuplicateProvider(p)}
+                                        className="p-2 text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-full"
+                                    >
+                                        <Icon name="copy" className="w-4 h-4"/>
+                                    </button>
                                     {p.isCustom && (
                                         <div className="flex items-center gap-1 border-l border-[--border-secondary] pl-2">
-                                            <button onClick={() => setEditingProvider(p)} className="p-2 text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-full"><Icon name="settings" className="w-4 h-4"/></button>
+                                            <button onClick={() => { setEditingProvider(p); setIsDuplicateProvider(false); }} className="p-2 text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-full"><Icon name="settings" className="w-4 h-4"/></button>
                                             <button onClick={() => handleDeleteProvider(p.id)} className="p-2 text-[--text-muted] hover:text-red-500 hover:bg-red-500/10 rounded-full"><Icon name="trash" className="w-4 h-4"/></button>
                                         </div>
                                     )}
@@ -705,7 +722,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
                             </div>
                         ))}
                         <button 
-                            onClick={() => { setEditingProvider(null); setIsAddingProvider(true); }} 
+                            onClick={() => { setEditingProvider(null); setIsAddingProvider(true); setIsDuplicateProvider(false); }} 
                             className="w-full flex items-center justify-center gap-2 text-sm text-[--text-secondary] hover:text-[--text-primary] bg-[--bg-tertiary] hover:bg-[--bg-hover] border border-[--border-secondary] rounded-lg py-2"
                         >
                             <Icon name="plus" className="w-4 h-4" /> Add Custom Provider

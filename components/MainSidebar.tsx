@@ -23,32 +23,32 @@ const NavItem: React.FC<{
         <button
             onClick={onClick}
             {...tooltipProps}
-            className={`group relative flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-200 ${
+            aria-label={label}
+            className={`group relative flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[--accent-chat] ${
                 active 
-                    ? 'bg-[--accent-chat] text-white shadow-lg shadow-blue-500/20' 
+                    ? 'bg-[--accent-chat]/15 text-[--accent-chat] border border-[--accent-chat]/30 shadow-sm' 
                     : 'text-[--text-muted] hover:bg-[--bg-hover] hover:text-[--text-primary]'
             }`}
         >
-            <Icon name={icon as any} className="w-6 h-6" />
+            <Icon name={icon as any} className="w-5 h-5" />
             
-            {/* Active Indicator (LM Studio style) */}
+            {/* LM Studio Style Left Active Indicator Pill */}
             {active && (
-                <div className="absolute left-0 w-1 h-6 bg-white rounded-r-full" />
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[--accent-chat] rounded-r-full shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
             )}
-            
-            {/* Hover Label (for accessibility/visual feedback if needed, though we have tooltips) */}
-            <span className="sr-only">{label}</span>
         </button>
     );
 };
 
 const MainSidebar: React.FC<MainSidebarProps> = ({ activeView, onNavigate, theme }) => {
     return (
-        <aside className="flex flex-col items-center py-4 w-16 h-full bg-[--bg-sidebar]/80 backdrop-blur-md border-r border-[--border-primary] z-20">
-            {/* Logo area - Simplified or empty to avoid button confusion */}
-            <div className="mb-8 select-none" aria-hidden="true" />
+        <aside className="flex flex-col items-center py-3 w-16 h-full bg-[--bg-sidebar]/95 backdrop-blur-xl border-r border-[--border-primary]/70 z-20 select-none">
+            {/* LM Studio Style Top Emblem Logo */}
+            <div className="mb-6 flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 via-blue-600 to-cyan-500 text-white shadow-md shadow-blue-500/20 ring-1 ring-white/20">
+                <Icon name="brainCircuit" className="w-5 h-5" />
+            </div>
 
-            <nav className="flex flex-col gap-4 flex-1 items-center">
+            <nav className="flex flex-col gap-3 flex-1 items-center">
                 <NavItem 
                     view="chat" 
                     active={activeView === 'chat'} 
@@ -79,7 +79,7 @@ const MainSidebar: React.FC<MainSidebarProps> = ({ activeView, onNavigate, theme
                 />
             </nav>
 
-            <div className="mt-auto flex flex-col gap-4 items-center">
+            <div className="mt-auto flex flex-col items-center pb-1">
                 <NavItem 
                     view="settings" 
                     active={activeView === 'settings'} 
@@ -87,13 +87,6 @@ const MainSidebar: React.FC<MainSidebarProps> = ({ activeView, onNavigate, theme
                     icon="settings" 
                     label="Settings" 
                 />
-                
-                {/* Visual separator or avatar could go here */}
-                <div className="w-8 h-px bg-[--border-primary] my-2" />
-                
-                <div className="w-10 h-10 rounded-full bg-[--bg-tertiary] flex items-center justify-center text-[--text-muted] text-xs font-bold border border-[--border-primary]">
-                    AI
-                </div>
             </div>
         </aside>
     );
