@@ -131,6 +131,74 @@ const ProviderEditorModal: React.FC<{
     );
 };
 
+const PromptEditorModal: React.FC<{
+  modalTitle: string;
+  initialTitle?: string;
+  initialContent?: string;
+  onClose: () => void;
+  onSave: (title: string, content: string) => void;
+}> = ({ modalTitle, initialTitle = '', initialContent = '', onClose, onSave }) => {
+    const [title, setTitle] = useState(initialTitle);
+    const [content, setContent] = useState(initialContent);
+
+    const handleSave = () => {
+        if (!title.trim() || !content.trim()) {
+            alert('Please fill in both title and content.');
+            return;
+        }
+        onSave(title.trim(), content.trim());
+    };
+
+    return (
+        <ModalContainer
+            onClose={onClose}
+            title={modalTitle}
+            size="md"
+            panelClassName="max-w-lg"
+            bodyClassName="space-y-[var(--space-4)]"
+            footer={
+                <>
+                    <button
+                        onClick={onClose}
+                        className="rounded-[--border-radius] bg-[--bg-tertiary] px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--font-size-sm)] font-medium text-[--text-secondary] hover:bg-[--bg-hover]"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handleSave}
+                        className="rounded-[--border-radius] bg-green-600 px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--font-size-sm)] font-medium text-white hover:bg-green-700"
+                    >
+                        Save Prompt
+                    </button>
+                </>
+            }
+        >
+            <div className="space-y-[var(--space-4)]">
+                <div className="space-y-[var(--space-2)]">
+                    <label className="block text-[length:var(--font-size-sm)] font-medium text-[--text-muted]">Title</label>
+                    <input
+                        type="text"
+                        value={title}
+                        onChange={e => setTitle(e.target.value)}
+                        className="w-full rounded-[--border-radius] border border-[--border-secondary] bg-[--bg-tertiary] px-[var(--space-3)] py-[var(--space-2)] text-[--text-primary]"
+                        placeholder="e.g., Python Refactor Assistant"
+                    />
+                </div>
+                <div className="space-y-[var(--space-2)]">
+                    <label className="block text-[length:var(--font-size-sm)] font-medium text-[--text-muted]">Content</label>
+                    <textarea
+                        value={content}
+                        onChange={e => setContent(e.target.value)}
+                        rows={6}
+                        className="w-full rounded-[--border-radius] border border-[--border-secondary] bg-[--bg-tertiary] px-[var(--space-3)] py-[var(--space-2)] text-[--text-primary] font-mono text-sm"
+                        placeholder="Enter the prompt content..."
+                    />
+                </div>
+            </div>
+        </ModalContainer>
+    );
+};
+
 
 const ColorSelector: React.FC<{ label: string; value: string; onChange: (value: string) => void;}> = ({ label, value, onChange }) => (
     <div>
@@ -314,6 +382,13 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
   const [editingProvider, setEditingProvider] = useState<LLMProviderConfig | null>(null);
   const [isAddingProvider, setIsAddingProvider] = useState(false);
   const [isDuplicateProvider, setIsDuplicateProvider] = useState(false);
+  const [editingPromptModal, setEditingPromptModal] = useState<{
+    id?: string;
+    type: 'predefined' | 'system';
+    mode: 'edit' | 'copy';
+    title: string;
+    content: string;
+  } | null>(null);
   const [providerStatuses, setProviderStatuses] = useState<Record<string, 'online' | 'offline' | 'checking' | 'unknown'>>({});
   const isUpdatingFromProps = useRef(true);
   const [jsonText, setJsonText] = useState('');
@@ -542,6 +617,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
     }));
   };
 
+  const handleUpdatePrompt = (promptId: string, title: string, content: string) => {
+    if (!title.trim() || !content.trim()) return;
+    setLocalConfig(current => ({
+      ...current,
+      predefinedPrompts: (current.predefinedPrompts || []).map(p => p.id === promptId ? { ...p, title: title.trim(), content: content.trim() } : p),
+    }));
+  };
+
   const handleDeletePrompt = (promptId: string) => {
     setLocalConfig(current => ({
       ...current,
@@ -559,6 +642,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
     setLocalConfig(current => ({
       ...current,
       systemPrompts: [...(current.systemPrompts || []), newPrompt],
+    }));
+  };
+
+  const handleUpdateSystemPrompt = (promptId: string, title: string, content: string) => {
+    if (!title.trim() || !content.trim()) return;
+    setLocalConfig(current => ({
+      ...current,
+      systemPrompts: (current.systemPrompts || []).map(p => p.id === promptId ? { ...p, title: title.trim(), content: content.trim() } : p),
     }));
   };
 
@@ -909,46 +1000,118 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onConfigChange, i
               );
           case 'content':
               return (
-                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
-                        <h3 className="text-xl font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">Predefined Prompts</h3>
-                        <div className="space-y-4">
-                            {(localConfig.predefinedPrompts || []).length > 0 ? (
-                                <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-                                    {(localConfig.predefinedPrompts || []).map(prompt => (
-                                        <div key={prompt.id} className="flex items-start justify-between gap-4 p-3 bg-[--bg-secondary] rounded-lg border border-[--border-secondary]">
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-semibold text-[--text-primary] truncate">{prompt.title}</p>
-                                                <p className="text-sm text-[--text-muted] mt-1 whitespace-pre-wrap font-mono break-words">{prompt.content}</p>
-                                            </div>
-                                            <button onClick={() => handleDeletePrompt(prompt.id)} className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full flex-shrink-0" aria-label="Delete prompt"><Icon name="trash" className="w-4 h-4" /></button>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : ( <p className="text-sm text-center text-[--text-muted] py-4">You have no saved prompts yet.</p> )}
-                            <NewPromptForm onAdd={handleAddPrompt} heading="Add New Prompt" titlePlaceholder="e.g., Refactor Python Code" contentPlaceholder="e.g., Please refactor the following Python code to be more idiomatic and efficient." idPrefix="predefined-prompt" buttonText="Add Prompt" />
-                        </div>
-                    </div>
-                    <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
-                        <h3 className="flex items-center gap-2 text-xl font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3"><Icon name="identity" className="w-5 h-5" /> System Prompts (Personas)</h3>
-                        <div className="space-y-4">
-                            {(localConfig.systemPrompts || []).length > 0 ? (
-                                <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-                                    {(localConfig.systemPrompts || []).map(prompt => (
-                                        <div key={prompt.id} className="flex items-start justify-between gap-4 p-3 bg-[--bg-secondary] rounded-lg border border-[--border-secondary]">
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-semibold text-[--text-primary] truncate">{prompt.title}</p>
-                                                <p className="text-sm text-[--text-muted] mt-1 whitespace-pre-wrap font-mono break-words">{prompt.content}</p>
-                                            </div>
-                                            <button onClick={() => handleDeleteSystemPrompt(prompt.id)} className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full flex-shrink-0" aria-label="Delete system prompt"><Icon name="trash" className="w-4 h-4" /></button>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : ( <p className="text-sm text-center text-[--text-muted] py-4">You have no saved system prompts yet.</p> )}
-                            <NewPromptForm onAdd={handleAddSystemPrompt} heading="Add New System Prompt" titlePlaceholder="e.g., Senior DevOps Engineer" contentPlaceholder="e.g., You are a senior DevOps engineer with 20 years of experience..." idPrefix="system-prompt" buttonText="Add System Prompt"/>
-                        </div>
-                    </div>
-                 </div>
+                 <>
+                   {editingPromptModal && (
+                     <PromptEditorModal
+                       modalTitle={`${editingPromptModal.mode === 'edit' ? 'Edit' : 'Duplicate'} ${editingPromptModal.type === 'predefined' ? 'Predefined Prompt' : 'System Prompt'}`}
+                       initialTitle={editingPromptModal.title}
+                       initialContent={editingPromptModal.content}
+                       onClose={() => setEditingPromptModal(null)}
+                       onSave={(title, content) => {
+                         if (editingPromptModal.type === 'predefined') {
+                           if (editingPromptModal.mode === 'edit' && editingPromptModal.id) {
+                             handleUpdatePrompt(editingPromptModal.id, title, content);
+                           } else {
+                             handleAddPrompt(title, content);
+                           }
+                         } else {
+                           if (editingPromptModal.mode === 'edit' && editingPromptModal.id) {
+                             handleUpdateSystemPrompt(editingPromptModal.id, title, content);
+                           } else {
+                             handleAddSystemPrompt(title, content);
+                           }
+                         }
+                         setEditingPromptModal(null);
+                       }}
+                     />
+                   )}
+                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                      <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
+                          <h3 className="text-xl font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3">Predefined Prompts</h3>
+                          <div className="space-y-4">
+                              {(localConfig.predefinedPrompts || []).length > 0 ? (
+                                  <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                                      {(localConfig.predefinedPrompts || []).map(prompt => (
+                                          <div key={prompt.id} className="flex items-start justify-between gap-4 p-3 bg-[--bg-secondary] rounded-lg border border-[--border-secondary]">
+                                              <div className="flex-1 min-w-0">
+                                                  <p className="font-semibold text-[--text-primary] truncate">{prompt.title}</p>
+                                                  <p className="text-sm text-[--text-muted] mt-1 whitespace-pre-wrap font-mono break-words">{prompt.content}</p>
+                                              </div>
+                                              <div className="flex items-center gap-1 flex-shrink-0">
+                                                  <button
+                                                      title="Edit prompt"
+                                                      onClick={() => setEditingPromptModal({ id: prompt.id, type: 'predefined', mode: 'edit', title: prompt.title, content: prompt.content })}
+                                                      className="p-1.5 text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-full"
+                                                  >
+                                                      <Icon name="settings" className="w-4 h-4" />
+                                                  </button>
+                                                  <button
+                                                      title="Duplicate prompt"
+                                                      onClick={() => setEditingPromptModal({ type: 'predefined', mode: 'copy', title: `${prompt.title} (Copy)`, content: prompt.content })}
+                                                      className="p-1.5 text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-full"
+                                                  >
+                                                      <Icon name="copy" className="w-4 h-4" />
+                                                  </button>
+                                                  <button
+                                                      title="Delete prompt"
+                                                      onClick={() => handleDeletePrompt(prompt.id)}
+                                                      className="p-1.5 text-red-500 hover:bg-red-500/10 rounded-full"
+                                                      aria-label="Delete prompt"
+                                                  >
+                                                      <Icon name="trash" className="w-4 h-4" />
+                                                  </button>
+                                              </div>
+                                          </div>
+                                      ))}
+                                  </div>
+                              ) : ( <p className="text-sm text-center text-[--text-muted] py-4">You have no saved prompts yet.</p> )}
+                              <NewPromptForm onAdd={handleAddPrompt} heading="Add New Prompt" titlePlaceholder="e.g., Refactor Python Code" contentPlaceholder="e.g., Please refactor the following Python code to be more idiomatic and efficient." idPrefix="predefined-prompt" buttonText="Add Prompt" />
+                          </div>
+                      </div>
+                      <div className="bg-[--bg-primary] p-6 rounded-[--border-radius] border border-[--border-primary] shadow-sm">
+                          <h3 className="flex items-center gap-2 text-xl font-semibold text-[--text-secondary] mb-4 border-b border-[--border-primary] pb-3"><Icon name="identity" className="w-5 h-5" /> System Prompts (Personas)</h3>
+                          <div className="space-y-4">
+                              {(localConfig.systemPrompts || []).length > 0 ? (
+                                  <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                                      {(localConfig.systemPrompts || []).map(prompt => (
+                                          <div key={prompt.id} className="flex items-start justify-between gap-4 p-3 bg-[--bg-secondary] rounded-lg border border-[--border-secondary]">
+                                              <div className="flex-1 min-w-0">
+                                                  <p className="font-semibold text-[--text-primary] truncate">{prompt.title}</p>
+                                                  <p className="text-sm text-[--text-muted] mt-1 whitespace-pre-wrap font-mono break-words">{prompt.content}</p>
+                                              </div>
+                                              <div className="flex items-center gap-1 flex-shrink-0">
+                                                  <button
+                                                      title="Edit system prompt"
+                                                      onClick={() => setEditingPromptModal({ id: prompt.id, type: 'system', mode: 'edit', title: prompt.title, content: prompt.content })}
+                                                      className="p-1.5 text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-full"
+                                                  >
+                                                      <Icon name="settings" className="w-4 h-4" />
+                                                  </button>
+                                                  <button
+                                                      title="Duplicate system prompt"
+                                                      onClick={() => setEditingPromptModal({ type: 'system', mode: 'copy', title: `${prompt.title} (Copy)`, content: prompt.content })}
+                                                      className="p-1.5 text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] rounded-full"
+                                                  >
+                                                      <Icon name="copy" className="w-4 h-4" />
+                                                  </button>
+                                                  <button
+                                                      title="Delete system prompt"
+                                                      onClick={() => handleDeleteSystemPrompt(prompt.id)}
+                                                      className="p-1.5 text-red-500 hover:bg-red-500/10 rounded-full"
+                                                      aria-label="Delete system prompt"
+                                                  >
+                                                      <Icon name="trash" className="w-4 h-4" />
+                                                  </button>
+                                              </div>
+                                          </div>
+                                      ))}
+                                  </div>
+                              ) : ( <p className="text-sm text-center text-[--text-muted] py-4">You have no saved system prompts yet.</p> )}
+                              <NewPromptForm onAdd={handleAddSystemPrompt} heading="Add New System Prompt" titlePlaceholder="e.g., Senior DevOps Engineer" contentPlaceholder="e.g., You are a senior DevOps engineer with 20 years of experience..." idPrefix="system-prompt" buttonText="Add System Prompt"/>
+                          </div>
+                      </div>
+                   </div>
+                 </>
               );
           case 'shortcuts':
               return (
