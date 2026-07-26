@@ -19,17 +19,53 @@ const iconOutputDir = path.join(appDir, 'build', 'icons');
 const docFiles = ['README.md', 'FUNCTIONAL_MANUAL.md', 'TECHNICAL_MANUAL.md', 'CHANGELOG.md'];
 
 const DEFAULT_ICON_SVG = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <linearGradient id="default-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1e293b" />
-      <stop offset="100%" stop-color="#64748b" />
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b0f19" />
+      <stop offset="50%" stop-color="#111827" />
+      <stop offset="100%" stop-color="#1e1b4b" />
     </linearGradient>
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.8" />
+      <stop offset="50%" stop-color="#818cf8" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#c084fc" stop-opacity="0.8" />
+    </linearGradient>
+    <linearGradient id="pathGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#818cf8" />
+    </linearGradient>
+    <linearGradient id="pathGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#c084fc" />
+      <stop offset="100%" stop-color="#6366f1" />
+    </linearGradient>
+    <radialGradient id="coreGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="60%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#a855f7" stop-opacity="0" />
+    </radialGradient>
   </defs>
-  <rect width="128" height="128" rx="24" fill="url(#default-grad)" />
-  <g fill="#f8fafc" transform="translate(28,28)">
-    <path d="M72 12v48a12 12 0 0 1-12 12H12a12 12 0 0 1-12-12V24A12 12 0 0 1 12 12h48l12-12z" opacity="0.8" />
-    <circle cx="36" cy="36" r="14" opacity="0.9" />
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+  <rect x="6" y="6" width="500" height="500" rx="106" fill="none" stroke="url(#borderGrad)" stroke-width="4" opacity="0.6" />
+  <circle cx="256" cy="256" r="140" fill="url(#coreGrad)" opacity="0.35" />
+  <g transform="translate(256, 256)">
+    <polygon points="0,-160 138,-80 138,80 0,160 -138,80 -138,-80" fill="none" stroke="url(#pathGrad1)" stroke-width="4" opacity="0.4" stroke-dasharray="8 6" />
+    <polygon points="0,-110 95,-55 95,55 0,110 -95,55 -95,-55" fill="none" stroke="url(#pathGrad2)" stroke-width="5" opacity="0.7" />
+    <line x1="0" y1="-160" x2="0" y2="-55" stroke="url(#pathGrad1)" stroke-width="4" stroke-linecap="round" />
+    <line x1="138" y1="-80" x2="50" y2="-28" stroke="url(#pathGrad1)" stroke-width="4" stroke-linecap="round" />
+    <line x1="138" y1="80" x2="50" y2="28" stroke="url(#pathGrad2)" stroke-width="4" stroke-linecap="round" />
+    <line x1="0" y1="160" x2="0" y2="55" stroke="url(#pathGrad2)" stroke-width="4" stroke-linecap="round" />
+    <line x1="-138" y1="80" x2="-50" y2="28" stroke="url(#pathGrad1)" stroke-width="4" stroke-linecap="round" />
+    <line x1="-138" y1="-80" x2="-50" y2="-28" stroke="url(#pathGrad2)" stroke-width="4" stroke-linecap="round" />
+    <circle cx="0" cy="-160" r="12" fill="#38bdf8" />
+    <circle cx="138" cy="-80" r="12" fill="#818cf8" />
+    <circle cx="138" cy="80" r="12" fill="#c084fc" />
+    <circle cx="0" cy="160" r="12" fill="#818cf8" />
+    <circle cx="-138" cy="80" r="12" fill="#38bdf8" />
+    <circle cx="-138" cy="-80" r="12" fill="#a855f7" />
+    <circle cx="0" cy="0" r="46" fill="url(#bgGrad)" stroke="url(#pathGrad1)" stroke-width="6" />
+    <circle cx="0" cy="0" r="30" fill="url(#coreGrad)" />
+    <circle cx="0" cy="0" r="16" fill="#ffffff" opacity="0.9" />
   </g>
 </svg>`;
 
