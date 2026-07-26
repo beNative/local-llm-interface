@@ -234,33 +234,57 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ language, code, theme, onRunCode 
 const parseThoughtAndContent = (rawText: string): { thought: string | null; content: string; isThinkingActive: boolean } => {
   if (!rawText) return { thought: null, content: '', isThinkingActive: false };
 
-  const thinkStartIndex = rawText.indexOf('<think>');
-  if (thinkStartIndex === -1) {
-    return { thought: null, content: rawText, isThinkingActive: false };
+  // 1. Check for closing tag (handles models like Qwen 3.6 that omit opening <think> tag)
+  const closingMatch = rawText.match(/<\/(think|thought|reasoning)>/i);
+  if (closingMatch && closingMatch.index !== undefined) {
+    const closingTag = closingMatch[0];
+    const closingIndex = closingMatch.index;
+
+    let rawThought = rawText.slice(0, closingIndex);
+    const afterThought = rawText.slice(closingIndex + closingTag.length).trim();
+
+    // Strip opening tag if present inside rawThought
+    const openingMatch = rawThought.match(/<(think|thought|reasoning)>/i);
+    let beforeThought = '';
+    if (openingMatch && openingMatch.index !== undefined) {
+      beforeThought = rawThought.slice(0, openingMatch.index).trim();
+      rawThought = rawThought.slice(openingMatch.index + openingMatch[0].length);
+    }
+
+    const cleanThought = rawThought.trim();
+    const finalContent = [beforeThought, afterThought].filter(Boolean).join('\n\n');
+
+    return {
+      thought: cleanThought || null,
+      content: finalContent,
+      isThinkingActive: false,
+    };
   }
 
-  const beforeThink = rawText.slice(0, thinkStartIndex);
-  const thinkContentStart = thinkStartIndex + 7;
-  const thinkEndIndex = rawText.indexOf('</think>', thinkContentStart);
-
-  if (thinkEndIndex === -1) {
-    const thought = rawText.slice(thinkContentStart).trim();
+  // 2. Check for explicit opening tags (<think>, <thought>, <reasoning>) during active streaming
+  const openingMatch = rawText.match(/<(think|thought|reasoning)>/i);
+  if (openingMatch && openingMatch.index !== undefined) {
+    const beforeThought = rawText.slice(0, openingMatch.index).trim();
+    const thought = rawText.slice(openingMatch.index + openingMatch[0].length).trim();
     return {
       thought: thought || 'Analyzing prompt and reasoning...',
-      content: beforeThink.trim(),
+      content: beforeThought,
       isThinkingActive: true,
     };
   }
 
-  const thought = rawText.slice(thinkContentStart, thinkEndIndex).trim();
-  const afterThink = rawText.slice(thinkEndIndex + 8).trim();
-  const finalContent = [beforeThink.trim(), afterThink].filter(Boolean).join('\n\n');
+  // 3. Check for implicit thinking headers at start of output during active streaming
+  const implicitHeaderMatch = rawText.match(/^(Here's a thinking process:|Thinking process:|Thought process:|Reasoning:)/i);
+  if (implicitHeaderMatch) {
+    return {
+      thought: rawText.trim(),
+      content: '',
+      isThinkingActive: true,
+    };
+  }
 
-  return {
-    thought: thought || null,
-    content: finalContent,
-    isThinkingActive: false,
-  };
+  // 4. Default: No thinking tags detected
+  return { thought: null, content: rawText, isThinkingActive: false };
 };
 
 const ThinkingBlock: React.FC<{
