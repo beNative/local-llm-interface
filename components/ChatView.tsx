@@ -666,6 +666,12 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
   const predefinedPromptsTooltip = useTooltipTrigger("Use a predefined prompt");
   const stopGenTooltip = useTooltipTrigger("Stop generating");
   const sendMsgTooltip = useTooltipTrigger("Send message");
+  const isThinkingEnabled = session.generationConfig?.enableThinking !== false;
+  const thinkingTooltip = useTooltipTrigger(
+    isThinkingEnabled
+      ? "Model Reasoning / Thinking: ON (Click to disable thinking)"
+      : "Model Reasoning / Thinking: OFF (Click to enable thinking)"
+  );
   
 
   useEffect(() => {
@@ -1077,6 +1083,26 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
                             </div>
                         )}
                     </div>
+
+                    <button
+                        {...thinkingTooltip}
+                        onClick={() => {
+                            onSetSessionGenerationConfig({
+                                ...session.generationConfig,
+                                enableThinking: !isThinkingEnabled,
+                            });
+                        }}
+                        className={`p-1.5 px-2.5 rounded-lg transition-all flex items-center gap-1.5 ml-1 ${
+                            isThinkingEnabled
+                                ? 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 shadow-sm'
+                                : 'text-[--text-muted] opacity-60 hover:bg-[--bg-hover] hover:text-[--text-primary]'
+                        }`}
+                    >
+                        <BrainCircuitIcon className={`w-4 h-4 ${isThinkingEnabled ? 'text-indigo-400' : ''}`} />
+                        <span className="text-[10px] font-bold uppercase tracking-wider hidden sm:inline">
+                            {isThinkingEnabled ? 'Think ON' : 'Think OFF'}
+                        </span>
+                    </button>
                 </div>
 
                 <div className="flex items-center gap-4">
