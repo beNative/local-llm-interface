@@ -53,6 +53,19 @@ The renderer process is sandboxed and cannot directly access Node.js APIs. Commu
 
 ## 6. Key Feature Implementation
 
+### LM Studio Navigation Layout & Aesthetics
+1. **Glassmorphic Navigation Bar**: Implemented in `MainSidebar.tsx` using `bg-[--bg-sidebar]/95 backdrop-blur-xl`.
+2. **Left-Edge Accent Indicator**: Active view item renders an absolute positioned glow pill (`w-1 h-6 bg-[--accent-chat] rounded-r-full`) to match LM Studio visual cues.
+3. **Logo Emblem & Uncluttered Layout**: Replaced empty header container with a geometric node logo emblem, and removed the legacy bottom `"AI"` text block for a clean, professional sidebar.
+
+### Multi-Conversation Selection & Batch Deletion
+1. **Multi-Select State**: `SessionSidebar.tsx` maintains `isSelectMode` (boolean) and `selectedIds` (`Set<string>`).
+2. **Batch IPC & Storage Updates**: Clicking "Delete Selected" invokes `onDeleteMultipleSessions` passed from `App.tsx`. The handler `handleDeleteMultipleSessions` filters `config.sessions` by the set of deleted IDs and automatically shifts `activeSessionId` to the next available session if the currently active session was deleted.
+
+### Provider & Prompt Duplication / Editing
+1. **Provider Duplication**: Connection settings in `SettingsPanel.tsx` renders a copy button next to every provider. Clicking duplicate triggers `handleDuplicateProvider`, setting `isDuplicateProvider = true` and opening `ProviderEditorModal` with pre-filled title `${name} (Copy)` and unique ID `custom_${Date.now()}`.
+2. **Prompt Management**: Predefined Prompts and System Prompts (Personas) support inline editing (`settings` icon) and duplication (`copy` icon). Both trigger `PromptEditorModal` and update state via `handleUpdatePrompt` or `handleUpdateSystemPrompt`.
+
 ### Custom Title Bar
 The application utilizes Electron's frameless window feature to achieve a modern, integrated UI, similar to applications like VS Code.
 1.  **Frameless Window**: In `electron/main.ts`, the `BrowserWindow` is created with the `frame: false` option. This removes the default OS-provided window frame (title bar, minimize/maximize/close buttons).

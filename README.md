@@ -4,6 +4,10 @@ A user-friendly desktop application to chat with locally installed LLMs serviced
 
 ## Features
 
+- **LM Studio Inspired Layout**: A modern, dark metallic primary sidebar with a geometric brand emblem, glowing vertical active view indicators, and a clean uncluttered design without legacy labels.
+- **Multi-Conversation Selection & Bulk Deletion**: Select multiple chat conversations in the sidebar and delete them simultaneously with a single bulk delete operation.
+- **Provider Cloning & Custom Profile Management**: Duplicate existing provider configurations with a single click to quickly spin up custom API server profiles.
+- **Full Prompt & Persona Management**: Complete control over Predefined Prompts and System Prompts (Personas), including inline editing, prompt duplication, and creation via modal dialogs.
 - **Custom Title Bar**: A sleek, VS Code-style title bar with integrated search and custom window controls for a modern desktop experience (Desktop app only).
 - **Integrated Command Palette**: The powerful `Cmd/Ctrl+K` command palette is now visually anchored to the search box in the custom title bar, allowing for quick and intuitive navigation.
 - **Multiple Provider Support**: Connect to Ollama, LMStudio, or a custom OpenAI-compatible server.

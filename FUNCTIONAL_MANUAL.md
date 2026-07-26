@@ -37,13 +37,17 @@ Just start typing to filter the list and press `Enter` to execute the selected c
 
 The "Settings" tab allows you to configure every aspect of the application. The view is organized with a clean navigation sidebar on the left and content cards on the right.
 
-### General
-- **Connection**: Select your LLM provider (Ollama, LMStudio, OpenAI, etc.). Add, edit, and delete custom OpenAI-compatible providers.
+### Connection & Navigation Sidebar
+- **LM Studio Navigation**: The main vertical sidebar features a dark metallic slate design with a top geometric brand emblem, glowing vertical active view indicators, and a clean uncluttered design without the legacy bottom AI text badge.
+- **Connection Settings**: Select your LLM provider (Ollama, LMStudio, OpenAI, etc.). Add, edit, and delete custom OpenAI-compatible providers. Use the **Duplicate** button (`copy` icon) next to any provider entry to instantly clone a provider configuration.
 - **API Keys**: Securely enter and store API keys for providers that require them.
 - **Logging**: Enable or disable saving logs to a file.
 - **Updates**: This section handles application updates (Desktop App only).
   - **Check for Updates**: Manually trigger a check for a new version of the application. You'll receive a toast notification if you're up to date, or if a new version starts downloading.
   - **Receive pre-release versions**: Enable this option to get early access to new features. Be aware that pre-release versions may be less stable.
+
+### Chat & Session Management
+- **Multi-Select Mode**: Toggle the multi-select toolbar button in the chat session sidebar to reveal checkboxes next to each conversation. Use "Select All", "Deselect All", or "Delete Selected (N)" to delete multiple chat sessions in a single operation.
 
 ### Personalization
 - **Appearance**: Configure colors separately for Light and Dark themes. Use a palette of predefined colors or input custom hex codes for the chat background, user messages, and assistant messages. Preview your changes in real-time.
@@ -53,8 +57,8 @@ The "Settings" tab allows you to configure every aspect of the application. The 
 - **Icon Set**: Choose from several included icon packs (Default, Lucide, Heroicons, etc.) to change the application's entire icon theme.
 
 ### Content
-- **Predefined Prompts**: Create and manage a list of frequently used prompts that you can quickly insert into the chat input.
-- **System Prompts (Personas)**: Create and manage different "personas" for the AI. A persona is a detailed system prompt that instructs the AI on how to behave (e.g., "You are a senior DevOps engineer with 20 years of experience..."). You can switch between these personas in the Chat view.
+- **Predefined Prompts**: Create, edit, duplicate, and delete frequently used prompts that you can quickly insert into the chat input. Each prompt card features an **Edit** button (`settings` icon) to update existing text and a **Duplicate** button (`copy` icon) to create prompt variants via the interactive `PromptEditorModal`.
+- **System Prompts (Personas)**: Create, edit, duplicate, and delete different AI "personas" (e.g., "Senior DevOps Engineer"). Personas instruct the AI on how to behave, and can be updated or cloned using the same edit/duplicate tools as predefined prompts.
 
 ### Advanced (Desktop App Only)
 - **Toolchains**: The app automatically detects installed development tools. You can select a specific Python interpreter, Java Development Kit (JDK), Node.js executable, or Delphi compiler to be used for creating and running projects. If none is selected, the system's default (from the PATH) will be used.

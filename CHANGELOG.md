@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.23.0] - 2026-07-26
+
+### Added
+- **LM Studio Layout & Aesthetic Alignment**: Primary navigation sidebar updated to match LM Studio dark metallic design, featuring a geometric top brand emblem, left-edge accent active pill (`w-1 h-6 bg-blue-500 rounded-r-full`), and an uncluttered navigation layout without the legacy bottom AI text badge.
+- **Multi-Conversation Selection & Bulk Deletion**: Multi-select toggle mode in `SessionSidebar` allowing users to select multiple chat sessions via checkboxes and delete them simultaneously with a single "Delete Selected (N)" action.
+- **Provider Cloning**: Added a "Duplicate Provider" button next to all provider entries in Settings to quickly duplicate and create custom server profiles.
+- **Prompt Editing & Duplication**: Added inline edit (`settings` icon) and duplicate (`copy` icon) buttons to all Predefined Prompts and System Prompts (Personas) in Settings -> Content, backed by an interactive `PromptEditorModal`.
+
+### Changed
+- **Session Sidebar Usability**: Upgraded session list cards with LM Studio uppercase tracking headers (`TODAY`, `YESTERDAY`), crisp model tags, and project context indicators.
+- **Settings Panel Management**: Streamlined prompt and provider management workflows.
+
 ## [0.22.0] - 2026-05-06
 
 ### Added
