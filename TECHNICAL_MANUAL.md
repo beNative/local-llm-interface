@@ -66,6 +66,12 @@ The renderer process is sandboxed and cannot directly access Node.js APIs. Commu
 1. **Provider Duplication**: Connection settings in `SettingsPanel.tsx` renders a copy button next to every provider. Clicking duplicate triggers `handleDuplicateProvider`, setting `isDuplicateProvider = true` and opening `ProviderEditorModal` with pre-filled title `${name} (Copy)` and unique ID `custom_${Date.now()}`.
 2. **Prompt Management**: Predefined Prompts and System Prompts (Personas) support inline editing (`settings` icon) and duplication (`copy` icon). Both trigger `PromptEditorModal` and update state via `handleUpdatePrompt` or `handleUpdateSystemPrompt`.
 
+### Collapsible Reasoning Accordion & Thinking Control
+1. **Multi-Format Thought Parser (`parseThoughtAndContent`)**: `ChatView.tsx` evaluates assistant messages via regex scanning for closing tags (`</think>`, `</thought>`, `</reasoning>`), opening tags, or implicit streaming headers (`Here's a thinking process:`). It separates thought strings from final response text without breaking markdown formatting.
+2. **Accordion Rendering (`ThinkingBlock`)**: Renders reasoning output inside a collapsible accordion element. Features real-time pulsing animations during active generation (`isThinkingActive = true`) and clean custom scrolling.
+3. **Thinking Mode Controls (`GenerationConfig`)**: Supports `enableThinking?: boolean` and `thinkingBudget?: number`. `llmService.ts` translates these into provider payload options (`thinking: false`, `reasoning_effort: "none"`, `thinking_budget`) and injects system directives (`[SYSTEM DIRECTIVE: Answer directly and concisely...]`) when thinking is disabled.
+4. **Quick Prompt Toolbar Toggle**: Renders a dedicated Think ON/OFF button below the prompt textarea in `ChatView.tsx` that directly updates `session.generationConfig.enableThinking`.
+
 ### Custom Title Bar
 The application utilizes Electron's frameless window feature to achieve a modern, integrated UI, similar to applications like VS Code.
 1.  **Frameless Window**: In `electron/main.ts`, the `BrowserWindow` is created with the `frame: false` option. This removes the default OS-provided window frame (title bar, minimize/maximize/close buttons).

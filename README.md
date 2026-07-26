@@ -4,7 +4,11 @@ A user-friendly desktop application to chat with locally installed LLMs serviced
 
 ## Features
 
+- **Separated & Collapsible Thinking Accordions**: Automatically extracts model reasoning/chain-of-thought blocks (`<think> ... </think>` or API `reasoning_content`) into a dedicated collapsible accordion block rendered above responses.
+- **Quick Think ON / Think OFF Toggle**: One-click icon button directly below the chat prompt input textarea to switch reasoning mode on or off instantly.
+- **Model Reasoning Control**: Full support for toggling thinking mode or specifying token budgets across OpenAI, Ollama, and Gemini reasoning models (Qwen 3.5/3.6, DeepSeek-R1, Gemini Thinking, Claude 3.7).
 - **LM Studio Inspired Layout**: A modern, dark metallic primary sidebar with a geometric brand emblem, glowing vertical active view indicators, and a clean uncluttered design without legacy labels.
+- **Redesigned Modern Application Icon**: High-resolution vector AI neural core emblem with dark glassmorphism styling.
 - **Multi-Conversation Selection & Bulk Deletion**: Select multiple chat conversations in the sidebar and delete them simultaneously with a single bulk delete operation.
 - **Provider Cloning & Custom Profile Management**: Duplicate existing provider configurations with a single click to quickly spin up custom API server profiles.
 - **Full Prompt & Persona Management**: Complete control over Predefined Prompts and System Prompts (Personas), including inline editing, prompt duplication, and creation via modal dialogs.

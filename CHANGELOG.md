@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.24.0] - 2026-07-26
+
+### Added
+- **Collapsible Reasoning Accordion (`ThinkingBlock`)**: Thought processes and chain-of-thought blocks (`<think> ... </think>` or API `reasoning_content`) are now automatically extracted into a sleek collapsible accordion block rendered above the assistant's final answer, keeping the chat clean and un-mangled.
+- **Real-Time Streaming Thought Pulse**: Displays an animated pulse indicator ("Thinking...") while reasoning tokens stream in, smoothly transitioning to "Thought Process" upon completion.
+- **Prompt Input Think Toggle Button**: Added a quick-access **Think ON / Think OFF** icon button directly below the chat prompt input textarea for one-click reasoning control.
+- **Model Reasoning Mode Toggle**: Integrated `enableThinking` and `thinkingBudget` options in session configuration and parameters sidebar, enforcing provider payload parameters (`thinking: false`, `reasoning_effort: "none"`) and system prompt directives when thinking is turned off.
+- **Redesigned Application Icon**: Replaced legacy icon with a high-resolution vector AI neural core logo featuring dark glassmorphism, radiant gradient paths, and regenerated `.ico`/`.icns` platform assets.
+
+### Fixed
+- **Multi-Format Thought Parser**: Enhanced parser to handle reasoning models that omit opening `<think>` tags (e.g. Qwen 3.6 27B FP8) or output closing `</think>` tags directly.
+
 ## [0.23.0] - 2026-07-26
 
 ### Added
