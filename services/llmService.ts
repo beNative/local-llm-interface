@@ -704,9 +704,15 @@ export const streamChatCompletion = async (
         if (generationConfig.temperature !== undefined) options.temperature = generationConfig.temperature;
         if (generationConfig.topK !== undefined) options.top_k = generationConfig.topK;
         if (generationConfig.topP !== undefined) options.top_p = generationConfig.topP;
+        if (generationConfig.enableThinking === false || generationConfig.thinkingBudget === 0) {
+            options.thinking = false;
+            options.reasoning_effort = "none";
+        } else if (generationConfig.thinkingBudget !== undefined && generationConfig.thinkingBudget > 0) {
+            options.thinking_budget = generationConfig.thinkingBudget;
+        }
     }
 
-    const normalizedMessages = messages.map(m => {
+    let normalizedMessages = messages.map(m => {
         if (Array.isArray(m.content)) {
             return {
                 ...m,
@@ -720,6 +726,19 @@ export const streamChatCompletion = async (
         }
         return m;
     });
+
+    if (generationConfig?.enableThinking === false || generationConfig?.thinkingBudget === 0) {
+        const NO_THINK_DIRECTIVE = `\n\n[SYSTEM DIRECTIVE: Answer directly and concisely. Do NOT generate internal <think> reasoning blocks or chain-of-thought tags.]`;
+        const sysIndex = normalizedMessages.findIndex(m => m.role === 'system');
+        if (sysIndex >= 0 && typeof normalizedMessages[sysIndex].content === 'string') {
+            normalizedMessages[sysIndex] = {
+                ...normalizedMessages[sysIndex],
+                content: (normalizedMessages[sysIndex].content as string) + NO_THINK_DIRECTIVE
+            };
+        } else {
+            normalizedMessages = [{ role: 'system', content: NO_THINK_DIRECTIVE.trim() }, ...normalizedMessages];
+        }
+    }
 
     const body: Record<string, any> = { model: modelId, messages: normalizedMessages, stream: true, ...options };
     if (tools && tools.length > 0) {
@@ -750,6 +769,7 @@ export const streamChatCompletion = async (
     let lineBuffer = '';
 
     let toolCallChunks: { [key: number]: { id: string, name: string, arguments: string } } = {};
+    let isInsideReasoningDelta = false;
 
     while (true) {
         const { done, value } = await reader.read();
@@ -810,8 +830,30 @@ export const streamChatCompletion = async (
                 const json = JSON.parse(data);
                 const delta = json.choices?.[0]?.delta;
                 
-                // Support both standard content and reasoning_content (for models like Qwen 2.5/3.5/3.6, DeepSeek R1, etc.)
-                const contentChunk = delta?.content || delta?.reasoning_content;
+                // Support both standard content and API-level reasoning_content / reasoning fields
+                const reasoningDelta = delta?.reasoning_content || delta?.reasoning;
+                if (reasoningDelta) {
+                    if (!firstTokenTime) firstTokenTime = Date.now();
+                    let chunkToEmit = reasoningDelta;
+                    if (!isInsideReasoningDelta && !fullText.includes('<think>')) {
+                        chunkToEmit = `<think>\n${reasoningDelta}`;
+                        isInsideReasoningDelta = true;
+                    }
+                    fullText += chunkToEmit;
+                    onChunk({ type: 'content', text: chunkToEmit });
+                    return;
+                }
+
+                if (isInsideReasoningDelta && delta?.content) {
+                    // Close thinking block when transitioning back to normal content
+                    const closeChunk = `\n</think>\n${delta.content}`;
+                    isInsideReasoningDelta = false;
+                    fullText += closeChunk;
+                    onChunk({ type: 'content', text: closeChunk });
+                    return;
+                }
+                
+                const contentChunk = delta?.content;
                 
                 if (contentChunk) {
                     if (!firstTokenTime) firstTokenTime = Date.now();

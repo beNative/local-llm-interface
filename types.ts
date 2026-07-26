@@ -213,6 +213,7 @@ export interface ChatMessageMetadata {
   speed?: number; // tokens/sec
   duration?: number; // seconds
   ttft?: number; // seconds
+  thinkingDuration?: number; // seconds spent in reasoning phase
   ragContext?: {
     files: string[];
   };
@@ -259,6 +260,8 @@ export interface GenerationConfig {
   topK?: number;
   topP?: number;
   jsonMode?: boolean;
+  enableThinking?: boolean;
+  thinkingBudget?: number;
 }
 
 export interface ChatSession {

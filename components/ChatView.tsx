@@ -231,6 +231,88 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ language, code, theme, onRunCode 
     );
 };
 
+const parseThoughtAndContent = (rawText: string): { thought: string | null; content: string; isThinkingActive: boolean } => {
+  if (!rawText) return { thought: null, content: '', isThinkingActive: false };
+
+  const thinkStartIndex = rawText.indexOf('<think>');
+  if (thinkStartIndex === -1) {
+    return { thought: null, content: rawText, isThinkingActive: false };
+  }
+
+  const beforeThink = rawText.slice(0, thinkStartIndex);
+  const thinkContentStart = thinkStartIndex + 7;
+  const thinkEndIndex = rawText.indexOf('</think>', thinkContentStart);
+
+  if (thinkEndIndex === -1) {
+    const thought = rawText.slice(thinkContentStart).trim();
+    return {
+      thought: thought || 'Analyzing prompt and reasoning...',
+      content: beforeThink.trim(),
+      isThinkingActive: true,
+    };
+  }
+
+  const thought = rawText.slice(thinkContentStart, thinkEndIndex).trim();
+  const afterThink = rawText.slice(thinkEndIndex + 8).trim();
+  const finalContent = [beforeThink.trim(), afterThink].filter(Boolean).join('\n\n');
+
+  return {
+    thought: thought || null,
+    content: finalContent,
+    isThinkingActive: false,
+  };
+};
+
+const ThinkingBlock: React.FC<{
+  thought: string;
+  isThinkingActive: boolean;
+  theme: Theme;
+  markdownComponents: ReturnType<typeof useMemo>;
+}> = ({ thought, isThinkingActive, theme, markdownComponents }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <div className="mb-3 border border-[--border-primary] rounded-xl bg-[--bg-tertiary]/40 overflow-hidden shadow-sm">
+      <button
+        onClick={() => setIsExpanded(prev => !prev)}
+        className="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-medium text-[--text-secondary] hover:text-[--text-primary] bg-[--bg-tertiary]/70 transition-colors select-none"
+      >
+        <div className="flex items-center gap-2">
+          <BrainCircuitIcon
+            className={`w-4 h-4 text-indigo-400 ${isThinkingActive ? 'animate-pulse text-blue-400' : ''}`}
+          />
+          <span className="font-semibold">{isThinkingActive ? 'Thinking...' : 'Thought Process'}</span>
+          {isThinkingActive && (
+            <span className="flex h-2 w-2 relative ml-1">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 text-[--text-muted]">
+          <span className="text-[10px] uppercase font-bold tracking-wider opacity-70">
+            {isExpanded ? 'Hide' : 'Show'}
+          </span>
+          <ChevronDownIcon
+            className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+          />
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="p-3.5 border-t border-[--border-primary]/40 text-xs font-mono text-[--text-secondary] bg-[--bg-secondary]/70 max-h-80 overflow-y-auto leading-relaxed custom-scrollbar">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={markdownComponents}
+          >
+            {thought}
+          </ReactMarkdown>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const MemoizedChatMessage = React.memo<{
   msg: ChatMessage;
  markdownComponents: ReturnType<typeof useMemo>;
@@ -262,6 +344,13 @@ const MemoizedChatMessage = React.memo<{
     return '';
   }, [effectiveContent]);
 
+  const { thought, content, isThinkingActive } = useMemo(() => {
+    if (typeof effectiveContent === 'string') {
+        return parseThoughtAndContent(effectiveContent);
+    }
+    return { thought: null, content: copyText, isThinkingActive: false };
+  }, [effectiveContent, copyText]);
+
   return (
     <div
       className={`flex items-start gap-4 group ${msg.role === 'user' ? 'justify-end' : ''}`}
@@ -285,7 +374,15 @@ const MemoizedChatMessage = React.memo<{
                   <CopyButton content={copyText} />
               </div>
               {msg.metadata?.ragContext && <ContextSources files={msg.metadata.ragContext.files} />}
-              {effectiveContent && (
+              {thought && (
+                <ThinkingBlock
+                  thought={thought}
+                  isThinkingActive={isThinkingActive}
+                  theme={theme}
+                  markdownComponents={markdownComponents}
+                />
+              )}
+              {content && (
                 <div
                     className="prose prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2 prose-pre:bg-transparent prose-pre:p-0"
                     style={{ fontSize: 'var(--chat-font-size)' }}
@@ -294,7 +391,7 @@ const MemoizedChatMessage = React.memo<{
                     remarkPlugins={[remarkGfm]}
                     components={markdownComponents}
                   >
-                    {effectiveContent as string}
+                    {content}
                   </ReactMarkdown>
                 </div>
               )}
@@ -1138,6 +1235,32 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
                               onChange={e => handleParamChange('topK', e.target.value)}
                               className="w-full h-1 bg-[--bg-tertiary] rounded-lg appearance-none cursor-pointer accent-[--accent-chat]"
                           />
+                      </div>
+
+                      <div className="space-y-3 pt-4 border-t border-[--border-primary]/40">
+                          <div className="flex items-center justify-between">
+                              <div>
+                                  <span className="text-xs text-[--text-secondary] font-medium block">Model Reasoning / Thinking</span>
+                                  <span className="text-[10px] text-[--text-muted] block">Enable internal thinking for reasoning models</span>
+                              </div>
+                              <button
+                                  role="switch"
+                                  aria-checked={session.generationConfig?.enableThinking !== false}
+                                  aria-label="Toggle Model Thinking"
+                                  onClick={() => {
+                                      const currentEnable = session.generationConfig?.enableThinking !== false;
+                                      onSetSessionGenerationConfig({
+                                          ...session.generationConfig,
+                                          enableThinking: !currentEnable,
+                                      });
+                                  }}
+                                  className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${session.generationConfig?.enableThinking !== false ? 'bg-[--accent-chat]' : 'bg-[--bg-tertiary]'}`}
+                              >
+                                  <span
+                                      className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm ring-0 transition-transform duration-200 ease-in-out ${session.generationConfig?.enableThinking !== false ? 'translate-x-4' : 'translate-x-0'}`}
+                                  />
+                              </button>
+                          </div>
                       </div>
                   </div>
               </div>
