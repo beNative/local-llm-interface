@@ -55,6 +55,7 @@
   "build": {
     "appId": "com.localllm.interface",
     "productName": "Local LLM Interface",
+    "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
     "files": [
       "dist/**/*"
     ],
