@@ -1363,7 +1363,6 @@ autoUpdater.on('download-progress', (progressObj) => {
 });
 
 autoUpdater.on('update-downloaded', (info) => {
-    hasSentDownloadingMessage = false; // Reset for the next update cycle
     mainWindowInstance?.webContents.send('update-downloaded', info);
 });
 

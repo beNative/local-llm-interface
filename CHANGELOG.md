@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.24.1] - 2026-07-26
+
+### Fixed
+- **Auto-Update Runtime Crash**: Fixed `ReferenceError: hasSentDownloadingMessage is not defined` thrown in `electron/main.ts` during `update-downloaded` event processing, restoring seamless auto-updating.
+
 ## [0.24.0] - 2026-07-26
 
 ### Added
