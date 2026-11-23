@@ -1,4 +1,4 @@
-import type { Config, LogEntry, CodeProject, ProjectType, FileSystemEntry, ApiRequest, ApiResponse, ToolchainStatus, GlobalShortcutRegistrationInput, GlobalShortcutRegistrationResult, ShortcutActionId } from './types';
+import type { Config, ChatSession, ChatSessionSummary, LogEntry, CodeProject, ProjectType, FileSystemEntry, ApiRequest, ApiResponse, ToolchainStatus, GlobalShortcutRegistrationInput, GlobalShortcutRegistrationResult, ShortcutActionId } from './types';
 
 export interface SystemStats {
   cpu: number;
@@ -12,6 +12,11 @@ export interface SystemStats {
 export interface IElectronAPI {
   getSettings: () => Promise<Config | null>;
   saveSettings: (settings: Config) => Promise<void>;
+  listSessions: () => Promise<ChatSessionSummary[]>;
+  getSession: (sessionId: string) => Promise<ChatSession | null>;
+  saveSession: (session: ChatSession) => Promise<void>;
+  deleteSessions: (sessionIds: string[]) => Promise<void>;
+  importLegacySessions: (sessions: ChatSession[]) => Promise<ChatSessionSummary[]>;
   registerGlobalShortcuts: (shortcuts: GlobalShortcutRegistrationInput[]) => Promise<GlobalShortcutRegistrationResult[]>;
   isPackaged: () => Promise<boolean>;
   getVersion: () => Promise<string>;
@@ -69,6 +74,7 @@ export interface IElectronAPI {
   maximizeWindow: () => Promise<void>;
   unmaximizeWindow: () => Promise<void>;
   closeWindow: () => Promise<void>;
+  setZoomFactor?: (factor: number) => void;
   onWindowStateChange: (callback: (isMaximized: boolean) => void) => void;
   removeWindowStateChangeListener: () => void;
   onShortcutTriggered: (callback: (actionId: ShortcutActionId) => void) => void;

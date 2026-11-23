@@ -121,11 +121,17 @@ const ToolCallResult: React.FC<{ call: ToolCall; theme: Theme }> = ({ call, them
             resultNode = <div className="flex items-center gap-2 text-sm text-[--text-muted]"><Icon name="spinner" className="w-4 h-4" /> Executing...</div>;
         }
     } else if (call.function.name === 'writeFile' && call.result?.success) {
-        const args = JSON.parse(call.function.arguments);
-        const fileName = args.path.split(/[/\\]/).pop() || args.path;
+        let args: { path?: string; content?: string } = {};
+        try {
+            args = JSON.parse(call.function.arguments);
+        } catch {
+            args = {};
+        }
+        const filePath = args.path || 'file';
+        const fileName = filePath.split(/[/\\]/).pop() || filePath;
         resultNode = <DiffViewer
             oldContent={call.result.originalContent || ''}
-            newContent={args.content}
+            newContent={args.content || ''}
             fileName={fileName}
         />
     } else {
@@ -157,10 +163,11 @@ interface ToolCallDisplayProps {
     theme: Theme;
 }
 
-const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({ message, theme }) => {
-    const [isExpanded, setIsExpanded] = useState(true);
+const ToolCallDisplay: React.FC<ToolCallDisplayProps> = React.memo(({ message, theme }) => {
     const { tool_calls } = message;
     const isFinished = tool_calls.every(c => c.result !== undefined);
+    // Collapse completed historical tool calls by default so large agentic chats load instantly
+    const [isExpanded, setIsExpanded] = useState(!isFinished);
     const title = isFinished ? `Used ${tool_calls.length} tool(s)` : `Using ${tool_calls.length} tool(s)...`;
     const expandTooltip = useTooltipTrigger(isExpanded ? "Collapse" : "Expand");
 
@@ -193,6 +200,6 @@ const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({ message, theme }) => 
             )}
         </div>
     );
-};
+});
 
 export default ToolCallDisplay;

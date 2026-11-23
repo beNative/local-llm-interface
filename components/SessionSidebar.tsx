@@ -1,10 +1,10 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import type { ChatSession } from '../types';
+import type { ChatSessionSummary } from '../types';
 import Icon from './Icon';
 import { useTooltipTrigger } from '../hooks/useTooltipTrigger';
 
 interface SessionSidebarProps {
-  sessions: ChatSession[];
+  sessions: ChatSessionSummary[];
   activeSessionId: string | null;
   onNewChat: () => void;
   onSelectSession: (sessionId: string) => void;
@@ -13,7 +13,11 @@ interface SessionSidebarProps {
   onGenerateSessionName: (sessionId: string) => void;
 }
 
-const SessionSidebar: React.FC<SessionSidebarProps> = ({
+const getSessionTime = (session: ChatSessionSummary) => {
+  return session.updatedAt || session.createdAt || parseInt(session.id.replace('session_', '')) || 0;
+};
+
+const SessionSidebar: React.FC<SessionSidebarProps> = React.memo(({
   sessions,
   activeSessionId,
   onNewChat,
@@ -31,24 +35,19 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({
   const deleteSessionTooltip = useTooltipTrigger('Delete session');
   const navRef = useRef<HTMLElement>(null);
 
-  const getSessionTime = (session: ChatSession) => {
-    return session.updatedAt || session.createdAt || parseInt(session.id.replace('session_', '')) || 0;
-  };
-
   /** Flat, sorted list of all sessions (newest first) */
   const sortedSessions = useMemo(() => {
     return [...sessions].sort((a, b) => getSessionTime(b) - getSessionTime(a));
   }, [sessions]);
 
-  const groupSessions = (sessionsList: ChatSession[]) => {
-    const sorted = sortedSessions;
+  const groupedSessions = useMemo(() => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const yesterday = today - 86400000;
     const sevenDaysAgo = today - 7 * 86400000;
     const thirtyDaysAgo = today - 30 * 86400000;
 
-    const groups: { title: string; items: ChatSession[] }[] = [
+    const groups: { title: string; items: ChatSessionSummary[] }[] = [
       { title: 'Today', items: [] },
       { title: 'Yesterday', items: [] },
       { title: 'Previous 7 Days', items: [] },
@@ -56,7 +55,7 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({
       { title: 'Earlier', items: [] },
     ];
 
-    sorted.forEach(session => {
+    sortedSessions.forEach(session => {
       const time = getSessionTime(session);
       if (time >= today) groups[0].items.push(session);
       else if (time >= yesterday) groups[1].items.push(session);
@@ -66,9 +65,7 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({
     });
 
     return groups.filter(g => g.items.length > 0);
-  };
-
-  const groupedSessions = groupSessions(sessions);
+  }, [sortedSessions]);
 
   const toggleSelectSession = (sessionId: string) => {
     setSelectedIds(prev => {
@@ -357,6 +354,6 @@ const SessionSidebar: React.FC<SessionSidebarProps> = ({
       </nav>
     </aside>
   );
-};
+});
 
 export default SessionSidebar;

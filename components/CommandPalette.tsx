@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import type { ChatSession, CodeProject } from '../types';
+import type { ChatSessionSummary, CodeProject } from '../types';
 import { logger } from '../services/logger';
 import Icon from './Icon';
 
@@ -17,7 +17,7 @@ interface Command {
 interface CommandPaletteProps {
     isOpen: boolean;
     onClose: () => void;
-    sessions: ChatSession[];
+    sessions: ChatSessionSummary[];
     projects: CodeProject[];
     onNavigate: (view: View) => void;
     onSelectSession: (sessionId: string) => void;

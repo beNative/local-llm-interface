@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.25.0] - 2026-11-23
+
+### Added
+- **Per-Session Lazy Disk Storage & Automatic Migration**: Decoupled chat transcripts from the monolithic `settings.json` into individual compact JSON files under `<userData>/sessions/<sessionId>.json` backed by a lightweight `sessions/index.json` metadata index and an in-memory LRU cache. Existing sessions in `settings.json` are migrated automatically on first launch (with a one-time `.pre-migration.bak` backup).
+- **Windowed Tail-First Transcript Rendering**: Large conversations now render only the latest 24 messages immediately on open, with automatic scroll-up pagination (preserving exact scroll position) and manual "Load older" / "Load all" controls.
+- **Viewport-Lazy Code Syntax Highlighting**: `CodeBlock` defers Prism tokenization via `IntersectionObserver` until blocks approach the viewport and avoids blocking the main thread on massive code dumps (>40k chars / >1,200 lines) with an opt-in "Highlight syntax" button.
+- **Model Context & Output Token Controls**: Added Max Context / Output Tokens configuration (input, MAX button, and 8k–256k presets) and "Save as Default for this Model" persistence in the chat configuration sidebar, plus GGUF `context_length` detection and model details formatting.
+
+### Changed
+- **Isolated System Telemetry Updates**: Moved `useSystemStats` inside a memoized `StatusBar` so 2-second CPU/GPU/RAM/VRAM updates no longer trigger full-app React re-renders.
+- **Non-Blocking Settings Persistence & Caching**: Electron main process now caches settings in memory and uses serialized atomic async writes (`fs/promises`), eliminating synchronous `fs.writeFileSync` / `fs.readFileSync` stalls and main-thread `JSON.stringify` freezes across all chat histories.
+- **Collapsed Completed Tool Calls**: Historical finished `ToolCallDisplay` blocks now default to collapsed on load so heavy diffs and JSON highlighters only mount when expanded.
+- **Memoized Markdown & Sidebar Pipelines**: Stabilized `remarkGfm` plugin references, memoized markdown rendering and `SessionSidebar` grouping, and decoupled token history calculation from prompt input keystrokes.
+
+### Fixed
+- **Chat Configuration Sidebar Disappearing on Interaction**: Removed the orphaned `useClickOutside(paramsSelectorRef, ...)` hook whose ref was never attached to the right `<aside>` sidebar (causing every click inside the sidebar to immediately close it) and added an explicit close (`X`) button in the sidebar header.
+- **Atomic Max Tokens / Max Context Updates**: Fixed parameter change handlers in `ChatView.tsx` where consecutive calls to update `maxTokens` and `maxContext` overwrote each other due to reading stale `session.generationConfig`.
+
 ## [0.24.1] - 2026-07-26
 
 ### Fixed

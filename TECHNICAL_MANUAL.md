@@ -38,16 +38,20 @@ The application is an [Electron](https://www.electronjs.org/) application that w
 - `esbuild.config.js`: The build script configuration.
 - `package.json`: Project metadata and dependencies.
 
-## 4. State Management
+## 4. State Management & Session Storage
 
-The application employs a simple, centralized state management model. The root `App.tsx` component holds all major application state (e.g., `config`, `models`, `sessions`, `currentView`) using React's `useState` hook. State and state-updating functions are passed down to child components as props. For global, cross-cutting concerns like notifications, React Context is used (e.g., `ToastProvider`). Care is taken to ensure correct provider nesting, as components like `ToastComponent` may depend on contexts from other providers (e.g., `TooltipProvider`).
+The application separates lightweight global settings (`config` in `settings.json`) from chat conversation transcripts:
+- **Per-Session Disk Storage**: Each chat session is stored asynchronously as a compact JSON file under `<userData>/sessions/<sessionId>.json`, indexed by a lightweight `<userData>/sessions/index.json` summary list (`ChatSessionSummary[]`). Legacy sessions embedded in `settings.json` are migrated automatically on startup with a `.pre-migration.bak` backup.
+- **Lazy Loading & LRU Cache**: `App.tsx` keeps only session metadata in `sessionSummaries` for the sidebar and command palette, loading the active session's messages on demand via `services/sessionStorageService.ts` and caching recently opened sessions in an in-memory LRU cache.
+- **Windowed Rendering & Viewport-Lazy Highlighting**: `ChatTranscript` renders a tail-first window of the latest 24 messages with automatic scroll-up pagination and exact scroll-position preservation, while `CodeBlock` defers Prism syntax highlighting via `IntersectionObserver` until code blocks approach the viewport. Completed historical `ToolCallDisplay` entries default to collapsed, and `useSystemStats` is isolated inside a memoized `StatusBar` to prevent periodic whole-app re-renders.
+- For global cross-cutting concerns like notifications and tooltips, React Context is used (`ToastProvider`, `TooltipProvider`).
 
 ## 5. Electron IPC (Inter-Process Communication)
 
 The renderer process is sandboxed and cannot directly access Node.js APIs. Communication with the main process is handled via IPC:
 
 - `electron/preload.ts` exposes a `window.electronAPI` object to the renderer.
-- This API includes functions like `getSettings`, `saveSettings`, `runPython`, `projectGetFileTree`, `api:make-request`, `detect:toolchains`, `projectRunCommand`, `project:find-file`, `settings:export`, `settings:import`, `updates:check`, and `updates:install`.
+- This API includes functions like `getSettings`, `saveSettings`, `listSessions`, `getSession`, `saveSession`, `deleteSessions`, `importLegacySessions`, `runPython`, `projectGetFileTree`, `api:make-request`, `detect:toolchains`, `projectRunCommand`, `project:find-file`, `settings:export`, `settings:import`, `updates:check`, and `updates:install`.
 - When a renderer function like `window.electronAPI.projectRunCommand({ projectPath, command })` is called, it sends an IPC message to the main process. The main process's handler for `project:run-command` executes the shell command within the specified project directory and returns the `stdout` and `stderr`.
 - For asynchronous events like system stats or application updates, the main process sends messages to the renderer using `mainWindow.webContents.send()`. The preload script exposes listener functions (e.g., `onUpdateAvailable`, `onUpdateDownloading`, `onUpdateDownloaded`) that allow the renderer to subscribe to these events. Each listener has a corresponding `remove...Listener` function to ensure proper cleanup and prevent memory leaks.
 

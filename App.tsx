@@ -1,8 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, FileSystemEntry, SystemStats, GenerationConfig, LLMProviderConfig, Tool, ToolCall, AssistantToolCallMessage, ToolResponseMessage, StandardChatMessage, ChatMessageContentPartText, ShortcutActionId, ShortcutSettings } from './types';
+import type { Config, Model, ChatMessage, Theme, CodeProject, ChatSession, ChatSessionSummary, ChatMessageContentPart, PredefinedPrompt, ChatMessageMetadata, SystemPrompt, FileSystemEntry, GenerationConfig, LLMProviderConfig, Tool, ToolCall, AssistantToolCallMessage, ToolResponseMessage, StandardChatMessage, ChatMessageContentPartText, ShortcutActionId, ShortcutSettings } from './types';
 import { APP_NAME, DEFAULT_PROVIDERS, DEFAULT_SYSTEM_PROMPT, SESSION_NAME_PROMPT } from './constants';
 import { fetchModels, streamChatCompletion, LLMServiceError, generateTextCompletion, StreamChunk } from './services/llmService';
 import { logger } from './services/logger';
+import {
+  toSessionSummary,
+  listSessionSummaries,
+  loadSessionById,
+  saveSessionToStore,
+  deleteSessionsFromStore,
+  importLegacySessionsToStore,
+} from './services/sessionStorageService';
 import SettingsPanel, { type SettingsSection } from './components/SettingsPanel';
 import ModelSelector from './components/ModelSelector';
 import ChatView from './components/ChatView';
@@ -33,7 +41,6 @@ import { allowsTypingContext, ensureShortcutSettings, eventToShortcut, getDefaul
 import { useInstrumentation } from './hooks/useInstrumentation';
 import { useAutomationRegistration } from './hooks/useAutomationRegistration';
 import type { AutomationTarget } from './services/instrumentation/types';
-import { useSystemStats } from './hooks/useSystemStats';
 import { useAppUpdater } from './hooks/useAppUpdater';
 import { useWindowState } from './hooks/useWindowState';
 import GlobalErrorBoundary from './components/GlobalErrorBoundary';
@@ -44,6 +51,7 @@ const SIDEBAR_MIN_WIDTH = 200;
 const SIDEBAR_MAX_WIDTH = 600;
 const SIDEBAR_KEYBOARD_STEP = 16;
 const SIDEBAR_KEYBOARD_LARGE_STEP = 48;
+const MAX_CACHED_SESSIONS = 8;
 
 const clampSidebarWidth = (value: number) =>
     Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, Math.round(value)));
@@ -78,7 +86,6 @@ const AppContent: React.FC = () => {
   const isResizingRef = useRef(false);
   const mainSidebarRef = useRef<HTMLDivElement>(null);
   const { addToast } = useToast();
-  const systemStats = useSystemStats(isElectron);
   useAppUpdater(isElectron);
   const isMaximized = useWindowState(isElectron);
   const instrumentationApi = useInstrumentation();
@@ -97,14 +104,114 @@ const AppContent: React.FC = () => {
   const pendingConfigRef = useRef<Config | null>(null);
   const pendingConfigSignatureRef = useRef<string | null>(null);
 
+  // Decoupled session state: lightweight index for sidebar + lazy-loaded active session with LRU cache
+  const [sessionSummaries, setSessionSummaries] = useState<ChatSessionSummary[]>([]);
+  const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
+  const [isLoadingActiveSession, setIsLoadingActiveSession] = useState<boolean>(false);
+  const sessionCacheRef = useRef<Map<string, ChatSession>>(new Map());
+  const sessionSaveTimersRef = useRef<Map<string, number>>(new Map());
+  const pendingSessionSavesRef = useRef<Map<string, ChatSession>>(new Map());
+  const sessionLoadSeqRef = useRef<number>(0);
 
   // Derived state from config
-  const sessions = config?.sessions || [];
+  const sessions = sessionSummaries;
   const activeSessionId = config?.activeSessionId;
-  const activeSession = sessions.find(s => s.id === activeSessionId) || null;
+  const activeSessionSummary = useMemo(
+    () => sessionSummaries.find(s => s.id === activeSessionId) || null,
+    [sessionSummaries, activeSessionId],
+  );
+  const activeSessionIdRef = useRef<string | undefined>(activeSessionId);
+  activeSessionIdRef.current = activeSessionId;
+  const activeSessionRef = useRef<ChatSession | null>(activeSession);
+  activeSessionRef.current = activeSession;
+  const selectedProviderIdRef = useRef<string | undefined>(config?.selectedProviderId);
+  selectedProviderIdRef.current = config?.selectedProviderId;
   const providers = config?.providers || [];
   const selectedProviderId = config?.selectedProviderId;
   const activeProvider = providers.find(p => p.id === selectedProviderId) || null;
+
+  const cacheSession = useCallback((session: ChatSession) => {
+    const cache = sessionCacheRef.current;
+    if (cache.has(session.id)) {
+      cache.delete(session.id);
+    }
+    cache.set(session.id, session);
+
+    if (cache.size > MAX_CACHED_SESSIONS) {
+      for (const key of cache.keys()) {
+        if (key !== activeSessionIdRef.current && !pendingSessionSavesRef.current.has(key)) {
+          cache.delete(key);
+          if (cache.size <= MAX_CACHED_SESSIONS) break;
+        }
+      }
+    }
+  }, []);
+
+  const persistSession = useCallback((session: ChatSession, immediate = false) => {
+    const existingTimer = sessionSaveTimersRef.current.get(session.id);
+    if (existingTimer !== undefined) {
+      window.clearTimeout(existingTimer);
+      sessionSaveTimersRef.current.delete(session.id);
+    }
+
+    if (immediate) {
+      pendingSessionSavesRef.current.delete(session.id);
+      void saveSessionToStore(session);
+      return;
+    }
+
+    pendingSessionSavesRef.current.set(session.id, session);
+    const timerId = window.setTimeout(() => {
+      sessionSaveTimersRef.current.delete(session.id);
+      const pending = pendingSessionSavesRef.current.get(session.id);
+      if (pending) {
+        pendingSessionSavesRef.current.delete(session.id);
+        void saveSessionToStore(pending);
+      }
+    }, 300);
+    sessionSaveTimersRef.current.set(session.id, timerId);
+  }, []);
+
+  const flushAllPendingSessionSaves = useCallback(() => {
+    sessionSaveTimersRef.current.forEach(timerId => window.clearTimeout(timerId));
+    sessionSaveTimersRef.current.clear();
+    pendingSessionSavesRef.current.forEach(session => {
+      void saveSessionToStore(session);
+    });
+    pendingSessionSavesRef.current.clear();
+  }, []);
+
+  const applySessionUpdate = useCallback((updatedSession: ChatSession, immediateSave = false) => {
+    cacheSession(updatedSession);
+    const nextSummary = toSessionSummary(updatedSession);
+    setSessionSummaries(prev => {
+      const idx = prev.findIndex(s => s.id === updatedSession.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = nextSummary;
+        return next;
+      }
+      return [...prev, nextSummary];
+    });
+    if (activeSessionIdRef.current === updatedSession.id) {
+      activeSessionRef.current = updatedSession;
+      setActiveSession(updatedSession);
+    }
+    persistSession(updatedSession, immediateSave);
+  }, [cacheSession, persistSession]);
+
+  const getFullSession = useCallback(async (sessionId: string): Promise<ChatSession | null> => {
+    const cached = sessionCacheRef.current.get(sessionId);
+    if (cached) {
+      cacheSession(cached);
+      return cached;
+    }
+    const loaded = await loadSessionById(sessionId, selectedProviderIdRef.current || 'ollama');
+    if (loaded) {
+      cacheSession(loaded);
+    }
+    return loaded;
+  }, [cacheSession]);
   const shortcutSettings = useMemo<ShortcutSettings>(() => ensureShortcutSettings(config?.shortcuts), [config?.shortcuts]);
   const appShortcutMap = useMemo(() => {
     const map = new Map<string, ShortcutActionId>();
@@ -237,7 +344,7 @@ const AppContent: React.FC = () => {
     }
   }, [handleThemeToggle, handleNewChat, openSettings]);
 
-  // Effect for one-time app initialization and loading settings
+  // Effect for one-time app initialization and loading lean settings + lightweight session index
   useEffect(() => {
     logger.info('App initializing...');
     const loadInitialConfig = async () => {
@@ -262,13 +369,14 @@ const AppContent: React.FC = () => {
         delphiProjectsPath: '',
         projects: [],
         apiRecentPrompts: [],
-        sessions: [],
         predefinedPrompts: [],
         systemPrompts: [],
         shortcuts: getDefaultShortcutSettings(),
       };
 
       let loadedConfig: Config = defaultConfig;
+      let legacyBrowserSessions: ChatSession[] = [];
+      let configNeedsPersist = false;
 
       if (window.electronAPI) {
         setIsElectron(true);
@@ -277,9 +385,11 @@ const AppContent: React.FC = () => {
         const savedSettings = await window.electronAPI.getSettings();
         if (savedSettings) {
           logger.info('Loaded settings from file.');
-          loadedConfig = { ...defaultConfig, ...savedSettings, projects: savedSettings.projects || [], sessions: savedSettings.sessions || [] };
+          const { sessions: _legacyElectronSessions, ...restSettings } = savedSettings as any;
+          loadedConfig = { ...defaultConfig, ...restSettings, projects: restSettings.projects || [] };
         } else {
           logger.info('No settings file found, using defaults.');
+          configNeedsPersist = true;
         }
       } else {
         logger.info('Running in browser environment.');
@@ -288,7 +398,12 @@ const AppContent: React.FC = () => {
           try {
             const savedSettings = JSON.parse(localSettings);
             logger.info('Loaded settings from localStorage.');
-            loadedConfig = { ...defaultConfig, ...savedSettings, projects: savedSettings.projects || [], sessions: savedSettings.sessions || [] };
+            if (Array.isArray(savedSettings.sessions) && savedSettings.sessions.length > 0) {
+              legacyBrowserSessions = savedSettings.sessions;
+              configNeedsPersist = true;
+            }
+            const { sessions: _stripped, ...restSettings } = savedSettings;
+            loadedConfig = { ...defaultConfig, ...restSettings, projects: restSettings.projects || [] };
           } catch (e) {
              logger.error("Failed to parse local settings, using defaults.");
           }
@@ -321,60 +436,89 @@ const AppContent: React.FC = () => {
           loadedConfig.selectedProviderId = newSelectedId;
           delete oldConf.provider;
           delete oldConf.baseUrl;
-      }
-      
-      // SESSION SANITIZATION & MIGRATION
-      if (loadedConfig.sessions) {
-          let migratedCount = 0;
-          loadedConfig.sessions = (loadedConfig.sessions as any[]).map((s: any): ChatSession => {
-              let needsMigration = false;
-              let migratedSession = { ...s };
-
-              // Case 1: Old session with `provider` field
-              if (s.provider && !s.providerId) {
-                  let providerId = 'ollama'; // default
-                  if (s.provider === 'LMStudio') providerId = 'lmstudio';
-                  else if (s.provider === 'OpenAI') providerId = 'openai';
-                  else if (s.provider === 'Google Gemini') providerId = 'google-gemini';
-                  else if (s.provider === 'Custom') providerId = loadedConfig.selectedProviderId || 'custom-migrated';
-                  
-                  migratedSession.providerId = providerId;
-                  delete migratedSession.provider;
-                  needsMigration = true;
-              }
-              
-              // Case 2: Session somehow missing providerId (orphan)
-              if (!migratedSession.providerId) {
-                  migratedSession.providerId = loadedConfig.selectedProviderId || 'ollama';
-                  needsMigration = true;
-                  logger.warn(`Session "${s.name}" (${s.id}) was missing a providerId. Assigned fallback: ${migratedSession.providerId}`);
-              }
-              
-              // Case 3: Add projectId if missing
-              if (s.projectId === undefined) {
-                  migratedSession.projectId = null;
-                  needsMigration = true;
-              }
-
-              if (needsMigration) {
-                  migratedCount++;
-              }
-              return migratedSession as ChatSession;
-          });
-
-          if (migratedCount > 0) {
-              logger.info(`Sanitized/migrated ${migratedCount} sessions to include a valid providerId.`);
-          }
+          configNeedsPersist = true;
       }
 
       loadedConfig.shortcuts = ensureShortcutSettings(loadedConfig.shortcuts);
 
+      const fallbackProviderId = loadedConfig.selectedProviderId || 'ollama';
+      let summaries: ChatSessionSummary[];
+      if (legacyBrowserSessions.length > 0) {
+        summaries = await importLegacySessionsToStore(legacyBrowserSessions, fallbackProviderId);
+      } else {
+        summaries = await listSessionSummaries(fallbackProviderId);
+      }
+
+      if (!configNeedsPersist) {
+        lastPersistedConfigSignatureRef.current = JSON.stringify(loadedConfig);
+      }
+
+      setSessionSummaries(summaries);
       setConfig(loadedConfig);
       logger.setConfig({ logToFile: loadedConfig.logToFile });
-      logger.info(`Runtime mode after config load: ${window.electronAPI ? 'Electron bridge available' : 'Browser fallback / no Electron bridge'}.`);
+      logger.info(`Runtime mode after config load: ${window.electronAPI ? 'Electron bridge available' : 'Browser fallback / no Electron bridge'}. Loaded ${summaries.length} session summary record(s).`);
     };
     loadInitialConfig();
   }, []);
+
+  // Lazy-load the active session's full transcript from cache or disk on demand
+  useEffect(() => {
+    if (!config) return;
+
+    if (!activeSessionId) {
+      activeSessionRef.current = null;
+      setActiveSession(null);
+      setIsLoadingActiveSession(false);
+      return;
+    }
+
+    const cached = sessionCacheRef.current.get(activeSessionId);
+    if (cached) {
+      cacheSession(cached);
+      activeSessionRef.current = cached;
+      setActiveSession(cached);
+      setIsLoadingActiveSession(false);
+      return;
+    }
+
+    const loadSeq = ++sessionLoadSeqRef.current;
+    setIsLoadingActiveSession(true);
+
+    void loadSessionById(activeSessionId, config.selectedProviderId || 'ollama')
+      .then(loaded => {
+        if (sessionLoadSeqRef.current !== loadSeq) return;
+        if (loaded) {
+          cacheSession(loaded);
+          activeSessionRef.current = loaded;
+          setActiveSession(loaded);
+        } else {
+          activeSessionRef.current = null;
+          setActiveSession(null);
+        }
+      })
+      .catch(err => {
+        if (sessionLoadSeqRef.current !== loadSeq) return;
+        logger.error(`Failed to load session ${activeSessionId}: ${err}`);
+        activeSessionRef.current = null;
+        setActiveSession(null);
+      })
+      .finally(() => {
+        if (sessionLoadSeqRef.current === loadSeq) {
+          setIsLoadingActiveSession(false);
+        }
+      });
+  }, [activeSessionId, config !== null, cacheSession]);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      flushAllPendingSessionSaves();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      flushAllPendingSessionSaves();
+    };
+  }, [flushAllPendingSessionSaves]);
   
   // Effect to apply the theme class to the document.
   useEffect(() => {
@@ -583,10 +727,18 @@ const AppContent: React.FC = () => {
   const handleConfigChange = useCallback((incomingConfig: Config) => {
     logger.info('Configuration change requested.');
 
+    const { sessions: importedLegacySessions, ...leanIncoming } = incomingConfig;
     const normalizedConfig: Config = {
-      ...incomingConfig,
+      ...leanIncoming,
       shortcuts: ensureShortcutSettings(incomingConfig.shortcuts),
     };
+
+    if (Array.isArray(importedLegacySessions) && importedLegacySessions.length > 0) {
+      const fallbackProviderId = normalizedConfig.selectedProviderId || 'ollama';
+      void importLegacySessionsToStore(importedLegacySessions, fallbackProviderId).then(updatedSummaries => {
+        setSessionSummaries(updatedSummaries);
+      });
+    }
 
     setConfig(currentConfig => {
       if (!currentConfig) return normalizedConfig;
@@ -724,43 +876,69 @@ const AppContent: React.FC = () => {
     apiKeys,
   ]);
   
-  const handleSelectSession = (sessionId: string) => {
-    setConfig(c => c ? ({ ...c, activeSessionId: sessionId }) : null);
+  const handleSelectSession = useCallback((sessionId: string) => {
+    setConfig(c => (c ? { ...c, activeSessionId: sessionId } : null));
     setView('chat');
-  };
+  }, []);
 
-  const handleDeleteSession = (sessionId: string) => {
-    setConfig(c => {
-      if (!c) return null;
-      const newSessions = c.sessions?.filter(s => s.id !== sessionId) || [];
-      let newActiveId = c.activeSessionId;
-      if (c.activeSessionId === sessionId) {
-        newActiveId = newSessions.length > 0 ? newSessions[0].id : undefined;
+  const handleDeleteSession = useCallback((sessionId: string) => {
+    const timer = sessionSaveTimersRef.current.get(sessionId);
+    if (timer !== undefined) {
+      window.clearTimeout(timer);
+      sessionSaveTimersRef.current.delete(sessionId);
+    }
+    pendingSessionSavesRef.current.delete(sessionId);
+    sessionCacheRef.current.delete(sessionId);
+
+    setSessionSummaries(prev => {
+      const next = prev.filter(s => s.id !== sessionId);
+      if (activeSessionIdRef.current === sessionId) {
+        const nextActiveId = next.length > 0 ? next[0].id : undefined;
+        setConfig(c => (c ? { ...c, activeSessionId: nextActiveId } : null));
       }
-      return { ...c, sessions: newSessions, activeSessionId: newActiveId };
+      return next;
     });
-  };
+
+    void deleteSessionsFromStore([sessionId]);
+  }, []);
 
   const handleDeleteMultipleSessions = useCallback((sessionIds: string[]) => {
     const idSet = new Set(sessionIds);
-    setConfig(c => {
-      if (!c) return null;
-      const newSessions = c.sessions?.filter(s => !idSet.has(s.id)) || [];
-      let newActiveId = c.activeSessionId;
-      if (c.activeSessionId && idSet.has(c.activeSessionId)) {
-        newActiveId = newSessions.length > 0 ? newSessions[0].id : undefined;
+    sessionIds.forEach(id => {
+      const timer = sessionSaveTimersRef.current.get(id);
+      if (timer !== undefined) {
+        window.clearTimeout(timer);
+        sessionSaveTimersRef.current.delete(id);
       }
-      return { ...c, sessions: newSessions, activeSessionId: newActiveId };
+      pendingSessionSavesRef.current.delete(id);
+      sessionCacheRef.current.delete(id);
     });
+
+    setSessionSummaries(prev => {
+      const next = prev.filter(s => !idSet.has(s.id));
+      if (activeSessionIdRef.current && idSet.has(activeSessionIdRef.current)) {
+        const nextActiveId = next.length > 0 ? next[0].id : undefined;
+        setConfig(c => (c ? { ...c, activeSessionId: nextActiveId } : null));
+      }
+      return next;
+    });
+
+    void deleteSessionsFromStore(sessionIds);
   }, []);
 
   const handleRenameSession = useCallback((sessionId: string, newName: string) => {
-    setConfig(c => {
-        if (!c) return null;
-        const newSessions = c.sessions?.map(s => s.id === sessionId ? { ...s, name: newName } : s) || [];
-        return { ...c, sessions: newSessions };
-    });
-  }, []);
+    setSessionSummaries(prev => prev.map(s => (s.id === sessionId ? { ...s, name: newName } : s)));
+    const cached = sessionCacheRef.current.get(sessionId);
+    if (cached) {
+      applySessionUpdate({ ...cached, name: newName }, true);
+    } else {
+      void getFullSession(sessionId).then(loaded => {
+        if (loaded) {
+          applySessionUpdate({ ...loaded, name: newName }, true);
+        }
+      });
+    }
+  }, [applySessionUpdate, getFullSession]);
 
   const [streamingDrafts, setStreamingDrafts] = useState<Record<string, string>>({});
 
@@ -844,15 +1022,20 @@ const AppContent: React.FC = () => {
       });
   }, []);
 
-  const updateSessionMessages = useCallback((sessionId: string, messages: ChatMessage[]) => {
-      setConfig(c => {
-          if (!c) return c;
-          return {
-              ...c,
-              sessions: c.sessions!.map(s => s.id === sessionId ? { ...s, messages, updatedAt: Date.now() } : s)
-          };
-      });
-  }, []);
+  const updateSessionMessages = useCallback((sessionId: string, messages: ChatMessage[], immediateSave = true) => {
+      const existing =
+        sessionCacheRef.current.get(sessionId) ||
+        (activeSessionRef.current?.id === sessionId ? activeSessionRef.current : null);
+      if (!existing) {
+          return;
+      }
+      const updatedSession: ChatSession = {
+          ...existing,
+          messages,
+          updatedAt: Date.now(),
+      };
+      applySessionUpdate(updatedSession, immediateSave);
+  }, [applySessionUpdate]);
 
   const generateSessionName = useCallback(async (session: ChatSession) => {
       if (!config || !config.providers) return;
@@ -900,19 +1083,24 @@ const AppContent: React.FC = () => {
       }
   }, [config, handleRenameSession]);
 
-  const handleManualGenerateSessionName = (sessionId: string) => {
-    const sessionToRename = sessions.find(s => s.id === sessionId);
+  const handleManualGenerateSessionName = useCallback(async (sessionId: string) => {
+    const sessionToRename = await getFullSession(sessionId);
     if (sessionToRename) {
       logger.info(`Manually triggered name generation for session: ${sessionToRename.name}`);
-      generateSessionName(sessionToRename);
+      void generateSessionName(sessionToRename);
     } else {
       logger.warn(`Could not find session with id ${sessionId} to generate name.`);
     }
-  };
+  }, [getFullSession, generateSessionName]);
 
-  const handleSelectModel = (modelId: string) => {
+  const handleSelectModel = useCallback((modelId: string) => {
     if (!config || !config.selectedProviderId) return;
     logger.info(`Model selected for new chat: ${modelId}`);
+
+    const savedConfig = config.modelConfigs?.[modelId];
+    const targetModel = models.find(m => m.id === modelId);
+    const modelContextLen = targetModel?.details?.context_length;
+
     const newSession: ChatSession = {
         id: `session_${Date.now()}`,
         name: 'New Chat',
@@ -921,116 +1109,128 @@ const AppContent: React.FC = () => {
         messages: [{ role: 'system', content: DEFAULT_SYSTEM_PROMPT }],
         systemPromptId: null,
         generationConfig: {
-            temperature: 0.8,
-            topK: 40,
-            topP: 0.9,
+            temperature: savedConfig?.temperature ?? 0.8,
+            topK: savedConfig?.topK ?? 40,
+            topP: savedConfig?.topP ?? 0.9,
+            maxTokens: savedConfig?.maxTokens ?? modelContextLen,
+            maxContext: savedConfig?.maxContext ?? modelContextLen,
+            enableThinking: savedConfig?.enableThinking,
+            thinkingBudget: savedConfig?.thinkingBudget,
         },
         projectId: null,
         agentToolsEnabled: true,
         createdAt: Date.now(),
         updatedAt: Date.now(),
     };
-    setConfig(c => {
-        if (!c) return null;
-        const newSessions = [...(c.sessions || []), newSession];
-        return { ...c, sessions: newSessions, activeSessionId: newSession.id };
-    });
+    activeSessionIdRef.current = newSession.id;
+    applySessionUpdate(newSession, true);
+    setConfig(c => (c ? { ...c, activeSessionId: newSession.id } : null));
     setView('chat');
-  };
+  }, [config, models, applySessionUpdate]);
 
-  const handleNewChatWithProject = (projectId: string) => {
+  const handleNewChatWithProject = useCallback((projectId: string) => {
     if (!config || !config.selectedProviderId || models.length === 0) return;
     const project = config.projects?.find(p => p.id === projectId);
     if (!project) return;
+
+    const defaultModelId = models[0].id;
+    const savedConfig = config.modelConfigs?.[defaultModelId];
+    const targetModel = models.find(m => m.id === defaultModelId);
+    const modelContextLen = targetModel?.details?.context_length;
 
     logger.info(`Creating new chat with context from project: ${project.name}`);
     const newSession: ChatSession = {
         id: `session_${Date.now()}`,
         name: `Chat about ${project.name}`,
-        modelId: models[0].id, // Default to first available model
+        modelId: defaultModelId, // Default to first available model
         providerId: config.selectedProviderId,
         messages: [{ role: 'system', content: DEFAULT_SYSTEM_PROMPT }],
         systemPromptId: null,
         generationConfig: {
-            temperature: 0.8,
-            topK: 40,
-            topP: 0.9,
+            temperature: savedConfig?.temperature ?? 0.8,
+            topK: savedConfig?.topK ?? 40,
+            topP: savedConfig?.topP ?? 0.9,
+            maxTokens: savedConfig?.maxTokens ?? modelContextLen,
+            maxContext: savedConfig?.maxContext ?? modelContextLen,
+            enableThinking: savedConfig?.enableThinking,
+            thinkingBudget: savedConfig?.thinkingBudget,
         },
         projectId: project.id,
         agentToolsEnabled: true,
         createdAt: Date.now(),
         updatedAt: Date.now(),
     };
-    setConfig(c => {
-        if (!c) return null;
-        const newSessions = [...(c.sessions || []), newSession];
-        return { ...c, sessions: newSessions, activeSessionId: newSession.id };
-    });
+    activeSessionIdRef.current = newSession.id;
+    applySessionUpdate(newSession, true);
+    setConfig(c => (c ? { ...c, activeSessionId: newSession.id } : null));
     setView('chat');
-  };
+  }, [config, models, applySessionUpdate]);
   
-  const handleStopGeneration = () => {
+  const handleStopGeneration = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
       setIsResponding(false);
       setRetrievalStatus('idle');
       setPendingToolCalls(null);
-      if (config?.activeSessionId) {
-          clearStreamingDraft(config.activeSessionId);
+      if (activeSessionIdRef.current) {
+          clearStreamingDraft(activeSessionIdRef.current);
       }
       logger.info('User requested to stop generation.');
     }
-  };
+  }, [clearStreamingDraft]);
   
-  const handleSetSessionSystemPrompt = (systemPromptId: string | null) => {
+  const handleSetSessionSystemPrompt = useCallback((systemPromptId: string | null) => {
+    const currentSession = activeSessionRef.current;
+    if (!config || !currentSession) return;
+
+    const systemPrompt = config.systemPrompts?.find(sp => sp.id === systemPromptId);
+    const newSystemContent = systemPrompt ? systemPrompt.content : DEFAULT_SYSTEM_PROMPT;
+
+    const newMessages = [...currentSession.messages];
+    const systemMessageIndex = newMessages.findIndex(m => m.role === 'system');
+
+    if (systemMessageIndex > -1) {
+        newMessages[systemMessageIndex] = { role: 'system', content: newSystemContent };
+    } else {
+        newMessages.unshift({ role: 'system', content: newSystemContent });
+    }
+    
+    const updatedSession: ChatSession = { 
+        ...currentSession, 
+        messages: newMessages,
+        systemPromptId: systemPromptId,
+    };
+
+    logger.info(`Set system prompt for session ${currentSession.id} to "${systemPrompt?.title || 'Default'}".`);
+    applySessionUpdate(updatedSession, true);
+  }, [config, applySessionUpdate]);
+
+  const handleSetSessionGenerationConfig = useCallback((generationConfig: GenerationConfig) => {
+    const currentSession = activeSessionRef.current;
+    if (!currentSession) return;
+    applySessionUpdate({ ...currentSession, generationConfig }, false);
+  }, [applySessionUpdate]);
+
+  const handleSaveModelDefaultConfig = useCallback((modelId: string, generationConfig: GenerationConfig) => {
+    logger.info(`Saving default generation config for model ${modelId}: ${JSON.stringify(generationConfig)}`);
     setConfig(c => {
-        if (!c || !c.activeSessionId) return c;
-        
-        const activeSession = c.sessions?.find(s => s.id === c.activeSessionId);
-        if (!activeSession) return c;
-
-        const systemPrompt = c.systemPrompts?.find(sp => sp.id === systemPromptId);
-        const newSystemContent = systemPrompt ? systemPrompt.content : DEFAULT_SYSTEM_PROMPT;
-
-        const newMessages = [...activeSession.messages];
-        const systemMessageIndex = newMessages.findIndex(m => m.role === 'system');
-
-        if (systemMessageIndex > -1) {
-            newMessages[systemMessageIndex] = { role: 'system', content: newSystemContent };
-        } else {
-            newMessages.unshift({ role: 'system', content: newSystemContent });
-        }
-        
-        const updatedSession: ChatSession = { 
-            ...activeSession, 
-            messages: newMessages,
-            systemPromptId: systemPromptId,
+        if (!c) return null;
+        return {
+            ...c,
+            modelConfigs: {
+                ...(c.modelConfigs || {}),
+                [modelId]: generationConfig,
+            }
         };
-
-        const newSessions = c.sessions!.map(s => s.id === c.activeSessionId ? updatedSession : s);
-        logger.info(`Set system prompt for session ${c.activeSessionId} to "${systemPrompt?.title || 'Default'}".`);
-        return { ...c, sessions: newSessions };
     });
-  };
-
-  const handleSetSessionGenerationConfig = (generationConfig: GenerationConfig) => {
-    if (!activeSessionId) return;
-    setConfig(c => {
-        if (!c) return null;
-        const newSessions = c.sessions?.map(s => s.id === activeSessionId ? { ...s, generationConfig } : s) || [];
-        return { ...c, sessions: newSessions };
-    });
-  };
+  }, []);
   
-  const handleSetSessionAgentToolsEnabled = (enabled: boolean) => {
-    if (!activeSessionId) return;
-    setConfig(c => {
-        if (!c) return null;
-        const newSessions = c.sessions?.map(s => s.id === activeSessionId ? { ...s, agentToolsEnabled: enabled } : s) || [];
-        return { ...c, sessions: newSessions };
-    });
-  };
+  const handleSetSessionAgentToolsEnabled = useCallback((enabled: boolean) => {
+    const currentSession = activeSessionRef.current;
+    if (!currentSession) return;
+    applySessionUpdate({ ...currentSession, agentToolsEnabled: enabled }, true);
+  }, [applySessionUpdate]);
 
   const executeToolCall = async (toolCall: ToolCall, project: CodeProject | null): Promise<any> => {
       const { name, arguments: argsStr } = toolCall.function;
@@ -1089,7 +1289,7 @@ const AppContent: React.FC = () => {
   const processConversationTurn = useCallback(async (sessionId: string, messages: ChatMessage[]) => {
       if (!config) return;
 
-      const session = config.sessions?.find(s => s.id === sessionId);
+      const session = await getFullSession(sessionId);
       const providerForSession = config.providers?.find(p => p.id === session?.providerId);
 
       if (!session || !providerForSession) {
@@ -1137,7 +1337,7 @@ const AppContent: React.FC = () => {
           (err) => { // onError
              clearStreamingDraft(sessionId);
              const errorMsg: StandardChatMessage = { id: generateMessageId(), role: 'assistant', content: `Sorry, an error occurred: ${err.message}` };
-             updateSessionMessages(sessionId, [...messages, errorMsg]);
+             updateSessionMessages(sessionId, [...messages, errorMsg], true);
              setIsResponding(false);
           },
           (metadata) => { // onDone
@@ -1147,6 +1347,7 @@ const AppContent: React.FC = () => {
 
               if (accumulatedToolCalls.length > 0) {
                   lastMsg = {
+                      id: generateMessageId(),
                       role: 'assistant',
                       content: accumulatedContent || null,
                       tool_calls: accumulatedToolCalls,
@@ -1155,6 +1356,7 @@ const AppContent: React.FC = () => {
                   setPendingToolCalls(accumulatedToolCalls); // Trigger approval modal
               } else {
                   lastMsg = {
+                      id: generateMessageId(),
                       role: 'assistant',
                       content: accumulatedContent,
                       metadata,
@@ -1162,18 +1364,18 @@ const AppContent: React.FC = () => {
                    setIsResponding(false);
               }
 
-              updateSessionMessages(sessionId, [...messages, lastMsg]);
+              updateSessionMessages(sessionId, [...messages, lastMsg], true);
           },
           session.generationConfig
       );
 
-  }, [config, updateSessionMessages, isElectron, appendStreamingDraft, clearStreamingDraft, flushStreamingDraftBuffer]);
+  }, [config, getFullSession, updateSessionMessages, isElectron, appendStreamingDraft, clearStreamingDraft, flushStreamingDraftBuffer]);
 
 
   const handleToolApproval = async (approvedCalls: ToolCall[]) => {
       if (!activeSessionId || !config) return;
       
-      const currentSession = config.sessions?.find(s => s.id === activeSessionId);
+      const currentSession = await getFullSession(activeSessionId);
       if (!currentSession) return;
 
       // Guard against infinite tool loops
@@ -1181,7 +1383,7 @@ const AppContent: React.FC = () => {
       if (toolIterationRef.current > MAX_TOOL_ITERATIONS) {
           logger.error(`Tool loop exceeded maximum iterations (${MAX_TOOL_ITERATIONS}). Aborting.`);
           const errorMsg: StandardChatMessage = { id: generateMessageId(), role: 'assistant', content: `⚠️ Tool execution loop reached the maximum of ${MAX_TOOL_ITERATIONS} iterations and was stopped to prevent runaway usage. Please review the results so far and continue manually if needed.` };
-          updateSessionMessages(activeSessionId, [...currentSession.messages, errorMsg]);
+          updateSessionMessages(activeSessionId, [...currentSession.messages, errorMsg], true);
           setPendingToolCalls(null);
           setIsResponding(false);
           toolIterationRef.current = 0;
@@ -1200,11 +1402,12 @@ const AppContent: React.FC = () => {
 
       // Update the UI immediately to show tools are running and approved/denied
       const updatedToolCallMsg: AssistantToolCallMessage = {
+          id: lastMessageBeforeApproval.id || generateMessageId(),
           role: 'assistant',
           content: assistantContent,
           tool_calls: approvedCalls,
       };
-      updateSessionMessages(activeSessionId, [...currentSession.messages.slice(0, -1), updatedToolCallMsg]);
+      updateSessionMessages(activeSessionId, [...currentSession.messages.slice(0, -1), updatedToolCallMsg], false);
       
       let allResults = [];
       for (const call of approvedCalls) {
@@ -1217,6 +1420,7 @@ const AppContent: React.FC = () => {
           allResults.push({ ...call, result });
           
           toolResults.push({
+              id: generateMessageId(),
               role: 'tool',
               tool_call_id: call.id,
               name: call.function.name,
@@ -1225,14 +1429,16 @@ const AppContent: React.FC = () => {
 
           // Update UI with result as it comes
           const finalToolCallMsg: AssistantToolCallMessage = {
+              id: updatedToolCallMsg.id,
               role: 'assistant',
               content: assistantContent,
               tool_calls: allResults,
           };
-          updateSessionMessages(activeSessionId, [...currentSession.messages.slice(0, -1), finalToolCallMsg]);
+          updateSessionMessages(activeSessionId, [...currentSession.messages.slice(0, -1), finalToolCallMsg], false);
       }
       
       const newMessages = [...currentSession.messages.slice(0, -1), { ...updatedToolCallMsg, tool_calls: allResults }, ...toolResults];
+      updateSessionMessages(activeSessionId, newMessages, true);
       await processConversationTurn(activeSessionId, newMessages);
   };
   
@@ -1242,7 +1448,7 @@ const AppContent: React.FC = () => {
     toolIterationRef.current = 0; // Reset iteration counter for new user turn
     
     const sessionId = config.activeSessionId;
-    const session = config.sessions?.find(s => s.id === sessionId);
+    const session = await getFullSession(sessionId);
     if (!session) return;
 
     const isFirstUserMessage = session.messages.filter(m => m.role === 'user').length === 0;
@@ -1250,20 +1456,18 @@ const AppContent: React.FC = () => {
     const userMessage: StandardChatMessage = { id: generateMessageId(), role: 'user', content };
     const assistantPlaceholder: StandardChatMessage = { id: generateMessageId(), role: 'assistant', content: '' };
     const messagesWithUser = [...session.messages, userMessage];
-    updateSessionMessages(sessionId, [...messagesWithUser, assistantPlaceholder]);
+    updateSessionMessages(sessionId, [...messagesWithUser, assistantPlaceholder], false);
     
     await processConversationTurn(sessionId, messagesWithUser);
 
     if (isFirstUserMessage) {
-        setConfig(currentConfig => {
-            if (!currentConfig) return null;
-            const finalSession = currentConfig.sessions?.find(s => s.id === sessionId);
-            if (finalSession) generateSessionName(finalSession);
-            return currentConfig;
-        });
+        const finalSession = sessionCacheRef.current.get(sessionId);
+        if (finalSession) {
+            void generateSessionName(finalSession);
+        }
     }
 
-  }, [config, generateSessionName, updateSessionMessages, processConversationTurn]);
+  }, [config, getFullSession, generateSessionName, updateSessionMessages, processConversationTurn]);
 
   const handleInjectContentForChat = (filename: string, content: string) => {
     const formattedContent = `Here is the content of \`${filename}\` for context:\n\n\`\`\`\n${content}\n\`\`\`\n\nI have a question about this file.`;
@@ -1492,7 +1696,15 @@ const AppContent: React.FC = () => {
               />;
         case 'chat':
         default:
-             if (activeSession) {
+             if (activeSessionId && (!activeSession || activeSession.id !== activeSessionId) && isLoadingActiveSession) {
+                 return (
+                    <div className="flex flex-col items-center justify-center h-full gap-3 text-[--text-muted] bg-[--bg-primary]">
+                        <Icon name="spinner" className="w-6 h-6 text-[--accent-chat]" />
+                        <span className="text-sm font-medium">Loading conversation...</span>
+                    </div>
+                 );
+             }
+             if (activeSession && activeSession.id === activeSessionId) {
                  const providerForSession = providers.find(p => p.id === activeSession.providerId) || null;
                  return (
                     <ChatView
@@ -1518,6 +1730,7 @@ const AppContent: React.FC = () => {
                         onSetSessionAgentToolsEnabled={handleSetSessionAgentToolsEnabled}
                         onRunCodeSnippet={handleRunCodeSnippet}
                         onRegisterInputFocusHandler={registerChatInputFocusHandler}
+                        onSaveModelDefaultConfig={handleSaveModelDefaultConfig}
                     />
                 );
              }
@@ -1550,8 +1763,9 @@ const AppContent: React.FC = () => {
       ? `Connection Error`
       : `Connected to ${activeProvider?.name}. ${models.length} model(s) available.`;
 
-  const activeProjectName = activeSession?.projectId
-      ? config?.projects?.find(p => p.id === activeSession.projectId)?.name || null
+  const activeProjectId = activeSession?.projectId ?? activeSessionSummary?.projectId ?? null;
+  const activeProjectName = activeProjectId
+      ? config?.projects?.find(p => p.id === activeProjectId)?.name || null
       : null;
       
   return (
@@ -1569,7 +1783,7 @@ const AppContent: React.FC = () => {
               {config && <CommandPalette
                 isOpen={isCommandPaletteOpen}
                 onClose={closeCommandPalette}
-                sessions={config.sessions || []}
+                sessions={sessions}
                 projects={config.projects || []}
                 onNavigate={setView}
                 onSelectSession={handleSelectSession}
@@ -1661,12 +1875,12 @@ const AppContent: React.FC = () => {
               {isLogPanelVisible && <LoggingPanel onClose={() => setIsLogPanelVisible(false)} />}
               {isElectron && config && (
                   <StatusBar
-                      stats={systemStats}
+                      isElectron={isElectron}
                       connectionStatus={connectionStatus}
                       statusText={statusText}
                       providers={providers}
                       selectedProviderId={selectedProviderId}
-                      activeModel={activeSession?.modelId || null}
+                      activeModel={activeSession?.modelId || activeSessionSummary?.modelId || null}
                       activeProject={activeProjectName}
                       models={models}
                       onSelectModel={handleSelectModel}

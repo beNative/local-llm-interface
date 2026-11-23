@@ -81,6 +81,7 @@ export interface Config {
   selectedNodePath?: string;
   selectedDelphiPath?: string;
   shortcuts?: ShortcutSettings;
+  modelConfigs?: Record<string, GenerationConfig>;
 }
 
 // Keyboard Shortcuts
@@ -259,6 +260,8 @@ export interface GenerationConfig {
   temperature?: number;
   topK?: number;
   topP?: number;
+  maxTokens?: number;
+  maxContext?: number;
   jsonMode?: boolean;
   enableThinking?: boolean;
   thinkingBudget?: number;
@@ -276,6 +279,20 @@ export interface ChatSession {
   agentToolsEnabled?: boolean;
   createdAt: number;
   updatedAt: number;
+}
+
+export interface ChatSessionSummary {
+  id: string;
+  name: string;
+  modelId: string;
+  providerId: string;
+  systemPromptId: string | null;
+  generationConfig?: GenerationConfig;
+  projectId: string | null;
+  agentToolsEnabled?: boolean;
+  createdAt: number;
+  updatedAt: number;
+  messageCount?: number;
 }
 
 // File System and Project Types

@@ -5,7 +5,7 @@ import * as electron from 'electron';
 import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import * as fs from 'fs';
-import { readdir, stat, readFile, writeFile, mkdir, copyFile } from 'fs/promises';
+import { readdir, stat, readFile, writeFile, mkdir, copyFile, rename, unlink } from 'fs/promises';
 import * as os from 'os';
 import { spawn, exec } from 'child_process';
 import * as crypto from 'crypto';
@@ -13,7 +13,7 @@ import { pathToFileURL } from 'url';
 import { request as httpRequest } from 'http';
 import { request as httpsRequest } from 'https';
 import type { IncomingHttpHeaders } from 'http';
-import type { ApiRequest, ApiResponse, CodeProject, GlobalShortcutRegistrationInput, GlobalShortcutRegistrationResult, ProjectType, ShortcutActionId, Toolchain, ToolchainStatus } from '../src/types';
+import type { ApiRequest, ApiResponse, ChatSession, ChatSessionSummary, CodeProject, GlobalShortcutRegistrationInput, GlobalShortcutRegistrationResult, ProjectType, ShortcutActionId, Toolchain, ToolchainStatus } from '../types';
 
 // Let TypeScript know that __dirname is a global variable in this Node.js environment.
 // This is necessary because we are using ES Modules, which don't have __dirname by default.
@@ -26,8 +26,197 @@ const appDataPath = electron.app.getPath('userData');
 
 // The path where user settings will be stored.
 const settingsPath = path.join(appDataPath, 'settings.json');
+const sessionsDir = path.join(appDataPath, 'sessions');
+const sessionsIndexPath = path.join(sessionsDir, 'index.json');
 
 let mainWindowInstance: electron.BrowserWindow | null = null;
+let cachedSettings: Record<string, any> | null = null;
+let cachedSessionIndex: ChatSessionSummary[] | null = null;
+let legacyMigrationPromise: Promise<void> | null = null;
+const fileWriteQueues = new Map<string, Promise<void>>();
+
+/**
+ * Serializes atomic writes to the same file path to prevent race conditions and corruption.
+ */
+const enqueueAtomicWrite = (filePath: string, payload: string): Promise<void> => {
+  const previous = fileWriteQueues.get(filePath) ?? Promise.resolve();
+  const next = previous
+    .catch(() => undefined)
+    .then(async () => {
+      await mkdir(path.dirname(filePath), { recursive: true });
+      const tempPath = `${filePath}.${crypto.randomBytes(4).toString('hex')}.tmp`;
+      await writeFile(tempPath, payload, 'utf-8');
+      try {
+        await rename(tempPath, filePath);
+      } catch (renameErr) {
+        // Fallback on Windows if target file is briefly locked by AV/indexer
+        await writeFile(filePath, payload, 'utf-8');
+        await unlink(tempPath).catch(() => undefined);
+      }
+    });
+
+  fileWriteQueues.set(filePath, next);
+  return next.finally(() => {
+    if (fileWriteQueues.get(filePath) === next) {
+      fileWriteQueues.delete(filePath);
+    }
+  });
+};
+
+const getSafeSessionFilePath = (sessionId: string): string => {
+  const safeId = sessionId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const resolved = path.resolve(sessionsDir, `${safeId}.json`);
+  const base = path.resolve(sessionsDir) + path.sep;
+  if (!resolved.startsWith(base)) {
+    throw new Error(`Invalid session id: ${sessionId}`);
+  }
+  return resolved;
+};
+
+const toSessionSummary = (session: ChatSession): ChatSessionSummary => ({
+  id: session.id,
+  name: session.name,
+  modelId: session.modelId,
+  providerId: session.providerId,
+  systemPromptId: session.systemPromptId ?? null,
+  generationConfig: session.generationConfig,
+  projectId: session.projectId ?? null,
+  agentToolsEnabled: session.agentToolsEnabled,
+  createdAt: session.createdAt,
+  updatedAt: session.updatedAt,
+  messageCount: Array.isArray(session.messages)
+    ? session.messages.filter(m => m.role !== 'system' && m.role !== 'tool').length
+    : 0,
+});
+
+const persistSessionIndex = async (summaries: ChatSessionSummary[]): Promise<void> => {
+  cachedSessionIndex = summaries;
+  await enqueueAtomicWrite(sessionsIndexPath, JSON.stringify(summaries));
+};
+
+const rebuildSessionIndexFromFiles = async (): Promise<ChatSessionSummary[]> => {
+  try {
+    await mkdir(sessionsDir, { recursive: true });
+    const entries = await readdir(sessionsDir, { withFileTypes: true });
+    const summaries: ChatSessionSummary[] = [];
+
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.endsWith('.json') || entry.name === 'index.json') {
+        continue;
+      }
+      try {
+        const raw = await readFile(path.join(sessionsDir, entry.name), 'utf-8');
+        const parsed = JSON.parse(raw) as ChatSession;
+        if (parsed && typeof parsed.id === 'string') {
+          summaries.push(toSessionSummary(parsed));
+        }
+      } catch (err) {
+        console.warn(`[sessions] Skipping unreadable session file ${entry.name}:`, err);
+      }
+    }
+
+    await persistSessionIndex(summaries);
+    return summaries;
+  } catch (error) {
+    console.error('[sessions] Failed to rebuild session index:', error);
+    return [];
+  }
+};
+
+const readSessionIndex = async (): Promise<ChatSessionSummary[]> => {
+  if (cachedSessionIndex !== null) {
+    return cachedSessionIndex;
+  }
+  try {
+    const raw = await readFile(sessionsIndexPath, 'utf-8');
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      cachedSessionIndex = parsed as ChatSessionSummary[];
+      return cachedSessionIndex;
+    }
+  } catch {
+    // Index missing or invalid — rebuild from individual session files if any exist.
+  }
+  return await rebuildSessionIndexFromFiles();
+};
+
+const importSessionsIntoStore = async (legacySessions: ChatSession[]): Promise<ChatSessionSummary[]> => {
+  if (!Array.isArray(legacySessions) || legacySessions.length === 0) {
+    return await readSessionIndex();
+  }
+
+  await mkdir(sessionsDir, { recursive: true });
+  const existing = await readSessionIndex();
+  const summaryMap = new Map<string, ChatSessionSummary>();
+  for (const s of existing) {
+    summaryMap.set(s.id, s);
+  }
+
+  for (const rawSession of legacySessions) {
+    if (!rawSession || typeof rawSession.id !== 'string') continue;
+    const filePath = getSafeSessionFilePath(rawSession.id);
+    await enqueueAtomicWrite(filePath, JSON.stringify(rawSession));
+    summaryMap.set(rawSession.id, toSessionSummary(rawSession));
+  }
+
+  const nextIndex = Array.from(summaryMap.values());
+  await persistSessionIndex(nextIndex);
+  return nextIndex;
+};
+
+/**
+ * One-time automatic migration: moves legacy `sessions` embedded inside settings.json
+ * into dedicated per-session JSON files under `<userData>/sessions/` so settings.json
+ * remains tiny and chat loading is lazy & non-blocking.
+ */
+const ensureLegacySessionsMigrated = async (): Promise<void> => {
+  if (legacyMigrationPromise) {
+    return legacyMigrationPromise;
+  }
+
+  legacyMigrationPromise = (async () => {
+    try {
+      if (!fs.existsSync(settingsPath)) {
+        return;
+      }
+      const rawData = await readFile(settingsPath, 'utf-8');
+      const parsed = JSON.parse(rawData) as Record<string, any>;
+      if (!parsed || typeof parsed !== 'object') {
+        return;
+      }
+
+      if (Array.isArray(parsed.sessions) && parsed.sessions.length > 0) {
+        console.log(`[sessions] Migrating ${parsed.sessions.length} legacy session(s) out of settings.json...`);
+
+        // Save a one-time backup before modifying settings.json
+        const backupPath = path.join(appDataPath, 'settings.json.pre-migration.bak');
+        if (!fs.existsSync(backupPath)) {
+          await copyFile(settingsPath, backupPath).catch(() => undefined);
+        }
+
+        await importSessionsIntoStore(parsed.sessions as ChatSession[]);
+
+        const { sessions: _removed, ...leanSettings } = parsed;
+        cachedSettings = leanSettings;
+        await enqueueAtomicWrite(settingsPath, JSON.stringify(leanSettings, null, 2));
+        console.log('[sessions] Legacy session migration complete.');
+      } else {
+        if ('sessions' in parsed) {
+          const { sessions: _removed, ...leanSettings } = parsed;
+          cachedSettings = leanSettings;
+          await enqueueAtomicWrite(settingsPath, JSON.stringify(leanSettings, null, 2));
+        } else {
+          cachedSettings = parsed;
+        }
+      }
+    } catch (error) {
+      console.error('[sessions] Legacy session migration failed:', error);
+    }
+  })();
+
+  return legacyMigrationPromise;
+};
+
 /**
  * Configures the autoUpdater with the current user settings.
  * Centralises the pre-release toggle so it's set consistently.
@@ -41,14 +230,26 @@ const registeredGlobalShortcuts = new Map<string, ShortcutActionId>();
 
 
 /**
- * Reads the settings from the JSON file.
+ * Reads the settings from memory cache (or disk on first access).
  * @returns {object | null}
  */
 const readSettings = () => {
+  if (cachedSettings !== null) {
+    return cachedSettings;
+  }
   try {
     if (fs.existsSync(settingsPath)) {
       const data = fs.readFileSync(settingsPath, 'utf-8');
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      if (parsed && typeof parsed === 'object') {
+        // Avoid caching the legacy sessions blob in memory if migration hasn't run yet
+        if ('sessions' in parsed) {
+          const { sessions: _removed, ...lean } = parsed;
+          return lean;
+        }
+        cachedSettings = parsed;
+        return cachedSettings;
+      }
     }
   } catch (error) {
     console.error('Failed to read settings file:', error);
@@ -57,14 +258,15 @@ const readSettings = () => {
 };
 
 /**
- * Writes the given settings object to the JSON file.
+ * Asynchronously writes the given settings object (excluding sessions) to settings.json.
  * @param {object} settings
  */
-const saveSettings = (settings: object) => {
+const saveSettings = async (settings: Record<string, any>) => {
   try {
-    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
-  } catch (error)
-  {
+    const { sessions: _removed, ...leanSettings } = settings || {};
+    cachedSettings = leanSettings;
+    await enqueueAtomicWrite(settingsPath, JSON.stringify(leanSettings, null, 2));
+  } catch (error) {
     console.error('Failed to save settings file:', error);
   }
 };
@@ -504,8 +706,88 @@ const createWindow = () => {
 // This method will be called when Electron has finished initialization.
 electron.app.whenReady().then(() => {
     // Set up IPC listeners for the renderer process
-    electron.ipcMain.handle('settings:get', readSettings);
-    electron.ipcMain.handle('settings:save', (_, settings) => saveSettings(settings));
+    electron.ipcMain.handle('settings:get', async () => {
+      await ensureLegacySessionsMigrated();
+      return readSettings();
+    });
+    electron.ipcMain.handle('settings:save', async (_, settings) => {
+      await saveSettings(settings);
+    });
+
+    // Dedicated per-session lazy storage IPC handlers
+    electron.ipcMain.handle('sessions:list', async (): Promise<ChatSessionSummary[]> => {
+      await ensureLegacySessionsMigrated();
+      return await readSessionIndex();
+    });
+
+    electron.ipcMain.handle('sessions:get', async (_, sessionId: string): Promise<ChatSession | null> => {
+      await ensureLegacySessionsMigrated();
+      if (!sessionId) return null;
+      try {
+        const filePath = getSafeSessionFilePath(sessionId);
+        const raw = await readFile(filePath, 'utf-8');
+        return JSON.parse(raw) as ChatSession;
+      } catch (error: any) {
+        if (error?.code !== 'ENOENT') {
+          console.error(`[sessions] Failed to read session ${sessionId}:`, error);
+        }
+        return null;
+      }
+    });
+
+    electron.ipcMain.handle('sessions:save', async (_, session: ChatSession): Promise<void> => {
+      if (!session || typeof session.id !== 'string') return;
+      try {
+        await ensureLegacySessionsMigrated();
+        const filePath = getSafeSessionFilePath(session.id);
+        // Compact JSON (no indentation) for dramatically faster serialization and smaller files
+        await enqueueAtomicWrite(filePath, JSON.stringify(session));
+
+        const currentIndex = await readSessionIndex();
+        const nextSummary = toSessionSummary(session);
+        const existingIdx = currentIndex.findIndex(s => s.id === session.id);
+        let updatedIndex: ChatSessionSummary[];
+        if (existingIdx >= 0) {
+          updatedIndex = [...currentIndex];
+          updatedIndex[existingIdx] = nextSummary;
+        } else {
+          updatedIndex = [...currentIndex, nextSummary];
+        }
+        await persistSessionIndex(updatedIndex);
+      } catch (error) {
+        console.error(`[sessions] Failed to save session ${session.id}:`, error);
+      }
+    });
+
+    electron.ipcMain.handle('sessions:delete', async (_, sessionIds: string[]): Promise<void> => {
+      if (!Array.isArray(sessionIds) || sessionIds.length === 0) return;
+      try {
+        await ensureLegacySessionsMigrated();
+        const idSet = new Set(sessionIds);
+        await Promise.all(
+          sessionIds.map(async (id) => {
+            try {
+              const filePath = getSafeSessionFilePath(id);
+              await unlink(filePath);
+            } catch (err: any) {
+              if (err?.code !== 'ENOENT') {
+                console.warn(`[sessions] Failed to delete session file for ${id}:`, err);
+              }
+            }
+          })
+        );
+        const currentIndex = await readSessionIndex();
+        const updatedIndex = currentIndex.filter(s => !idSet.has(s.id));
+        await persistSessionIndex(updatedIndex);
+      } catch (error) {
+        console.error('[sessions] Failed to delete sessions:', error);
+      }
+    });
+
+    electron.ipcMain.handle('sessions:import-legacy', async (_, legacySessions: ChatSession[]): Promise<ChatSessionSummary[]> => {
+      await ensureLegacySessionsMigrated();
+      return await importSessionsIntoStore(legacySessions);
+    });
     electron.ipcMain.handle('shortcuts:register-global', (_event, registrations: GlobalShortcutRegistrationInput[]): GlobalShortcutRegistrationResult[] => {
       registeredGlobalShortcuts.forEach((_, accelerator) => {
         electron.globalShortcut.unregister(accelerator);

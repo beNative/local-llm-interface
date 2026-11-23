@@ -178,7 +178,7 @@ const fetchLmStudioModels = async (provider: LLMProviderConfig): Promise<Model[]
             details: {
                 family: m.arch,
                 quantization: m.quantization,
-                context_length: m.max_context_length,
+                context_length: m.max_context_length || m.max_model_len || m.context_length || m.context_window,
             },
         }));
 
@@ -298,7 +298,7 @@ export const fetchModels = async (provider: LLMProviderConfig, apiKeys: Config['
             name: m.id,
             details: {
                 ...m.details,
-                context_length: m.context_length || m.max_context_length || m.details?.context_length || m.details?.max_context_length
+                context_length: m.context_length || m.max_context_length || m.max_model_len || m.context_window || m.max_tokens || m.max_sequence_length || m.max_position_embeddings || m.details?.context_length || m.details?.max_context_length || m.details?.max_model_len
             }
           }));
       } else {
@@ -409,6 +409,16 @@ export const fetchOllamaModelDetails = async (baseUrl: string, modelName: string
             if (ctxMatch) context_length = parseInt(ctxMatch[1], 10);
         }
 
+        // Fallback to model_info if available (GGUF metadata e.g. <arch>.context_length)
+        if (!context_length && data.model_info && typeof data.model_info === 'object') {
+            for (const key of Object.keys(data.model_info)) {
+                if (key.endsWith('.context_length') && typeof data.model_info[key] === 'number') {
+                    context_length = data.model_info[key];
+                    break;
+                }
+            }
+        }
+
         return { 
             ...data.details, 
             modelfile: data.modelfile, 
@@ -445,8 +455,25 @@ const textCompletionOpenAI = async (
         if (generationConfig.temperature !== undefined) options.temperature = generationConfig.temperature;
         if (generationConfig.topK !== undefined) options.top_k = generationConfig.topK;
         if (generationConfig.topP !== undefined) options.top_p = generationConfig.topP;
+        const effectiveMaxTokens = generationConfig.maxTokens ?? generationConfig.maxContext;
+        if (effectiveMaxTokens !== undefined && effectiveMaxTokens > 0) {
+            options.max_tokens = effectiveMaxTokens;
+        }
         if (generationConfig.jsonMode) {
             options.response_format = { type: 'json_object' };
+        }
+    }
+
+    if (provider.id === 'ollama') {
+        const ollamaOptions: Record<string, any> = {};
+        if (generationConfig?.maxContext || generationConfig?.maxTokens) {
+            ollamaOptions.num_ctx = generationConfig.maxContext || generationConfig.maxTokens;
+        }
+        if (generationConfig?.maxTokens) {
+            ollamaOptions.num_predict = generationConfig.maxTokens;
+        }
+        if (Object.keys(ollamaOptions).length > 0) {
+            options.options = ollamaOptions;
         }
     }
 
@@ -497,6 +524,10 @@ const textCompletionGemini = async (
 
     if (generationConfig?.jsonMode) {
         config.responseMimeType = "application/json";
+    }
+
+    if (generationConfig?.maxTokens) {
+        config.maxOutputTokens = generationConfig.maxTokens;
     }
 
     // FIX: Correctly call generateContent with model, contents, and config
@@ -579,6 +610,9 @@ const streamChatCompletionGemini = async (
         }
         if (genAiTools) {
             config.tools = genAiTools;
+        }
+        if (generationConfig?.maxTokens) {
+            config.maxOutputTokens = generationConfig.maxTokens;
         }
 
         let fullText = '';
@@ -704,11 +738,28 @@ export const streamChatCompletion = async (
         if (generationConfig.temperature !== undefined) options.temperature = generationConfig.temperature;
         if (generationConfig.topK !== undefined) options.top_k = generationConfig.topK;
         if (generationConfig.topP !== undefined) options.top_p = generationConfig.topP;
+        const effectiveMaxTokens = generationConfig.maxTokens ?? generationConfig.maxContext;
+        if (effectiveMaxTokens !== undefined && effectiveMaxTokens > 0) {
+            options.max_tokens = effectiveMaxTokens;
+        }
         if (generationConfig.enableThinking === false || generationConfig.thinkingBudget === 0) {
             options.thinking = false;
             options.reasoning_effort = "none";
         } else if (generationConfig.thinkingBudget !== undefined && generationConfig.thinkingBudget > 0) {
             options.thinking_budget = generationConfig.thinkingBudget;
+        }
+    }
+
+    if (provider.id === 'ollama') {
+        const ollamaOptions: Record<string, any> = {};
+        if (generationConfig?.maxContext || generationConfig?.maxTokens) {
+            ollamaOptions.num_ctx = generationConfig.maxContext || generationConfig.maxTokens;
+        }
+        if (generationConfig?.maxTokens) {
+            ollamaOptions.num_predict = generationConfig.maxTokens;
+        }
+        if (Object.keys(ollamaOptions).length > 0) {
+            options.options = ollamaOptions;
         }
     }
 

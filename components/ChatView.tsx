@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo, useLayoutEffect } from 'react';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { type Components } from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
@@ -147,10 +147,52 @@ interface CodeBlockProps {
     onRunCode: (language: string, code: string) => void;
 }
 
-const CodeBlock: React.FC<CodeBlockProps> = ({ language, code, theme, onRunCode }) => {
+const REMARK_PLUGINS = [remarkGfm];
+const CODE_HIGHLIGHT_STYLE = { margin: 0, padding: '1rem', background: 'transparent' } as const;
+const MAX_AUTO_HIGHLIGHT_CHARS = 40_000;
+const MAX_AUTO_HIGHLIGHT_LINES = 1_200;
+const INITIAL_VISIBLE_MESSAGES = 24;
+const HISTORY_PAGE_SIZE = 20;
+
+const CodeBlock: React.FC<CodeBlockProps> = React.memo(({ language, code, theme, onRunCode }) => {
     const [isCopied, setIsCopied] = React.useState(false);
+    const [isNearViewport, setIsNearViewport] = React.useState(false);
+    const [forceHighlight, setForceHighlight] = React.useState(false);
+    const containerRef = useRef<HTMLDivElement | null>(null);
     const syntaxTheme = theme === 'dark' ? atomDark : coy;
     const isHtml = language === 'html';
+
+    const isHugeBlock = useMemo(() => {
+        if (code.length > MAX_AUTO_HIGHLIGHT_CHARS) return true;
+        let lineCount = 1;
+        for (let i = 0; i < code.length; i++) {
+            if (code.charCodeAt(i) === 10) {
+                lineCount++;
+                if (lineCount > MAX_AUTO_HIGHLIGHT_LINES) return true;
+            }
+        }
+        return false;
+    }, [code]);
+
+    useEffect(() => {
+        if (isNearViewport) return;
+        const node = containerRef.current;
+        if (!node || typeof IntersectionObserver === 'undefined') {
+            setIsNearViewport(true);
+            return;
+        }
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries.some(e => e.isIntersecting)) {
+                    setIsNearViewport(true);
+                    observer.disconnect();
+                }
+            },
+            { rootMargin: '400px 0px' }
+        );
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [isNearViewport]);
 
     const handleCopy = () => {
         navigator.clipboard.writeText(code);
@@ -169,11 +211,24 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ language, code, theme, onRunCode 
     
     const copyTooltip = useTooltipTrigger(isCopied ? 'Copied!' : 'Copy code');
     const runTooltip = useTooltipTrigger(runText);
+    const shouldHighlight = isNearViewport && (!isHugeBlock || forceHighlight);
 
     return (
-        <div className="my-2 bg-[--code-bg] rounded-lg border border-[--border-primary] text-sm overflow-hidden not-prose">
+        <div ref={containerRef} className="my-2 bg-[--code-bg] rounded-lg border border-[--border-primary] text-sm overflow-hidden not-prose">
             <div className="flex justify-between items-center gap-3 px-4 py-1.5 bg-[--bg-tertiary] border-b border-[--border-primary]">
-                <span className="font-mono text-xs text-[--text-muted]">{language}</span>
+                <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs text-[--text-muted]">{language}</span>
+                    {isHugeBlock && !forceHighlight && (
+                        <button
+                            type="button"
+                            onClick={() => setForceHighlight(true)}
+                            className="text-[10px] px-2 py-0.5 rounded bg-[--bg-secondary] border border-[--border-primary] text-[--text-muted] hover:text-[--text-primary] transition-colors"
+                            title="Syntax highlighting deferred for large code block to keep scrolling smooth"
+                        >
+                            Highlight syntax
+                        </button>
+                    )}
+                </div>
                 <div className="flex items-center gap-2">
                     {canRun && (
                         <button
@@ -219,17 +274,23 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ language, code, theme, onRunCode 
                     </button>
                 </div>
             </div>
-            <SyntaxHighlighter
-                style={syntaxTheme}
-                language={language}
-                PreTag="div"
-                customStyle={{ margin: 0, padding: '1rem', background: 'transparent' }}
-            >
-                {code}
-            </SyntaxHighlighter>
+            {shouldHighlight ? (
+                <SyntaxHighlighter
+                    style={syntaxTheme}
+                    language={language}
+                    PreTag="div"
+                    customStyle={CODE_HIGHLIGHT_STYLE}
+                >
+                    {code}
+                </SyntaxHighlighter>
+            ) : (
+                <pre className="m-0 p-4 overflow-x-auto font-mono text-[13px] leading-relaxed text-[--text-primary] bg-transparent">
+                    <code>{code}</code>
+                </pre>
+            )}
         </div>
     );
-};
+});
 
 const parseThoughtAndContent = (rawText: string): { thought: string | null; content: string; isThinkingActive: boolean } => {
   if (!rawText) return { thought: null, content: '', isThinkingActive: false };
@@ -291,8 +352,8 @@ const ThinkingBlock: React.FC<{
   thought: string;
   isThinkingActive: boolean;
   theme: Theme;
-  markdownComponents: ReturnType<typeof useMemo>;
-}> = ({ thought, isThinkingActive, theme, markdownComponents }) => {
+  markdownComponents: Components;
+}> = React.memo(({ thought, isThinkingActive, theme, markdownComponents }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -326,7 +387,7 @@ const ThinkingBlock: React.FC<{
       {isExpanded && (
         <div className="p-3.5 border-t border-[--border-primary]/40 text-xs font-mono text-[--text-secondary] bg-[--bg-secondary]/70 max-h-80 overflow-y-auto leading-relaxed custom-scrollbar">
           <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
+            remarkPlugins={REMARK_PLUGINS}
             components={markdownComponents}
           >
             {thought}
@@ -335,11 +396,28 @@ const ThinkingBlock: React.FC<{
       )}
     </div>
   );
-};
+});
+
+const MarkdownContent = React.memo<{
+  content: string;
+  markdownComponents: Components;
+}>(({ content, markdownComponents }) => (
+  <div
+    className="prose prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2 prose-pre:bg-transparent prose-pre:p-0"
+    style={{ fontSize: 'var(--chat-font-size)' }}
+  >
+    <ReactMarkdown
+      remarkPlugins={REMARK_PLUGINS}
+      components={markdownComponents}
+    >
+      {content}
+    </ReactMarkdown>
+  </div>
+));
 
 const MemoizedChatMessage = React.memo<{
   msg: ChatMessage;
- markdownComponents: ReturnType<typeof useMemo>;
+  markdownComponents: Components;
   theme: Theme;
   isResponding: boolean;
   streamingDraft: string | null;
@@ -407,17 +485,7 @@ const MemoizedChatMessage = React.memo<{
                 />
               )}
               {content && (
-                <div
-                    className="prose prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-table:my-2 prose-blockquote:my-2 prose-pre:bg-transparent prose-pre:p-0"
-                    style={{ fontSize: 'var(--chat-font-size)' }}
-                >
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={markdownComponents}
-                  >
-                    {content}
-                  </ReactMarkdown>
-                </div>
+                <MarkdownContent content={content} markdownComponents={markdownComponents} />
               )}
               {('tool_calls' in msg && msg.tool_calls) && (
                 <ToolCallDisplay
@@ -460,16 +528,18 @@ const MemoizedChatMessage = React.memo<{
 });
 
 interface ChatTranscriptProps {
+  sessionId: string;
   messages: ChatMessage[];
   theme: Theme;
   isResponding: boolean;
   streamingDraft: string | null;
   retrievalStatus: 'idle' | 'retrieving';
-  markdownComponents: ReturnType<typeof useMemo>;
+  markdownComponents: Components;
   onRunCodeSnippet: (language: string, code: string) => void;
 }
 
 const ChatTranscript = React.memo<ChatTranscriptProps>(({
+  sessionId,
   messages,
   theme,
   isResponding,
@@ -480,6 +550,44 @@ const ChatTranscript = React.memo<ChatTranscriptProps>(({
 }) => {
   const chatScrollRef = useRef<HTMLElement | null>(null);
   const isNearBottomRef = useRef(true);
+  const isAutoLoadingRef = useRef(false);
+  const pendingScrollRestoreRef = useRef<{ scrollHeight: number; scrollTop: number } | null>(null);
+  const [visibleCount, setVisibleCount] = useState<number>(INITIAL_VISIBLE_MESSAGES);
+
+  const visibleMessages = useMemo(
+    () => messages.filter(m => m.role !== 'system' && m.role !== 'tool'),
+    [messages],
+  );
+
+  // Reset rendered window and jump to latest messages whenever the active session changes
+  useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE_MESSAGES);
+    isNearBottomRef.current = true;
+    pendingScrollRestoreRef.current = null;
+  }, [sessionId]);
+
+  const hiddenCount = Math.max(0, visibleMessages.length - visibleCount);
+  const displayedMessages = useMemo(
+    () => (hiddenCount > 0 ? visibleMessages.slice(hiddenCount) : visibleMessages),
+    [visibleMessages, hiddenCount],
+  );
+
+  const loadOlderMessages = useCallback((count: number) => {
+    const container = chatScrollRef.current;
+    if (container && !pendingScrollRestoreRef.current) {
+      pendingScrollRestoreRef.current = {
+        scrollHeight: container.scrollHeight,
+        scrollTop: container.scrollTop,
+      };
+    }
+    isNearBottomRef.current = false;
+    setVisibleCount(prev => prev + count);
+  }, []);
+
+  const handleLoadAllMessages = useCallback(() => {
+    if (hiddenCount <= 0) return;
+    loadOlderMessages(hiddenCount);
+  }, [hiddenCount, loadOlderMessages]);
 
   const updateNearBottomState = useCallback(() => {
     const container = chatScrollRef.current;
@@ -494,6 +602,11 @@ const ChatTranscript = React.memo<ChatTranscriptProps>(({
 
     const handleScroll = () => {
       updateNearBottomState();
+      // Automatically prepend the next page of older messages as the user scrolls near the top
+      if (hiddenCount > 0 && !isAutoLoadingRef.current && container.scrollTop < 140) {
+        isAutoLoadingRef.current = true;
+        loadOlderMessages(HISTORY_PAGE_SIZE);
+      }
     };
 
     updateNearBottomState();
@@ -501,21 +614,55 @@ const ChatTranscript = React.memo<ChatTranscriptProps>(({
     return () => {
       container.removeEventListener('scroll', handleScroll);
     };
-  }, [updateNearBottomState]);
+  }, [updateNearBottomState, hiddenCount, loadOlderMessages]);
 
   useLayoutEffect(() => {
     const container = chatScrollRef.current;
-    if (!container || !isNearBottomRef.current) return;
-    container.scrollTop = container.scrollHeight;
-  }, [messages.length, streamingDraft, retrievalStatus]);
+    if (!container) return;
+
+    if (pendingScrollRestoreRef.current) {
+      const { scrollHeight: prevScrollHeight, scrollTop: prevScrollTop } = pendingScrollRestoreRef.current;
+      const delta = container.scrollHeight - prevScrollHeight;
+      container.scrollTop = Math.max(0, prevScrollTop + delta);
+      pendingScrollRestoreRef.current = null;
+      isAutoLoadingRef.current = false;
+      return;
+    }
+
+    if (isNearBottomRef.current) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }, [sessionId, displayedMessages.length, visibleMessages.length, streamingDraft, retrievalStatus]);
 
   return (
     <main ref={chatScrollRef} className="flex-1 overflow-y-auto p-[var(--space-4)] space-y-[var(--space-6)]">
-      {messages.filter(m => m.role !== 'system').map((msg, index, arr) => {
-          const isLastMessage = index === arr.length - 1;
+      {hiddenCount > 0 && (
+        <div className="flex flex-wrap items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[--bg-secondary] border border-[--border-primary] text-xs text-[--text-muted]">
+          <span>
+            Showing latest {displayedMessages.length} of {visibleMessages.length} messages ({hiddenCount} older hidden for fast loading)
+          </span>
+          <button
+            type="button"
+            onClick={() => loadOlderMessages(HISTORY_PAGE_SIZE)}
+            className="px-2.5 py-1 rounded-md bg-[--bg-tertiary] hover:bg-[--bg-hover] text-[--text-primary] font-medium border border-[--border-primary] transition-colors"
+          >
+            Load {Math.min(HISTORY_PAGE_SIZE, hiddenCount)} older
+          </button>
+          <button
+            type="button"
+            onClick={handleLoadAllMessages}
+            className="px-2.5 py-1 rounded-md bg-transparent hover:bg-[--bg-hover] text-[--text-secondary] hover:text-[--text-primary] border border-[--border-primary]/70 transition-colors"
+          >
+            Load all
+          </button>
+        </div>
+      )}
+      {displayedMessages.map((msg, index) => {
+          const absoluteIndex = hiddenCount + index;
+          const isLastMessage = index === displayedMessages.length - 1;
           return (
               <MemoizedChatMessage
-                  key={msg.id || `${msg.role}-${index}`}
+                  key={msg.id || `${msg.role}-${absoluteIndex}`}
                   msg={msg}
                   markdownComponents={markdownComponents}
                   theme={theme}
@@ -565,6 +712,7 @@ interface ChatViewProps {
   onSetSessionAgentToolsEnabled: (enabled: boolean) => void;
   onRunCodeSnippet: (language: string, code: string) => void;
   onRegisterInputFocusHandler?: (handler: (() => void) | null) => void;
+  onSaveModelDefaultConfig?: (modelId: string, generationConfig: GenerationConfig) => void;
 }
 
 const PersonaSelectorItem: React.FC<{
@@ -584,7 +732,7 @@ const PersonaSelectorItem: React.FC<{
   );
 };
 
-export default function ChatView({ session, provider, onSendMessage, isResponding, streamingDraft, retrievalStatus, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onSetSessionGenerationConfig, onSetSessionAgentToolsEnabled, onRunCodeSnippet, onRegisterInputFocusHandler }: ChatViewProps) {
+export default function ChatView({ session, provider, onSendMessage, isResponding, streamingDraft, retrievalStatus, onStopGeneration, onRenameSession, theme, isElectron, projects, predefinedInput, onPrefillConsumed, models, onSelectModel, predefinedPrompts, systemPrompts, onSetSessionSystemPrompt, onSetSessionGenerationConfig, onSetSessionAgentToolsEnabled, onRunCodeSnippet, onRegisterInputFocusHandler, onSaveModelDefaultConfig }: ChatViewProps) {
   const [input, setInput] = useState('');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -592,6 +740,7 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
   const [isPersonaSelectorOpen, setIsPersonaSelectorOpen] = useState(false);
   const [isParamsOpen, setIsParamsOpen] = useState(false);
+  const [isSavedDefault, setIsSavedDefault] = useState(false);
   const [isPromptsOpen, setIsPromptsOpen] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [preciseInputTokens, setPreciseInputTokens] = useState<number>(0);
@@ -600,7 +749,6 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
   const titleInputRef = useRef<HTMLInputElement>(null);
   const modelSelectorRef = useRef<HTMLDivElement>(null);
   const personaSelectorRef = useRef<HTMLDivElement>(null);
-  const paramsSelectorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const promptsPopoverRef = useRef<HTMLDivElement>(null);
   const promptsButtonRef = useRef<HTMLButtonElement>(null);
@@ -622,13 +770,20 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
     return id.includes('gemini') || id.includes('gpt-') || id.includes('claude') || id.includes('llama-3') || id.includes('mistral') || id.includes('qwen');
   }, [currentModel]);
 
+  const historyUsedTokens = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const usage = messages[i]?.metadata?.usage;
+      if (usage) {
+        return usage.total_tokens || 0;
+      }
+    }
+    return 0;
+  }, [messages]);
+
   const contextStats = useMemo(() => {
-    const lastMessageWithUsage = [...messages].reverse().find(m => m.metadata?.usage);
-    const historyUsed = lastMessageWithUsage?.metadata?.usage?.total_tokens || 0;
-    
     // Use precise count if available, otherwise heuristic
     const inputUsed = preciseInputTokens > 0 ? preciseInputTokens : Math.ceil(input.length / 3.5);
-    const used = historyUsed + inputUsed;
+    const used = historyUsedTokens + inputUsed;
 
     const getFallbackContextLength = () => {
       const modelId = currentModel?.id.toLowerCase() || '';
@@ -640,12 +795,12 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
       return 131072; // Default to 128K for modern models
     };
 
-    const max = currentModel?.details?.context_length || getFallbackContextLength();
+    const max = session.generationConfig?.maxContext || session.generationConfig?.maxTokens || currentModel?.details?.context_length || getFallbackContextLength();
     const percent = Math.min(100, Math.round((used / max) * 100));
     return { used, max, percent, verified: isTokenCountVerified };
-  }, [messages, currentModel, input, preciseInputTokens, isTokenCountVerified]);
+  }, [historyUsedTokens, currentModel, input, preciseInputTokens, isTokenCountVerified, session.generationConfig]);
 
-  const contextTooltip = useTooltipTrigger(`Context Usage: ${contextStats.used} / ${contextStats.max} tokens (${contextStats.percent}%)`);
+  const contextTooltip = useTooltipTrigger(`Context Usage: ${contextStats.used.toLocaleString()} / ${contextStats.max.toLocaleString()} tokens (${contextStats.percent}%)`);
   const visionTooltip = useTooltipTrigger("This model supports image analysis (Vision)");
   const toolsTooltip = useTooltipTrigger("This model supports native tool use (Function Calling)");
   
@@ -708,7 +863,6 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
 
   useClickOutside(modelSelectorRef, () => setIsModelSelectorOpen(false), isModelSelectorOpen);
   useClickOutside(personaSelectorRef, () => setIsPersonaSelectorOpen(false), isPersonaSelectorOpen);
-  useClickOutside(paramsSelectorRef, () => setIsParamsOpen(false), isParamsOpen);
   useClickOutside([promptsPopoverRef, promptsButtonRef], () => setIsPromptsOpen(false), isPromptsOpen);
   
   useEffect(() => {
@@ -847,27 +1001,56 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
       }
   };
 
-  const handleParamChange = (param: keyof GenerationConfig, value: string) => {
-    const numValue = parseFloat(value);
-    if (isNaN(numValue)) return;
-    
-    const newConfig = {
+  const parseNumericParam = (value: string | number): number | undefined => {
+    if (typeof value === 'number') {
+        return isNaN(value) ? undefined : value;
+    }
+    const trimmed = value.trim();
+    if (trimmed === '') {
+        return undefined;
+    }
+    const parsed = parseFloat(trimmed);
+    return isNaN(parsed) ? undefined : parsed;
+  };
+
+  const handleParamsChange = (updates: Partial<Record<keyof GenerationConfig, string | number | undefined>>) => {
+    const newConfig: GenerationConfig = {
         ...session.generationConfig,
-        [param]: numValue
     };
+
+    (Object.keys(updates) as (keyof GenerationConfig)[]).forEach((param) => {
+        const rawValue = updates[param];
+        if (rawValue === undefined) {
+            delete newConfig[param];
+            return;
+        }
+        const numValue = parseNumericParam(rawValue);
+        if (numValue === undefined) {
+            delete newConfig[param];
+        } else {
+            (newConfig as any)[param] = numValue;
+        }
+    });
+
     onSetSessionGenerationConfig(newConfig);
+  };
+
+  const handleParamChange = (param: keyof GenerationConfig, value: string | number) => {
+    handleParamsChange({ [param]: value });
   };
   
   const handleResetParams = () => {
+    const defaultContext = currentModel?.details?.context_length;
     onSetSessionGenerationConfig({
         temperature: 0.8,
         topK: 40,
         topP: 0.9,
+        maxTokens: defaultContext,
+        maxContext: defaultContext,
     });
-    setIsParamsOpen(false);
   };
   
-  const markdownComponents = useMemo(() => ({
+  const markdownComponents = useMemo<Components>(() => ({
     code({ inline, className, children, ...props }: any) {
       const match = /language-(\w+)/.exec(className || '');
       const codeString = String(children).replace(/\n$/, '');
@@ -970,6 +1153,7 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
         </header>
 
         <ChatTranscript
+          sessionId={session.id}
           messages={messages}
           theme={theme}
           isResponding={isResponding}
@@ -1181,8 +1365,23 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
       </div>
 
       {/* Right Sidebar for Parameters (LM Studio Style) */}
-      <aside className={`w-80 h-full bg-[--bg-sidebar]/80 backdrop-blur-md border-l border-[--border-primary] overflow-y-auto transition-all duration-300 transform ${isParamsOpen ? 'translate-x-0' : 'translate-x-full fixed right-0 opacity-0 pointer-events-none'}`}>
+      <aside
+        aria-label="Chat Configuration Sidebar"
+        className={`w-80 h-full bg-[--bg-sidebar]/80 backdrop-blur-md border-l border-[--border-primary] overflow-y-auto transition-all duration-300 transform ${isParamsOpen ? 'translate-x-0' : 'translate-x-full fixed right-0 opacity-0 pointer-events-none'}`}
+      >
           <div className="p-6 space-y-8">
+              <div className="flex items-center justify-between -mb-4">
+                  <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-[--text-primary]">Configuration</h2>
+                  <button
+                      type="button"
+                      onClick={() => setIsParamsOpen(false)}
+                      className="p-1 rounded-md text-[--text-muted] hover:text-[--text-primary] hover:bg-[--bg-hover] transition-colors"
+                      title="Close Configuration Sidebar"
+                      aria-label="Close Configuration Sidebar"
+                  >
+                      <XIcon className="w-4 h-4" />
+                  </button>
+              </div>
               <div>
                   <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-[--text-muted] mb-4">Chat Context</h3>
                   <div className="space-y-4">
@@ -1286,6 +1485,94 @@ export default function ChatView({ session, provider, onSendMessage, isRespondin
                               className="w-full h-1 bg-[--bg-tertiary] rounded-lg appearance-none cursor-pointer accent-[--accent-chat]"
                           />
                       </div>
+
+                      <div className="space-y-3 pt-4 border-t border-[--border-primary]/40">
+                          <div className="flex justify-between items-center text-xs">
+                              <span className="text-[--text-secondary] font-medium">Max Context / Output Tokens</span>
+                              <span className="font-mono text-[--accent-chat] text-[11px]">
+                                  {session.generationConfig?.maxTokens
+                                      ? `${session.generationConfig.maxTokens.toLocaleString()} tokens`
+                                      : (currentModel?.details?.context_length
+                                          ? `${currentModel.details.context_length.toLocaleString()} (Model Max)`
+                                          : 'Default')}
+                              </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                              <input
+                                  type="number"
+                                  min="512"
+                                  max={Math.max(1048576, currentModel?.details?.context_length || 262144)}
+                                  step="1024"
+                                  value={session.generationConfig?.maxTokens ?? session.generationConfig?.maxContext ?? currentModel?.details?.context_length ?? ''}
+                                  onChange={e => {
+                                      handleParamsChange({ maxTokens: e.target.value, maxContext: e.target.value });
+                                  }}
+                                  placeholder={currentModel?.details?.context_length ? String(currentModel.details.context_length) : 'e.g. 262144'}
+                                  className="w-full bg-[--bg-tertiary] text-[--text-primary] text-xs font-mono px-3 py-1.5 rounded-lg border border-[--border-primary] focus:outline-none focus:border-[--accent-chat]"
+                              />
+                              <button
+                                  type="button"
+                                  onClick={() => {
+                                      const max = currentModel?.details?.context_length || 262144;
+                                      handleParamsChange({ maxTokens: max, maxContext: max });
+                                  }}
+                                  className="px-2.5 py-1.5 text-[10px] font-bold bg-[--bg-tertiary] hover:bg-[--bg-hover] text-[--text-secondary] hover:text-[--text-primary] rounded-lg border border-[--border-primary] transition-colors whitespace-nowrap"
+                                  title="Set to model maximum context length"
+                              >
+                                  MAX
+                              </button>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                              {[8192, 16384, 32768, 65536, 131072, 262144].map(preset => {
+                                  const isCurrent = (session.generationConfig?.maxTokens === preset);
+                                  const label = preset >= 1048576 ? `${preset / 1048576}M` : `${preset / 1024}k`;
+                                  return (
+                                      <button
+                                          key={preset}
+                                          type="button"
+                                          onClick={() => {
+                                              handleParamsChange({ maxTokens: preset, maxContext: preset });
+                                          }}
+                                          className={`px-2 py-1 text-[10px] font-mono rounded-md border transition-colors ${
+                                              isCurrent
+                                                  ? 'bg-[--accent-chat] text-white border-[--accent-chat]'
+                                                  : 'bg-[--bg-tertiary]/70 text-[--text-muted] border-[--border-primary] hover:text-[--text-primary] hover:bg-[--bg-hover]'
+                                          }`}
+                                      >
+                                          {label}
+                                      </button>
+                                  );
+                              })}
+                          </div>
+                          <p className="text-[10px] text-[--text-muted]">
+                              Sets the maximum response and context tokens. Increase to 262k+ to prevent models with large context windows from being cut off at 64k.
+                          </p>
+                      </div>
+
+                      {onSaveModelDefaultConfig && (
+                          <div className="pt-2">
+                              <button
+                                  type="button"
+                                  onClick={() => {
+                                      if (session.generationConfig) {
+                                          onSaveModelDefaultConfig(session.modelId, session.generationConfig);
+                                          setIsSavedDefault(true);
+                                          setTimeout(() => setIsSavedDefault(false), 2000);
+                                      }
+                                  }}
+                                  className="w-full py-2 px-3 text-xs font-medium rounded-lg border border-[--border-primary] bg-[--bg-tertiary] hover:bg-[--bg-hover] text-[--text-secondary] hover:text-[--text-primary] transition-colors flex items-center justify-center gap-1.5"
+                              >
+                                  {isSavedDefault ? (
+                                      <>
+                                          <CheckIcon className="w-4 h-4 text-green-500" />
+                                          <span className="text-green-500 font-semibold">Saved for {session.modelId}</span>
+                                      </>
+                                  ) : (
+                                      <span>Save as Default for this Model</span>
+                                  )}
+                              </button>
+                          </div>
+                      )}
 
                       <div className="space-y-3 pt-4 border-t border-[--border-primary]/40">
                           <div className="flex items-center justify-between">

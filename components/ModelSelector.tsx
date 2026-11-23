@@ -21,6 +21,16 @@ const formatBytes = (bytes?: number, decimals = 1) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 };
 
+const formatTokens = (tokens?: number) => {
+    if (!tokens) return null;
+    if (tokens >= 1048576) {
+        const m = (tokens / 1048576).toFixed(tokens % 1048576 === 0 ? 0 : 1);
+        return `${m}M`;
+    }
+    const k = Math.round(tokens / 1024);
+    return `${k}k`;
+};
+
 const DetailItem: React.FC<{ label: string; value?: string | number | null }> = ({ label, value }) => {
     if (!value) return null;
     return (
@@ -53,6 +63,8 @@ const ModelDetailsModal: React.FC<ModelDetailsModalProps> = ({ model, onClose, t
                         <DetailItem label="Size" value={size} />
                         <DetailItem label="Family" value={details?.family} />
                         <DetailItem label="Parameters" value={details?.parameter_size} />
+                        <DetailItem label="Quantization" value={details?.quantization} />
+                        <DetailItem label="Context Length" value={details?.context_length ? `${details.context_length.toLocaleString()} tokens (${formatTokens(details.context_length)} ctx)` : null} />
                     </div>
 
                     {model.details?.modelfile && (
@@ -105,7 +117,7 @@ const ModelListItem: React.FC<{ model: Model; onSelect: () => void; onShowDetail
     size && { value: size },
     details?.family && { value: details.family },
     details?.quantization && { value: details.quantization },
-    details?.context_length && { value: `${details.context_length / 1000}k ctx`, label: "Context Length" },
+    details?.context_length && { value: `${formatTokens(details.context_length)} ctx`, label: `Context Length: ${details.context_length.toLocaleString()} tokens` },
   ].filter(Boolean);
 
   return (
@@ -113,7 +125,7 @@ const ModelListItem: React.FC<{ model: Model; onSelect: () => void; onShowDetail
       onClick={onSelect}
       className="relative flex flex-col p-4 bg-[--bg-primary] border border-[--border-primary] rounded-[--border-radius] cursor-pointer hover:bg-[--bg-hover] hover:border-[--accent-chat] transition-all duration-200 shadow-sm hover:shadow-lg h-full"
     >
-        {provider?.id === 'ollama' && (
+        {(provider?.id === 'ollama' || !!details?.context_length || !!details?.family || !!details?.modelfile) && (
             <button
                 {...detailsTooltip}
                 onClick={(e) => { e.stopPropagation(); onShowDetails(); }}

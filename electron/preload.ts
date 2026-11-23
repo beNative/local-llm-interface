@@ -2,7 +2,7 @@
 
 // FIX: Changed from destructured import to namespace import to resolve module access errors.
 import * as electron from 'electron';
-import type { CodeProject, GlobalShortcutRegistrationInput, ShortcutActionId } from '../src/types';
+import type { ChatSession, ChatSessionSummary, CodeProject, GlobalShortcutRegistrationInput, ShortcutActionId } from '../types';
 
 /**
  * Expose protected methods that allow the renderer process to use
@@ -21,6 +21,13 @@ electron.contextBridge.exposeInMainWorld('electronAPI', {
    * @returns {Promise<void>} A promise that resolves when the settings are saved.
    */
   saveSettings: (settings: object) => electron.ipcRenderer.invoke('settings:save', settings),
+
+  // Dedicated per-session lazy storage APIs
+  listSessions: (): Promise<ChatSessionSummary[]> => electron.ipcRenderer.invoke('sessions:list'),
+  getSession: (sessionId: string): Promise<ChatSession | null> => electron.ipcRenderer.invoke('sessions:get', sessionId),
+  saveSession: (session: ChatSession): Promise<void> => electron.ipcRenderer.invoke('sessions:save', session),
+  deleteSessions: (sessionIds: string[]): Promise<void> => electron.ipcRenderer.invoke('sessions:delete', sessionIds),
+  importLegacySessions: (sessions: ChatSession[]): Promise<ChatSessionSummary[]> => electron.ipcRenderer.invoke('sessions:import-legacy', sessions),
 
   registerGlobalShortcuts: (shortcuts: GlobalShortcutRegistrationInput[]) => electron.ipcRenderer.invoke('shortcuts:register-global', shortcuts),
   onShortcutTriggered: (callback: (actionId: ShortcutActionId) => void) => electron.ipcRenderer.on('shortcuts:trigger', (_event, actionId) => callback(actionId)),

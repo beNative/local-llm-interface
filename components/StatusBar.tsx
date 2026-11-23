@@ -6,10 +6,11 @@ import GoogleGeminiIcon from './icons/GoogleGeminiIcon';
 import Icon from './Icon';
 import type { LLMProviderConfig, SystemStats, Model } from '../types';
 import { useTooltipTrigger } from '../hooks/useTooltipTrigger';
+import { useSystemStats } from '../hooks/useSystemStats';
 
 
 interface StatusBarProps {
-    stats: SystemStats | null;
+    isElectron: boolean;
     connectionStatus: 'connected' | 'connecting' | 'error';
     statusText: string;
     providers: LLMProviderConfig[];
@@ -39,7 +40,8 @@ const ProviderIcons: Record<string, React.FC<{className?: string}>> = {
 };
 
 
-const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusText, providers, selectedProviderId, activeModel, activeProject, models, onSelectModel, onChangeProvider, version }) => {
+const StatusBar: React.FC<StatusBarProps> = React.memo(({ isElectron, connectionStatus, statusText, providers, selectedProviderId, activeModel, activeProject, models, onSelectModel, onChangeProvider, version }) => {
+    const stats = useSystemStats(isElectron);
     const [isProviderPopoverOpen, setIsProviderPopoverOpen] = useState(false);
     const [isModelPopoverOpen, setIsModelPopoverOpen] = useState(false);
     const providerRef = useRef<HTMLDivElement>(null);
@@ -208,6 +210,6 @@ const StatusBar: React.FC<StatusBarProps> = ({ stats, connectionStatus, statusTe
             </div>
         </footer>
     );
-};
+});
 
 export default StatusBar;
